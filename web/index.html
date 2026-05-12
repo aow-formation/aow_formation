@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>전쟁의 시대</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+
+    <!-- ── 홈 화면 ── -->
+    <div id="homeScreen" class="screen-overlay home-screen">
+      <div class="home-bg"></div>
+      <div class="home-content">
+        <div class="home-title-block">
+          <h1 class="home-title">전쟁의 시대</h1>
+          <p class="home-subtitle">FORMATION</p>
+        </div>
+        <nav class="home-menu">
+          <button id="menuQuickBattle"  class="home-btn home-btn--main">⚔&nbsp; 빠른 전투</button>
+          <button class="home-btn wip-btn">📜&nbsp; 역사 시나리오</button>
+          <button class="home-btn wip-btn">🌍&nbsp; 월드 모드</button>
+          <button class="home-btn wip-btn">📖&nbsp; 게임 소개</button>
+          <button class="home-btn wip-btn">💬&nbsp; 커뮤니티</button>
+        </nav>
+        <div id="homeToast" class="home-toast" hidden>준비 중인 기능입니다</div>
+      </div>
+    </div>
+
+    <!-- ── 병력 조정 화면 ── -->
+    <div id="troopAdjustScreen" class="screen-overlay troop-adjust-screen" hidden>
+      <div class="adjust-panel">
+        <h2 class="adjust-title">병력 조정</h2>
+        <!-- 아군: 가로 카드 -->
+        <div class="adjust-section">
+          <div class="adjust-side-header">
+            <span class="adjust-side-label player-label">아군</span>
+            <span class="adjust-side-total">총 병력&nbsp;<strong id="adjustPlayerTotal">50,000</strong></span>
+          </div>
+          <div id="adjustPlayerRows" class="adjust-cards"></div>
+        </div>
+
+        <div class="adjust-divider-h"></div>
+
+        <!-- 적군: 컴팩트 리스트 -->
+        <div class="adjust-section">
+          <div class="adjust-side-header">
+            <span class="adjust-side-label enemy-label">적군</span>
+            <span class="adjust-side-total adjust-readonly-note">조정 불가 · 총 병력&nbsp;<strong id="adjustEnemyTotal">50,000</strong></span>
+          </div>
+          <div id="adjustEnemyRows" class="adjust-enemy-list"></div>
+        </div>
+        <div class="adjust-actions">
+          <button id="adjustApply"  class="btn-primary">적용</button>
+          <button id="adjustCancel" class="btn-stone">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 전투 결과 화면 ── -->
+    <div id="battleResultScreen" class="screen-overlay battle-result-screen" hidden>
+      <div class="result-panel">
+        <div id="resultVerdict" class="result-verdict">승리</div>
+        <div class="result-time">전투 시간&nbsp;<span id="resultTime">0.0</span>초</div>
+        <div class="result-summary">
+          <div class="result-side">
+            <div class="result-side-label player-label">아군</div>
+            <table id="resultPlayerTable" class="result-table">
+              <thead><tr><th>장수</th><th>처치</th><th>손실</th><th>잔존</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="result-side">
+            <div class="result-side-label enemy-label">적군</div>
+            <table id="resultEnemyTable" class="result-table">
+              <thead><tr><th>장수</th><th>처치</th><th>손실</th><th>잔존</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="result-totals">
+          <div class="result-total-row">
+            <span class="player-label">아군 잔존</span>
+            <strong id="resultPlayerRemaining"></strong>
+          </div>
+          <div class="result-total-row">
+            <span class="enemy-label">적군 잔존</span>
+            <strong id="resultEnemyRemaining"></strong>
+          </div>
+        </div>
+        <div class="result-actions">
+          <button id="resultReplay"     class="btn-primary">같은 조건으로 재전투</button>
+          <button id="resultNewBattle"  class="btn-stone">새로운 전투</button>
+          <button id="resultHome"       class="btn-stone">홈 화면</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 전투 화면 ── -->
+    <div class="app-shell" id="appShell" hidden>
+      <header class="topbar">
+        <h1 class="game-title">전쟁의 시대</h1>
+        <div class="topbar-actions">
+          <button id="troopAdjustBtn" class="btn-stone">병력 조정</button>
+          <button id="phaseButton" class="btn-primary">전투 개시</button>
+          <button id="speedToggleButton" class="btn-stone">2배속</button>
+        </div>
+      </header>
+
+      <section id="hud" class="hud"></section>
+
+      <main class="board">
+        <div class="canvas-frame">
+          <canvas id="battleCanvas" width="1440" height="900"></canvas>
+          <div id="battleLoadingMask" class="battle-loading-mask">
+            <div class="battle-loading-text">전장 구성 중</div>
+          </div>
+        </div>
+        <aside class="panel">
+
+          <!-- 장수 정보 -->
+          <section class="panel-general">
+            <div class="panel-portrait-frame">
+              <img id="panelPortrait" class="panel-portrait" src="" alt="장수 초상화" hidden>
+            </div>
+            <div class="general-info">
+              <div class="general-name" id="panelGeneralName">부대를 선택하세요</div>
+              <div class="general-stats">
+                <div class="stat-row">
+                  <span class="stat-label">근접공격</span>
+                  <span id="panelMeleeAtk" class="stat-val">-</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">근접방어</span>
+                  <span id="panelMeleeDef" class="stat-val">-</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">원거리공격</span>
+                  <span id="panelRangedAtk" class="stat-val">-</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">원거리방어</span>
+                  <span id="panelRangedDef" class="stat-val">-</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 부대 지표 -->
+          <section class="panel-status">
+            <div class="panel-status-row">
+              <span class="panel-status-label">병력</span>
+              <span id="panelTroopCount" class="panel-status-value">-</span>
+            </div>
+            <div class="status-bar-wrap">
+              <div class="status-bar troop-bar" id="panelTroopFill" style="width:0%"></div>
+            </div>
+            <div class="panel-status-row">
+              <span class="panel-status-label">혼란도</span>
+              <span id="panelDisorderLabel" class="panel-status-value danger-text">0%</span>
+            </div>
+            <div class="status-bar-wrap">
+              <div class="status-bar disorder-bar" id="panelDisorderFill" style="width:0%"></div>
+            </div>
+          </section>
+
+          <!-- 이동 속도 -->
+          <section class="panel-section">
+            <h2 class="section-header">이동 속도</h2>
+            <div class="stop-row">
+              <button data-speed="STOP" class="btn-stone btn-stop">■ 정지</button>
+            </div>
+            <div class="button-row">
+              <button data-speed="SLOW"   class="btn-stone">느림</button>
+              <button data-speed="NORMAL" class="btn-stone">보통</button>
+              <button data-speed="FAST"   class="btn-stone">빠름</button>
+            </div>
+          </section>
+
+          <!-- 정렬 -->
+          <section class="panel-section">
+            <h2 class="section-header">대형</h2>
+            <div class="button-row">
+              <button id="ratioDown" class="btn-stone">◀ 종정렬</button>
+              <button id="ratioUp"   class="btn-stone">횡정렬 ▶</button>
+            </div>
+          </section>
+
+          <!-- 밀도 -->
+          <section class="panel-section">
+            <h2 class="section-header">밀도</h2>
+            <div class="button-row">
+              <button data-density="TIGHT"  class="btn-stone">촘촘</button>
+              <button data-density="NORMAL" class="btn-stone">보통</button>
+              <button data-density="WIDE"   class="btn-stone">넓게</button>
+            </div>
+          </section>
+
+          <!-- 스킬 -->
+          <section class="skill-section">
+            <h2 class="section-header">스킬</h2>
+            <button id="kihapBtn" class="kihap-btn" disabled>
+              <div class="kihap-fill" id="kihapFill"></div>
+              <span class="kihap-icon">氣</span>
+              <span class="kihap-label">기합</span>
+            </button>
+          </section>
+
+          <section class="help-section">
+            <div class="help-row"><kbd>TAB</kbd> 다음 부대</div>
+            <div class="help-row"><kbd>Space</kbd> 정지 / 재개</div>
+            <div class="help-row">우클릭 이동 · 방향 지정</div>
+            <div class="help-row">드래그 카메라 · 휠 줌</div>
+          </section>
+
+        </aside>
+      </main>
+    </div>
+
+    <script type="module" src="./src/bootstrap.js"></script>
+  </body>
+</html>

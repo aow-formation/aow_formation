@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>Border Tile Preview Generator</title>
+  <style>
+    body { font-family: monospace; background: #1a1a1a; color: #ddd; padding: 20px; }
+    h2 { color: #f0c840; }
+    .grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 20px; }
+    .item { text-align: center; }
+    .item canvas { display: block; border: 1px solid #444; image-rendering: pixelated; }
+    .item p { margin: 4px 0; font-size: 13px; color: #aaa; }
+    button { background: #3a3020; color: #f0c840; border: 1px solid #7a6010;
+             padding: 10px 20px; cursor: pointer; font-size: 14px; margin-bottom: 16px; }
+    button:hover { background: #5a4a28; }
+    #status { color: #80c060; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Border Tile Preview Generator — dirt × forest_floor</h2>
+  <p>8방향 알파마스크를 적용한 경계 타일 합성 결과를 생성합니다.</p>
+  <button onclick="generate()">생성 및 다운로드</button>
+  <div id="status"></div>
+  <div class="grid" id="grid"></div>
+
+<script>
+const BASE = "./assets/terrain_tiles_v3/";
+const DIRS = ["N","NE","E","SE","S","SW","W","NW"];
+const SCALE = 4; // 표시용 확대 배율
+
+function loadImg(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload  = () => resolve(img);
+    img.onerror = () => reject(new Error("로드 실패: " + src));
+    img.src = src;
+  });
+}
+
+function convertMaskToAlpha(maskImg) {
+  const W = maskImg.naturalWidth, H = maskImg.naturalHeight;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const cx = cv.getContext("2d");
+  cx.drawImage(maskImg, 0, 0, W, H);
+  const id = cx.getImageData(0, 0, W, H);
+  const d  = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i+3] = Math.round((d[i] + d[i+1] + d[i+2]) / 3); // 휘도 → 알파
+    d[i] = d[i+1] = d[i+2] = 255;
+  }
+  cx.putImageData(id, 0, 0);
+  return cv;
+}
+
+function composite(lower, upper, alphaMaskCv) {
+  const W = lower.naturalWidth, H = lower.naturalHeight;
+  const result = document.createElement("canvas");
+  result.width = W; result.height = H;
+  const rc = result.getContext("2d");
+
+  // 레이어 1: 하위 지형 (전체)
+  rc.drawImage(lower, 0, 0, W, H);
+
+  // 레이어 2+3: 상위 지형 × 알파마스크
+  const tmp = document.createElement("canvas");
+  tmp.width = W; tmp.height = H;
+  const tc = tmp.getContext("2d");
+  tc.drawImage(upper, 0, 0, W, H);
+  tc.globalCompositeOperation = "destination-in";
+  tc.drawImage(alphaMaskCv, 0, 0, W, H);
+
+  rc.drawImage(tmp, 0, 0, W, H);
+  return result;
+}
+
+async function generate() {
+  const status = document.getElementById("status");
+  const grid   = document.getElementById("grid");
+  grid.innerHTML = "";
+  status.textContent = "이미지 로딩 중...";
+
+  let lower, upper;
+  try {
+    [lower, upper] = await Promise.all([
+      loadImg(BASE + "tile_1x1/dirt/dirt_center.png"),
+      loadImg(BASE + "tile_1x1/forest_floor/forest_floor_center.png"),
+    ]);
+  } catch (e) {
+    status.textContent = "❌ " + e.message + " (로컬 서버에서 실행하세요)";
+    return;
+  }
+
+  status.textContent = "합성 중...";
+
+  for (const dir of DIRS) {
+    let maskImg;
+    try {
+      maskImg = await loadImg(BASE + `masks_1x1/edge_8/edge_mask_${dir}.png`);
+    } catch (e) {
+      status.textContent = `❌ 마스크 로드 실패: ${dir}`;
+      return;
+    }
+
+    const alphaMask = convertMaskToAlpha(maskImg);
+    const result    = composite(lower, upper, alphaMask);
+    const filename  = `dirt_to_forest_${dir}.png`;
+
+    // 표시용 확대 캔버스
+    const display = document.createElement("canvas");
+    display.width  = result.width  * SCALE;
+    display.height = result.height * SCALE;
+    const dc = display.getContext("2d");
+    dc.imageSmoothingEnabled = false;
+    dc.drawImage(result, 0, 0, display.width, display.height);
+
+    const item = document.createElement("div");
+    item.className = "item";
+    item.appendChild(display);
+    const label = document.createElement("p");
+    label.textContent = filename;
+    item.appendChild(label);
+    grid.appendChild(item);
+
+    // 다운로드 (약간의 딜레이로 브라우저 대화상자 충돌 방지)
+    await new Promise(r => setTimeout(r, 100));
+    result.toBlob(blob => {
+      const a = document.createElement("a");
+      a.href     = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    }, "image/png");
+
+    status.textContent = `진행 중... ${dir}`;
+  }
+
+  status.textContent = `✅ 완료! ${DIRS.length}개 파일 다운로드됨 (dirt_to_forest_N.png ~ _NW.png)`;
+}
+</script>
+</body>
+</html>

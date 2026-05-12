@@ -1,0 +1,424 @@
+[
+  {
+    "name": "관우",
+    "country": "후한/촉한",
+    "era": "삼국시대",
+    "power": 96,
+    "leadership": 88,
+    "charm": 91,
+    "portrait": "assets/portraits/guan_yu.png"
+  },
+  {
+    "name": "장비",
+    "country": "후한/촉한",
+    "era": "삼국시대",
+    "power": 97,
+    "leadership": 82,
+    "charm": 74,
+    "portrait": "assets/portraits/zhang_fei.png"
+  },
+  {
+    "name": "조조",
+    "country": "후한/위",
+    "era": "삼국시대",
+    "power": 84,
+    "leadership": 96,
+    "charm": 89,
+    "portrait": "assets/portraits/cao_cao.png",
+    "optionalSkills": [
+      "fire"
+    ]
+  },
+  {
+    "name": "유비",
+    "country": "후한/촉한",
+    "era": "삼국시대",
+    "power": 76,
+    "leadership": 86,
+    "charm": 96,
+    "portrait": "assets/portraits/liu_bei.png"
+  },
+  {
+    "name": "제갈량",
+    "country": "촉한",
+    "era": "삼국시대",
+    "power": 62,
+    "leadership": 95,
+    "charm": 93,
+    "portrait": "assets/portraits/zhuge_liang.png",
+    "optionalSkills": [
+      "fire"
+    ]
+  },
+  {
+    "name": "사마의",
+    "country": "위",
+    "era": "삼국시대",
+    "power": 70,
+    "leadership": 94,
+    "charm": 85,
+    "portrait": "assets/portraits/sima_yi.png",
+    "optionalSkills": [
+      "fire"
+    ]
+  },
+  {
+    "name": "손권",
+    "country": "오",
+    "era": "삼국시대",
+    "power": 74,
+    "leadership": 88,
+    "charm": 90,
+    "portrait": "assets/portraits/sun_quan.png"
+  },
+  {
+    "name": "주유",
+    "country": "오",
+    "era": "삼국시대",
+    "power": 78,
+    "leadership": 94,
+    "charm": 92,
+    "portrait": "assets/portraits/zhou_yu.png",
+    "optionalSkills": [
+      "fire"
+    ]
+  },
+  {
+    "name": "여포",
+    "country": "후한",
+    "era": "삼국시대",
+    "power": 99,
+    "leadership": 75,
+    "charm": 72,
+    "portrait": "assets/portraits/lu_bu.png"
+  },
+  {
+    "name": "조운",
+    "country": "촉한",
+    "era": "삼국시대",
+    "power": 94,
+    "leadership": 87,
+    "charm": 90,
+    "portrait": "assets/portraits/zhao_yun.png"
+  },
+  {
+    "name": "황충",
+    "country": "촉한",
+    "era": "삼국시대",
+    "power": 91,
+    "leadership": 82,
+    "charm": 79,
+    "portrait": "assets/portraits/huang_zhong.png",
+    "optionalSkills": [
+      "archery"
+    ]
+  },
+  {
+    "name": "마초",
+    "country": "촉한",
+    "era": "삼국시대",
+    "power": 95,
+    "leadership": 84,
+    "charm": 82,
+    "portrait": "assets/portraits/ma_chao.png"
+  },
+  {
+    "name": "강유",
+    "country": "촉한",
+    "era": "삼국시대",
+    "power": 86,
+    "leadership": 91,
+    "charm": 84,
+    "portrait": "assets/portraits/jiang_wei.png",
+    "optionalSkills": [
+      "archery"
+    ]
+  },
+  {
+    "name": "육손",
+    "country": "오",
+    "era": "삼국시대",
+    "power": 72,
+    "leadership": 95,
+    "charm": 86,
+    "portrait": "assets/portraits/lu_xun.png",
+    "optionalSkills": [
+      "fire"
+    ]
+  },
+  {
+    "name": "장료",
+    "country": "위",
+    "era": "삼국시대",
+    "power": 93,
+    "leadership": 90,
+    "charm": 83,
+    "portrait": "assets/portraits/zhang_liao.png"
+  },
+  {
+    "name": "허저",
+    "country": "위",
+    "era": "삼국시대",
+    "power": 94,
+    "leadership": 74,
+    "charm": 73,
+    "portrait": "assets/portraits/xu_chu.png"
+  },
+  {
+    "name": "전위",
+    "country": "위",
+    "era": "삼국시대",
+    "power": 95,
+    "leadership": 72,
+    "charm": 76,
+    "portrait": "assets/portraits/dian_wei.png"
+  },
+  {
+    "name": "등애",
+    "country": "위",
+    "era": "삼국시대",
+    "power": 83,
+    "leadership": 92,
+    "charm": 78,
+    "portrait": "assets/portraits/deng_ai.png"
+  },
+  {
+    "name": "종회",
+    "country": "위",
+    "era": "삼국시대",
+    "power": 71,
+    "leadership": 88,
+    "charm": 80,
+    "portrait": "assets/portraits/zhong_hui.png"
+  },
+  {
+    "name": "항우",
+    "country": "초",
+    "era": "초한쟁패기",
+    "power": 99,
+    "leadership": 91,
+    "charm": 88,
+    "portrait": "assets/portraits/xiang_yu.png"
+  },
+  {
+    "name": "한신",
+    "country": "한",
+    "era": "초한쟁패기",
+    "power": 84,
+    "leadership": 98,
+    "charm": 82,
+    "portrait": "assets/portraits/han_xin.png",
+    "optionalSkills": [
+      "flood"
+    ]
+  },
+  {
+    "name": "백기",
+    "country": "진",
+    "era": "전국시대",
+    "power": 91,
+    "leadership": 97,
+    "charm": 70,
+    "portrait": "assets/portraits/bai_qi.png"
+  },
+  {
+    "name": "왕전",
+    "country": "진",
+    "era": "전국시대",
+    "power": 88,
+    "leadership": 96,
+    "charm": 82,
+    "portrait": "assets/portraits/wang_jian.png"
+  },
+  {
+    "name": "이목",
+    "country": "조",
+    "era": "전국시대",
+    "power": 86,
+    "leadership": 97,
+    "charm": 87,
+    "portrait": "assets/portraits/li_mu.png",
+    "optionalSkills": [
+      "archery"
+    ]
+  },
+  {
+    "name": "염파",
+    "country": "조",
+    "era": "전국시대",
+    "power": 93,
+    "leadership": 91,
+    "charm": 80,
+    "portrait": "assets/portraits/lian_po.png"
+  },
+  {
+    "name": "위청",
+    "country": "전한",
+    "era": "한무제 시기",
+    "power": 90,
+    "leadership": 94,
+    "charm": 84,
+    "portrait": "assets/portraits/wei_qing.png",
+    "optionalSkills": [
+      "archery"
+    ]
+  },
+  {
+    "name": "곽거병",
+    "country": "전한",
+    "era": "한무제 시기",
+    "power": 96,
+    "leadership": 90,
+    "charm": 86,
+    "portrait": "assets/portraits/huo_qubing.png",
+    "optionalSkills": [
+      "archery"
+    ]
+  },
+  {
+    "name": "몽염",
+    "country": "진",
+    "era": "진시황 시기",
+    "power": 88,
+    "leadership": 92,
+    "charm": 79,
+    "portrait": "assets/portraits/meng_tian.png",
+    "optionalSkills": [
+      "archery"
+    ]
+  },
+  {
+    "name": "손빈",
+    "country": "제",
+    "era": "전국시대",
+    "power": 58,
+    "leadership": 96,
+    "charm": 84,
+    "portrait": "assets/portraits/sun_bin.png",
+    "optionalSkills": [
+      "flood"
+    ]
+  },
+  {
+    "name": "오자서",
+    "country": "오",
+    "era": "춘추시대",
+    "power": 79,
+    "leadership": 90,
+    "charm": 83,
+    "portrait": "assets/portraits/wu_zixu.png",
+    "optionalSkills": [
+      "flood"
+    ]
+  },
+  {
+    "name": "김유신",
+    "country": "신라",
+    "era": "삼국시대",
+    "power": 89,
+    "leadership": 94,
+    "charm": 88,
+    "portrait": "assets/portraits/kim_yusin.png"
+  },
+  {
+    "name": "을지문덕",
+    "country": "고구려",
+    "era": "삼국시대",
+    "power": 82,
+    "leadership": 96,
+    "charm": 86,
+    "portrait": "assets/portraits/eulji_mundeok.png",
+    "optionalSkills": [
+      "flood",
+      "archery"
+    ]
+  },
+  {
+    "name": "계백",
+    "country": "백제",
+    "era": "삼국시대",
+    "power": 90,
+    "leadership": 88,
+    "charm": 84,
+    "portrait": "assets/portraits/gyebaek.png"
+  },
+  {
+    "name": "연개소문",
+    "country": "고구려",
+    "era": "삼국시대",
+    "power": 92,
+    "leadership": 92,
+    "charm": 78,
+    "portrait": "assets/portraits/yeon_gaesomun.png",
+    "optionalSkills": [
+      "archery"
+    ]
+  },
+  {
+    "name": "강감찬",
+    "country": "고려",
+    "era": "고려 전기",
+    "power": 72,
+    "leadership": 96,
+    "charm": 87,
+    "portrait": "assets/portraits/gang_gamchan.png",
+    "optionalSkills": [
+      "flood",
+      "archery"
+    ]
+  },
+  {
+    "name": "한니발",
+    "country": "카르타고",
+    "era": "제2차 포에니 전쟁",
+    "power": 86,
+    "leadership": 98,
+    "charm": 90,
+    "portrait": "assets/portraits/hannibal.png",
+    "optionalSkills": [
+      "fire"
+    ]
+  },
+  {
+    "name": "카이사르",
+    "country": "로마 공화정",
+    "era": "로마 공화정 말기",
+    "power": 82,
+    "leadership": 97,
+    "charm": 95,
+    "portrait": "assets/portraits/caesar.png"
+  },
+  {
+    "name": "알렉산드로스",
+    "country": "마케도니아",
+    "era": "헬레니즘 시대",
+    "power": 95,
+    "leadership": 98,
+    "charm": 94,
+    "portrait": "assets/portraits/alexander.png"
+  },
+  {
+    "name": "아틸라",
+    "country": "훈",
+    "era": "고대 말기",
+    "power": 95,
+    "leadership": 91,
+    "charm": 78,
+    "portrait": "assets/portraits/attila.png",
+    "optionalSkills": [
+      "archery"
+    ]
+  },
+  {
+    "name": "살라딘",
+    "country": "아이유브 왕조",
+    "era": "십자군 전쟁기",
+    "power": 86,
+    "leadership": 96,
+    "charm": 94,
+    "portrait": "assets/portraits/saladin.png",
+    "optionalSkills": [
+      "archery"
+    ]
+  }
+]

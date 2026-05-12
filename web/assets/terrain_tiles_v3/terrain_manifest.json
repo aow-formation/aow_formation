@@ -1,0 +1,618 @@
+{
+  "source_folder": "C:\\codex\\Age of war\\assets\\terrain_tiles",
+  "note": "v3 reorganizes existing diamond/isometric terrain images without regenerating terrain textures. Only the 8 1x1 alpha masks are newly generated.",
+  "tile_size": [
+    128,
+    64
+  ],
+  "terrain_priority_low_to_high": [
+    "river",
+    "river_bank",
+    "road",
+    "plain"
+  ],
+  "extra_terrain": [
+    "dirt"
+  ],
+  "plain_alias": "forest_floor",
+  "base_3x3": {
+    "dirt": [
+      "base_3x3\\dirt\\dirt_00.png",
+      "base_3x3\\dirt\\dirt_01.png",
+      "base_3x3\\dirt\\dirt_02.png",
+      "base_3x3\\dirt\\dirt_03.png",
+      "base_3x3\\dirt\\dirt_04.png",
+      "base_3x3\\dirt\\dirt_05.png",
+      "base_3x3\\dirt\\dirt_06.png",
+      "base_3x3\\dirt\\dirt_07.png"
+    ],
+    "river": [
+      "base_3x3\\river\\river_00.png",
+      "base_3x3\\river\\river_00_pure.png",
+      "base_3x3\\river\\river_01.png",
+      "base_3x3\\river\\river_02.png",
+      "base_3x3\\river\\river_03.png",
+      "base_3x3\\river\\river_04.png",
+      "base_3x3\\river\\river_05.png",
+      "base_3x3\\river\\river_06.png",
+      "base_3x3\\river\\river_07.png",
+      "base_3x3\\river\\river_08.png",
+      "base_3x3\\river\\river_09.png",
+      "base_3x3\\river\\river_10.png",
+      "base_3x3\\river\\river_11.png",
+      "base_3x3\\river\\river_12.png",
+      "base_3x3\\river\\river_13.png",
+      "base_3x3\\river\\river_14.png",
+      "base_3x3\\river\\river_15.png"
+    ],
+    "river_bank": [
+      "base_3x3\\river_bank\\river_bank_00.png",
+      "base_3x3\\river_bank\\river_bank_01.png",
+      "base_3x3\\river_bank\\river_bank_02.png",
+      "base_3x3\\river_bank\\river_bank_03.png",
+      "base_3x3\\river_bank\\river_bank_04.png",
+      "base_3x3\\river_bank\\river_bank_05.png",
+      "base_3x3\\river_bank\\river_bank_06.png",
+      "base_3x3\\river_bank\\river_bank_07.png"
+    ],
+    "road": [
+      "base_3x3\\road\\road_00.png",
+      "base_3x3\\road\\road_00_pure.png",
+      "base_3x3\\road\\road_01.png",
+      "base_3x3\\road\\road_02.png",
+      "base_3x3\\road\\road_03.png",
+      "base_3x3\\road\\road_04.png",
+      "base_3x3\\road\\road_05.png",
+      "base_3x3\\road\\road_06.png",
+      "base_3x3\\road\\road_07.png",
+      "base_3x3\\road\\road_08.png",
+      "base_3x3\\road\\road_09.png",
+      "base_3x3\\road\\road_10.png",
+      "base_3x3\\road\\road_11.png",
+      "base_3x3\\road\\road_12.png",
+      "base_3x3\\road\\road_13.png",
+      "base_3x3\\road\\road_14.png",
+      "base_3x3\\road\\road_15.png"
+    ],
+    "plain": [
+      "base_3x3\\plain\\plain_00.png",
+      "base_3x3\\plain\\plain_01.png",
+      "base_3x3\\plain\\plain_02.png",
+      "base_3x3\\plain\\plain_03.png",
+      "base_3x3\\plain\\plain_04.png",
+      "base_3x3\\plain\\plain_05.png",
+      "base_3x3\\plain\\plain_06.png",
+      "base_3x3\\plain\\plain_07.png",
+      "base_3x3\\plain\\plain_08.png",
+      "base_3x3\\plain\\plain_09.png",
+      "base_3x3\\plain\\plain_10.png",
+      "base_3x3\\plain\\plain_11.png"
+    ],
+    "forest_floor": [
+      "base_3x3\\forest_floor\\forest_floor_00.png",
+      "base_3x3\\forest_floor\\forest_floor_01.png",
+      "base_3x3\\forest_floor\\forest_floor_02.png",
+      "base_3x3\\forest_floor\\forest_floor_03.png",
+      "base_3x3\\forest_floor\\forest_floor_04.png",
+      "base_3x3\\forest_floor\\forest_floor_05.png",
+      "base_3x3\\forest_floor\\forest_floor_06.png",
+      "base_3x3\\forest_floor\\forest_floor_07.png",
+      "base_3x3\\forest_floor\\forest_floor_08.png",
+      "base_3x3\\forest_floor\\forest_floor_09.png",
+      "base_3x3\\forest_floor\\forest_floor_10.png",
+      "base_3x3\\forest_floor\\forest_floor_11.png"
+    ]
+  },
+  "tile_1x1": {
+    "dirt": [
+      "tile_1x1\\dirt\\dirt_center.png"
+    ],
+    "river": [
+      "tile_1x1\\river\\river_center.png"
+    ],
+    "river_bank": [
+      "tile_1x1\\river_bank\\river_bank_center.png"
+    ],
+    "road": [
+      "tile_1x1\\road\\road_center.png"
+    ],
+    "plain": [
+      "tile_1x1\\plain\\plain_center.png"
+    ],
+    "forest_floor": [
+      "tile_1x1\\forest_floor\\forest_floor_center.png"
+    ]
+  },
+  "masks_1x1": {
+    "edge_8": [
+      "masks_1x1\\edge_8\\edge_mask_N.png",
+      "masks_1x1\\edge_8\\edge_mask_NE.png",
+      "masks_1x1\\edge_8\\edge_mask_E.png",
+      "masks_1x1\\edge_8\\edge_mask_SE.png",
+      "masks_1x1\\edge_8\\edge_mask_S.png",
+      "masks_1x1\\edge_8\\edge_mask_SW.png",
+      "masks_1x1\\edge_8\\edge_mask_W.png",
+      "masks_1x1\\edge_8\\edge_mask_NW.png"
+    ],
+    "alpha_rule": "black is transparent/background; white is visible edge band",
+    "edge_8_style": "N/E/S/W are rounded bands centered on the four diamond sides; diagonals are rounded vertex caps.",
+    "edge_8_source": {
+      "source_preview": "C:\\codex\\Age of war\\assets\\terrain_tiles type\\BORDER TILES\\plain_to_river_preview.png",
+      "source_tiles": [
+        "C:\\codex\\Age of war\\assets\\terrain_tiles type\\BORDER TILES\\plain_to_river_N.png",
+        "C:\\codex\\Age of war\\assets\\terrain_tiles type\\BORDER TILES\\plain_to_river_NE.png",
+        "C:\\codex\\Age of war\\assets\\terrain_tiles type\\BORDER TILES\\plain_to_river_E.png",
+        "C:\\codex\\Age of war\\assets\\terrain_tiles type\\BORDER TILES\\plain_to_river_SE.png",
+        "C:\\codex\\Age of war\\assets\\terrain_tiles type\\BORDER TILES\\plain_to_river_S.png",
+        "C:\\codex\\Age of war\\assets\\terrain_tiles type\\BORDER TILES\\plain_to_river_SW.png",
+        "C:\\codex\\Age of war\\assets\\terrain_tiles type\\BORDER TILES\\plain_to_river_W.png",
+        "C:\\codex\\Age of war\\assets\\terrain_tiles type\\BORDER TILES\\plain_to_river_NW.png"
+      ],
+      "method": "reverse-extracted river-side edge alpha from plain_to_river direction tiles without inversion"
+    },
+    "edge_8_inverted": false,
+    "mask_size": [
+      43,
+      21
+    ],
+    "source_mask_size_before_resize": [
+      128,
+      64
+    ],
+    "resize_rule": "full 128x64 extracted masks resized to one-third size; no cropping"
+  },
+  "base_3x3_generation": {
+    "river": {
+      "source_texture": "C:\\codex\\Age of war\\assets\\terrain_textures\\river_base_512.png",
+      "method": "128x64 crops from river_base_512.png using river_00_pure.png alpha mask; no color or brightness edits",
+      "crop_positions": [
+        [
+          0,
+          0
+        ],
+        [
+          96,
+          0
+        ],
+        [
+          192,
+          0
+        ],
+        [
+          288,
+          0
+        ],
+        [
+          48,
+          112
+        ],
+        [
+          144,
+          112
+        ],
+        [
+          240,
+          112
+        ],
+        [
+          336,
+          112
+        ],
+        [
+          0,
+          224
+        ],
+        [
+          96,
+          224
+        ],
+        [
+          192,
+          224
+        ],
+        [
+          288,
+          224
+        ],
+        [
+          48,
+          336
+        ],
+        [
+          144,
+          336
+        ],
+        [
+          240,
+          336
+        ],
+        [
+          336,
+          336
+        ]
+      ]
+    }
+  },
+  "tile_1x1_processing": {
+    "size": [
+      43,
+      21
+    ],
+    "method": "center crop from existing tile_1x1 source images",
+    "variant_count_per_terrain": 6,
+    "variants": {
+      "dirt": [
+        {
+          "file": "tile_1x1\\dirt\\dirt_center_00.png",
+          "source": "base_3x3\\dirt\\dirt_00.png",
+          "crop": [
+            42,
+            21,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\dirt\\dirt_center_01.png",
+          "source": "base_3x3\\dirt\\dirt_01.png",
+          "crop": [
+            30,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\dirt\\dirt_center_02.png",
+          "source": "base_3x3\\dirt\\dirt_02.png",
+          "crop": [
+            54,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\dirt\\dirt_center_03.png",
+          "source": "base_3x3\\dirt\\dirt_03.png",
+          "crop": [
+            42,
+            14,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\dirt\\dirt_center_04.png",
+          "source": "base_3x3\\dirt\\dirt_04.png",
+          "crop": [
+            34,
+            25,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\dirt\\dirt_center_05.png",
+          "source": "base_3x3\\dirt\\dirt_05.png",
+          "crop": [
+            50,
+            25,
+            43,
+            21
+          ]
+        }
+      ],
+      "forest_floor": [
+        {
+          "file": "tile_1x1\\forest_floor\\forest_floor_center_00.png",
+          "source": "base_3x3\\forest_floor\\forest_floor_00.png",
+          "crop": [
+            42,
+            21,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\forest_floor\\forest_floor_center_01.png",
+          "source": "base_3x3\\forest_floor\\forest_floor_01.png",
+          "crop": [
+            30,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\forest_floor\\forest_floor_center_02.png",
+          "source": "base_3x3\\forest_floor\\forest_floor_02.png",
+          "crop": [
+            54,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\forest_floor\\forest_floor_center_03.png",
+          "source": "base_3x3\\forest_floor\\forest_floor_03.png",
+          "crop": [
+            42,
+            14,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\forest_floor\\forest_floor_center_04.png",
+          "source": "base_3x3\\forest_floor\\forest_floor_04.png",
+          "crop": [
+            34,
+            25,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\forest_floor\\forest_floor_center_05.png",
+          "source": "base_3x3\\forest_floor\\forest_floor_05.png",
+          "crop": [
+            50,
+            25,
+            43,
+            21
+          ]
+        }
+      ],
+      "plain": [
+        {
+          "file": "tile_1x1\\plain\\plain_center_00.png",
+          "source": "base_3x3\\plain\\plain_00.png",
+          "crop": [
+            42,
+            21,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\plain\\plain_center_01.png",
+          "source": "base_3x3\\plain\\plain_01.png",
+          "crop": [
+            30,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\plain\\plain_center_02.png",
+          "source": "base_3x3\\plain\\plain_02.png",
+          "crop": [
+            54,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\plain\\plain_center_03.png",
+          "source": "base_3x3\\plain\\plain_03.png",
+          "crop": [
+            42,
+            14,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\plain\\plain_center_04.png",
+          "source": "base_3x3\\plain\\plain_04.png",
+          "crop": [
+            34,
+            25,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\plain\\plain_center_05.png",
+          "source": "base_3x3\\plain\\plain_05.png",
+          "crop": [
+            50,
+            25,
+            43,
+            21
+          ]
+        }
+      ],
+      "river": [
+        {
+          "file": "tile_1x1\\river\\river_center_00.png",
+          "source": "base_3x3\\river\\river_00.png",
+          "crop": [
+            42,
+            21,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river\\river_center_01.png",
+          "source": "base_3x3\\river\\river_01.png",
+          "crop": [
+            30,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river\\river_center_02.png",
+          "source": "base_3x3\\river\\river_02.png",
+          "crop": [
+            54,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river\\river_center_03.png",
+          "source": "base_3x3\\river\\river_03.png",
+          "crop": [
+            42,
+            14,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river\\river_center_04.png",
+          "source": "base_3x3\\river\\river_04.png",
+          "crop": [
+            34,
+            25,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river\\river_center_05.png",
+          "source": "base_3x3\\river\\river_05.png",
+          "crop": [
+            50,
+            25,
+            43,
+            21
+          ]
+        }
+      ],
+      "river_bank": [
+        {
+          "file": "tile_1x1\\river_bank\\river_bank_center_00.png",
+          "source": "base_3x3\\river_bank\\river_bank_00.png",
+          "crop": [
+            42,
+            21,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river_bank\\river_bank_center_01.png",
+          "source": "base_3x3\\river_bank\\river_bank_01.png",
+          "crop": [
+            30,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river_bank\\river_bank_center_02.png",
+          "source": "base_3x3\\river_bank\\river_bank_02.png",
+          "crop": [
+            54,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river_bank\\river_bank_center_03.png",
+          "source": "base_3x3\\river_bank\\river_bank_03.png",
+          "crop": [
+            42,
+            14,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river_bank\\river_bank_center_04.png",
+          "source": "base_3x3\\river_bank\\river_bank_04.png",
+          "crop": [
+            34,
+            25,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\river_bank\\river_bank_center_05.png",
+          "source": "base_3x3\\river_bank\\river_bank_05.png",
+          "crop": [
+            50,
+            25,
+            43,
+            21
+          ]
+        }
+      ],
+      "road": [
+        {
+          "file": "tile_1x1\\road\\road_center_00.png",
+          "source": "base_3x3\\road\\road_00.png",
+          "crop": [
+            42,
+            21,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\road\\road_center_01.png",
+          "source": "base_3x3\\road\\road_01.png",
+          "crop": [
+            30,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\road\\road_center_02.png",
+          "source": "base_3x3\\road\\road_02.png",
+          "crop": [
+            54,
+            18,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\road\\road_center_03.png",
+          "source": "base_3x3\\road\\road_03.png",
+          "crop": [
+            42,
+            14,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\road\\road_center_04.png",
+          "source": "base_3x3\\road\\road_04.png",
+          "crop": [
+            34,
+            25,
+            43,
+            21
+          ]
+        },
+        {
+          "file": "tile_1x1\\road\\road_center_05.png",
+          "source": "base_3x3\\road\\road_05.png",
+          "crop": [
+            50,
+            25,
+            43,
+            21
+          ]
+        }
+      ]
+    }
+  }
+}
