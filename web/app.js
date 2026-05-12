@@ -30,6 +30,7 @@ import {
   const MAP_WIDTH = 240;
   const MAP_HEIGHT = 160;
   const CHUNK_TILES = 16;
+  const PIXI_TREE_SPRITES = false; // true: 나무를 PixiJS Y정렬 스프라이트로 처리, false: 캔버스에 직접 렌더링
   const SIMULATION_STEP = 1 / 30;
   const MAX_SIMULATION_STEPS = 4;
   const SPATIAL_CELL_SIZE = 4;
@@ -2558,8 +2559,8 @@ import {
         }
       }
 
-      // PixiJS 미사용 시에만 캔버스에 드로잉 (PixiJS 사용 시 스프라이트로 처리)
-      if (!(pixiReady && pixiTreeTex)) {
+      // PIXI_TREE_SPRITES 비활성 시 캔버스에 직접 드로잉
+      if (!(PIXI_TREE_SPRITES && pixiReady && pixiTreeTex)) {
         trees.sort((a, b) => a.worldBy - b.worldBy);
         chunkCtx.imageSmoothingEnabled = true;
         chunkCtx.imageSmoothingQuality = "high";
@@ -2859,7 +2860,7 @@ import {
       if (!chunk) {
         chunk = createTerrainChunk(chunkX, chunkY);
         game.terrainRender.chunkCache.set(key, chunk);
-        if (pixiReady && pixiTreeTex && chunk.trees.length > 0) {
+        if (PIXI_TREE_SPRITES && pixiReady && pixiTreeTex && chunk.trees.length > 0) {
           const tW = Math.round(game.tileW * 11 / 24);
           const tH = Math.round(game.tileW * 22 / 24);
           for (const { worldBx, worldBy, tileX, tileY } of chunk.trees) {
