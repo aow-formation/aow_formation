@@ -530,3 +530,5 @@ disorder    = rawDisorder
 | 2026-05-11 | 혼란도에 따른 유닛 이동속도 패널티 추가. 혼란도 50%에서 NORMAL 속도와 동일해지는 수준. 계수 1.4 적용 |
 | 2026-05-11 | 반응 반경 패널티 완화. 기존 혼란도 0.6 이상 일괄 -40%에서 점진적 방식으로 변경 (혼란도 1.0에서 최대 -20%) |
 | 2026-05-11 | 이동속도별 방어 보정 수치 축소. STOP +3.0→+2.0, SLOW +1.5→+1.0, FAST -1.5→-1.0 |
+| 2026-05-12 | Railway 배포 설정 완료. `railway.json` 추가(빌드 명령·헬스체크·재시작 정책), `package.json`에 `engines.node>=20` 및 `deploy` 스크립트 추가, `scripts/deploy.mjs` 작성(git add→commit→push 자동화). GitHub 리포지터리 `aow-formation/aow_formation` 연결, Railway 프로젝트와 GitHub 연동 후 빌드 확인 완료 |
+| 2026-05-13 | PixiJS 초기화 오류 수정: `Texture.fromURL` → `PixiAssets.load()` (PixiJS v8 API 변경 대응). 지형 청크는 Canvas 2D 유지(성능), 나무 오브젝트만 `pixiUnitCtr`에 PixiJS 스프라이트로 분리해 유닛과 함께 Y정렬(깊이 기반 가림 효과). 유닛 zIndex를 `unit.x + unit.y` 타일 좌표 기준으로 변경. 이동 완료 진형의 목표 지점 원 표시 숨김(앵커-목표 거리 1.0 타일 미만 시) |

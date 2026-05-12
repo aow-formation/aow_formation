@@ -1,12 +1,13 @@
 import {
   Application as PixiApplication,
-  Container   as PixiContainer,
-  Graphics    as PixiGraphics,
-  Sprite      as PixiSprite,
+  Assets       as PixiAssets,
+  Container    as PixiContainer,
+  Graphics     as PixiGraphics,
+  Sprite       as PixiSprite,
   RenderTexture,
   BlurFilter,
   Texture,
-  Rectangle   as PixiRect,
+  Rectangle    as PixiRect,
 } from 'pixi.js';
 
 (function () {
@@ -319,6 +320,11 @@ import {
     cavalry:  { player: null, enemy: null },
   };
   let pixiReady      = false;
+  let pixiTerrainCtr = null;
+  let pixiTreeCtr    = null;
+  let pixiTreeTex    = null;
+  const pixiChunkSprites = new Map(); // chunkKey → PixiSprite
+  const pixiTreeSprites  = [];        // { sprite, worldBx, worldBy }
 
   async function initPixi() {
     try {
@@ -333,9 +339,11 @@ import {
       });
       // canvas는 DOM에 붙이지 않음 — ctx.drawImage로 직접 합성
 
-      pixiShadowGfx = new PixiGraphics();
-      pixiGlowGfx   = new PixiGraphics();
-      pixiUnitCtr   = new PixiContainer();
+      pixiTerrainCtr = new PixiContainer();
+      pixiTreeCtr    = new PixiContainer();
+      pixiShadowGfx  = new PixiGraphics();
+      pixiGlowGfx    = new PixiGraphics();
+      pixiUnitCtr    = new PixiContainer();
       pixiUnitCtr.sortableChildren = true;
 
       // FOW 영구 씬 구성 (매 프레임 clear()만 호출)
@@ -350,21 +358,25 @@ import {
       pixiFogSprite.filters = [new BlurFilter({ strength: 14 })];
       pixiFogSprite.visible = false;
 
+      pixiApp.stage.addChild(pixiTerrainCtr);
+      pixiApp.stage.addChild(pixiTreeCtr);
       pixiApp.stage.addChild(pixiShadowGfx);
       pixiApp.stage.addChild(pixiGlowGfx);
       pixiApp.stage.addChild(pixiUnitCtr);
       pixiApp.stage.addChild(pixiFogSprite);
 
       // 유닛 텍스처 로드
-      const load = url => Texture.fromURL(url).catch(() => null);
-      const [wP, wE, cP, cE, iP, iE] = await Promise.all([
+      const load = url => PixiAssets.load(url).catch(() => null);
+      const [wP, wE, cP, cE, iP, iE, treeT] = await Promise.all([
         load('./assets/units/ancient_infantry_helmet_walk.png'),
         load('./assets/units/ancient_infantry_helmet_walk_blue.png'),
         load('./assets/units/ancient_cavity_helmet_walk.png'),
         load('./assets/units/ancient_cavity_helmet_walk_blue.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1_blue.png'),
+        load('./assets/terrain_tiles_v3/objects/trees/tree.png'),
       ]);
+      pixiTreeTex = treeT;
       // 픽셀아트: 모든 유닛 텍스처에 nearest-neighbor 보간 설정
       [wP, wE, cP, cE, iP, iE].forEach(tex => { if (tex) tex.source.scaleMode = 'nearest'; });
 
@@ -624,7 +636,7 @@ import {
       }
     }
 
-    return { isBorder, borderData, block, variant, ruggedMtn, objectMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false };
+    return { isBorder, borderData, block, variant, ruggedMtn, objectMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false, chunkPixiReady: false };
   }
 
   function chooseNames() {
@@ -2313,11 +2325,20 @@ import {
     game.terrainRender.chunkCache.clear();
     game.terrainRender.chunkTileW = game.tileW;
     game.terrainRender.chunkSpritesReady = terrainSprites.ready;
+    game.terrainRender.chunkPixiReady = pixiReady;
+    if (pixiUnitCtr) {
+      for (const { sprite } of pixiTreeSprites) {
+        pixiUnitCtr.removeChild(sprite);
+        sprite.destroy(false);
+      }
+      pixiTreeSprites.length = 0;
+    }
   }
 
   function ensureTerrainChunkCache() {
     if (game.terrainRender.chunkTileW !== game.tileW ||
-        game.terrainRender.chunkSpritesReady !== terrainSprites.ready)
+        game.terrainRender.chunkSpritesReady !== terrainSprites.ready ||
+        game.terrainRender.chunkPixiReady !== pixiReady)
       invalidateTerrainChunkCache();
   }
 
@@ -2499,39 +2520,32 @@ import {
       chunkCtx.globalAlpha = 1.0;
     }
 
-    // Pass 3: 나무 — 산지 타일에 랜덤 배치, y순 정렬(화가 알고리즘)
+    // Pass 3: 나무 — 캔버스 드로잉 + 월드 좌표 수집 (Y정렬 분리 시 활용)
+    const trees = [];
     const treeImg = terrainSprites.tree;
     if (treeImg?.naturalWidth) {
-      // 나무 크기: 11×22px (tileW 기준 스케일)
       const tW = Math.round(game.tileW * 11 / 24);
       const tH = Math.round(game.tileW * 22 / 24);
 
-      // 청크 내 모든 나무 수집
-      const trees = [];
       for (let ty = startY; ty < endY; ty++) {
         for (let tx = startX; tx < endX; tx++) {
           if (game.terrain.tiles[ty][tx] !== "mountain") continue;
-          if (game.terrainRender.ruggedMtn[ty][tx]) continue; // 험준산악엔 나무 없음
+          if (game.terrainRender.ruggedMtn[ty][tx]) continue;
 
-          // 타일 중심 스크린 좌표
           const iso = isoPoint(tx, ty);
           const cx  = iso.x - minIsoX;
-          const cy  = iso.y - minIsoY + tileH / 2; // 타일 중심 y
+          const cy  = iso.y - minIsoY + tileH / 2;
 
-          // 시드 기반 LCG 난수 (타일마다 고정)
           let s = tileHash(tx, ty) >>> 0;
           const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xFFFFFFFF; };
 
-          // 타일당 나무 수: 5~8 그루 (높은 밀도)
           const r = rng();
           const count = r < 0.1 ? 0 : r < 0.4 ? 2 : 1;
           for (let i = 0; i < count; i++) {
-            // 다이아몬드 안에 균일 분포: 거부 샘플링
             let bx, by;
             for (let attempt = 0; attempt < 8; attempt++) {
-              const rx = (rng() - 0.5) * game.tileW;        // x 오프셋
-              const ry = (rng() - 0.5) * tileH;             // y 오프셋
-              // 마름모 내부 판정: |rx|/(tW/2) + |ry|/(tH/2) <= 1
+              const rx = (rng() - 0.5) * game.tileW;
+              const ry = (rng() - 0.5) * tileH;
               if (Math.abs(rx) / (game.tileW / 2) + Math.abs(ry) / (tileH / 2) <= 1) {
                 bx = cx + rx;
                 by = cy + ry;
@@ -2539,22 +2553,22 @@ import {
               }
             }
             if (bx === undefined) { bx = cx; by = cy; }
-            trees.push({ bx, by });
+            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: tx, tileY: ty });
           }
         }
       }
 
-      // y값 오름차순 정렬 (뒤쪽 나무가 먼저 그려짐)
-      trees.sort((a, b) => a.by - b.by);
-
-      // 나무 그리기: 하단 중심 기준
-      chunkCtx.imageSmoothingEnabled = true;
-      chunkCtx.imageSmoothingQuality = "high";
-      for (const { bx, by } of trees)
-        chunkCtx.drawImage(treeImg, bx - tW / 2, by - tH, tW, tH);
+      // PixiJS 미사용 시에만 캔버스에 드로잉 (PixiJS 사용 시 스프라이트로 처리)
+      if (!(pixiReady && pixiTreeTex)) {
+        trees.sort((a, b) => a.worldBy - b.worldBy);
+        chunkCtx.imageSmoothingEnabled = true;
+        chunkCtx.imageSmoothingQuality = "high";
+        for (const { worldBx, worldBy } of trees)
+          chunkCtx.drawImage(treeImg, worldBx - minIsoX - tW / 2, worldBy - minIsoY - tH, tW, tH);
+      }
     }
 
-    return { canvas: canvasChunk, worldX: minIsoX, worldY: minIsoY };
+    return { canvas: canvasChunk, worldX: minIsoX, worldY: minIsoY, trees };
   }
 
   // 관측자→대상 사이 타일을 따라 이동하며 유효거리 계산 (산악 타일 = 2배 비용)
@@ -2737,7 +2751,7 @@ import {
       sprite.y = cy;
       sprite.scale.x = unit.visualFacingLeft ? -spScale : spScale;
       sprite.scale.y = spScale;
-      sprite.zIndex  = depth;
+      sprite.zIndex  = unit.x + unit.y;
       sprite.visible = true;
     });
 
@@ -2845,9 +2859,76 @@ import {
       if (!chunk) {
         chunk = createTerrainChunk(chunkX, chunkY);
         game.terrainRender.chunkCache.set(key, chunk);
+        if (pixiReady && pixiTreeTex && chunk.trees.length > 0) {
+          const tW = Math.round(game.tileW * 11 / 24);
+          const tH = Math.round(game.tileW * 22 / 24);
+          for (const { worldBx, worldBy, tileX, tileY } of chunk.trees) {
+            const tspr = new PixiSprite(pixiTreeTex);
+            tspr.width  = tW;
+            tspr.height = tH;
+            tspr.anchor.set(0.5, 1.0);
+            tspr.zIndex = tileX + tileY;
+            pixiUnitCtr.addChild(tspr);
+            pixiTreeSprites.push({ sprite: tspr, worldBx, worldBy });
+          }
+        }
       }
       ctx.drawImage(chunk.canvas, chunk.worldX - game.camera.x + origin.x, chunk.worldY - game.camera.y + origin.y);
     });
+  }
+
+  function renderMapPixi() {
+    ensureTerrainChunkCache();
+    const origin = viewportOrigin();
+
+    // 지형/나무 컨테이너에 카메라 오프셋 적용 (스프라이트는 월드 좌표 고정)
+    const camX = Math.round(origin.x - game.camera.x);
+    const camY = Math.round(origin.y - game.camera.y);
+    pixiTerrainCtr.x = camX;
+    pixiTerrainCtr.y = camY;
+    pixiTreeCtr.x    = camX;
+    pixiTreeCtr.y    = camY;
+
+    // 가시 청크 범위 계산
+    const samples = [
+      toTile(0, 0), toTile(canvas.clientWidth, 0),
+      toTile(0, canvas.clientHeight), toTile(canvas.clientWidth, canvas.clientHeight),
+    ];
+    const margin = 10;
+    const minX = clamp(Math.floor(Math.min(...samples.map(p => p.x))) - margin, 0, MAP_WIDTH - 1);
+    const maxX = clamp(Math.ceil( Math.max(...samples.map(p => p.x))) + margin, 0, MAP_WIDTH - 1);
+    const minY = clamp(Math.floor(Math.min(...samples.map(p => p.y))) - margin, 0, MAP_HEIGHT - 1);
+    const maxY = clamp(Math.ceil( Math.max(...samples.map(p => p.y))) + margin, 0, MAP_HEIGHT - 1);
+    const minCX = Math.floor(minX / CHUNK_TILES), maxCX = Math.floor(maxX / CHUNK_TILES);
+    const minCY = Math.floor(minY / CHUNK_TILES), maxCY = Math.floor(maxY / CHUNK_TILES);
+
+    const visibleKeys = new Set();
+    for (let cy = minCY; cy <= maxCY; cy++) {
+      for (let cx = minCX; cx <= maxCX; cx++) {
+        const key = chunkKey(cx, cy);
+        visibleKeys.add(key);
+
+        if (!pixiChunkSprites.has(key)) {
+          const chunk = createTerrainChunk(cx, cy);
+
+          // 캔버스 → PixiJS 텍스처 → 스프라이트 (정적 텍스처로 고정)
+          const tex = Texture.from(chunk.canvas);
+          if (tex.source) tex.source.autoUpdate = false;
+          const spr = new PixiSprite(tex);
+          spr.x = chunk.worldX;
+          spr.y = chunk.worldY;
+          pixiTerrainCtr.addChild(spr);
+          pixiChunkSprites.set(key, spr);
+
+          // 나무는 현재 청크 캔버스에 포함되어 있음
+          // (PixiJS Y정렬 분리는 Texture.fromURL 이슈 해결 후 진행)
+        }
+      }
+    }
+
+    // 가시 여부에 따라 청크 스프라이트 표시/숨김
+    for (const [key, spr] of pixiChunkSprites)
+      spr.visible = visibleKeys.has(key);
   }
 
   function renderFormationSelection() {
@@ -3346,6 +3427,7 @@ import {
     game.playerFormations.forEach((formation) => {
       if (!formation.target) return;
       if (formation.retreated || !formation.units.some(isUnitAlive)) return;
+      if (len(formation.anchor.x - formation.target.x, formation.anchor.y - formation.target.y) < 1.0) return;
       const point = toScreen(formation.target.x, formation.target.y);
       const anchor = toScreen(formation.anchor.x, formation.anchor.y);
       const cy = point.y + getTileH() / 2;
@@ -3426,7 +3508,16 @@ import {
 
     renderMap();
 
-    // PixiJS 미준비 시 Canvas 2D FOW 폴백
+    if (pixiReady && pixiTreeSprites.length > 0) {
+      const origin = viewportOrigin();
+      const offX = game.camera.x - origin.x;
+      const offY = game.camera.y - origin.y;
+      for (const { sprite, worldBx, worldBy } of pixiTreeSprites) {
+        sprite.x = worldBx - offX;
+        sprite.y = worldBy - offY;
+      }
+    }
+
     if (!pixiReady) renderFog();
 
     renderTraces();
@@ -3434,7 +3525,6 @@ import {
     renderFormationSelection();
 
     if (pixiReady) {
-      // PixiJS 렌더러 크기 동기화
       if (pixiApp.renderer.width !== Math.ceil(width) || pixiApp.renderer.height !== Math.ceil(height)) {
         pixiApp.renderer.resize(width, height);
       }
