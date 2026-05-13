@@ -107,7 +107,7 @@ import {
       meleeAttackMult: 3.0,
       rangedAttackMult: 0.0,
       moveMult: 2.0,
-      meleeDefenseMult: 4.0,
+      meleeDefenseMult: 2.0,
       rangedDefenseMult: 3.0,
       canRangedAttack: false,
       allowedSkills: ["kihap"],
@@ -127,6 +127,22 @@ import {
   const speedToggleButton = document.getElementById("speedToggleButton");
   const troopAdjustBtn = document.getElementById("troopAdjustBtn");
   const battleLoadingMask = document.getElementById("battleLoadingMask");
+  const topbarEl = document.querySelector(".topbar");
+  const topbarToggleBtn = document.getElementById("topbarToggleBtn");
+  const mobileKihapBtn  = document.getElementById("mobileKihapBtn");
+  const mobileKihapFill = document.getElementById("mobileKihapFill");
+  const mobileKihapIcon = document.getElementById("mobileKihapIcon");
+
+  const isMobile = () => window.innerWidth < 950;
+
+  function setTopbarCollapsed(collapsed) {
+    topbarEl.classList.toggle("topbar--collapsed", collapsed);
+    topbarToggleBtn.textContent = collapsed ? "☰" : "✕";
+  }
+
+  topbarToggleBtn.addEventListener("click", () => {
+    setTopbarCollapsed(!topbarEl.classList.contains("topbar--collapsed"));
+  });
   const buttons = {
     speed: document.querySelectorAll("[data-speed]"),
     density: document.querySelectorAll("[data-density]"),
@@ -181,8 +197,8 @@ import {
   function applyRandomHomeBackground() {
     if (!homeBg) return;
     const backgrounds = [
-      "./assets/background/main.png",
-      "./assets/background/main1.png",
+      "./assets/background/main.jpg",
+      "./assets/background/main1.jpg",
     ];
     const selected = backgrounds[Math.floor(Math.random() * backgrounds.length)];
     homeBg.style.backgroundImage =
@@ -1910,7 +1926,7 @@ import {
           // 원거리 공격 (쿨타임 1초)
           const rangedDamage = Math.max(0, rangedAttack(formation) * facingMult
             * rangedDefenseDamageMult(enemyTarget.formation)
-            - (enemyTarget.formation.troopType === 'cavalry' ? 4 : 0));
+            - (enemyTarget.formation.troopType === 'cavalry' ? 2 : 0));
           applyUnitDamage(enemyTarget.formation, enemyTarget.unit, rangedDamage, formation);
           unit.rangedCooldown = 1.0;
           game.projectiles.push({
@@ -1935,7 +1951,7 @@ import {
             const rFacingMult = rDot >= Math.SQRT2 / 2 ? 1.25 : rDot >= 0 ? 1.0 : 0.75;
             const rdmg = Math.max(0, rangedAttack(formation) * rFacingMult
               * rangedDefenseDamageMult(rangedOnly.formation)
-              - (rangedOnly.formation.troopType === 'cavalry' ? 4 : 0));
+              - (rangedOnly.formation.troopType === 'cavalry' ? 2 : 0));
             applyUnitDamage(rangedOnly.formation, rangedOnly.unit, rdmg, formation);
             unit.rangedCooldown = 1.0;
             game.projectiles.push({ x: unit.x, y: unit.y, tx: rangedOnly.unit.x, ty: rangedOnly.unit.y, team: formation.team });
@@ -3668,6 +3684,11 @@ import {
       const fillRatio = game.battlePhase !== "live" ? 0 : (cdLeft <= 0 ? 1 : 1 - cdLeft / maxCd);
       kihapFill.style.width = `${(fillRatio * 100).toFixed(1)}%`;
       kihapBtn.title = ready ? `${sDef.label} 발동!` : (game.battlePhase !== "live" ? "전투 중에만 사용" : `${cdLeft.toFixed(0)}초 후 사용 가능`);
+      if (mobileKihapBtn) {
+        mobileKihapBtn.disabled = kihapBtn.disabled;
+        if (mobileKihapFill) mobileKihapFill.style.width = kihapFill.style.width;
+        if (mobileKihapIcon) mobileKihapIcon.textContent = sDef.icon;
+      }
     } else {
       panelPortrait.src = ''; panelPortrait.hidden = true;
       panelGeneralName.textContent = "부대를 선택하세요";
@@ -3679,6 +3700,8 @@ import {
       panelDisorderFill.style.width  = "0%";
       kihapBtn.disabled = true;
       kihapFill.style.width = "0%";
+      if (mobileKihapBtn) { mobileKihapBtn.disabled = true; }
+      if (mobileKihapFill) mobileKihapFill.style.width = "0%";
     }
   }
 
@@ -3752,9 +3775,14 @@ import {
     game.hudDirty = true;
   });
 
+  document.getElementById("mobileRatioDown")?.addEventListener("click", () => buttons.ratioDown.click());
+  document.getElementById("mobileRatioUp")?.addEventListener("click",   () => buttons.ratioUp.click());
+  mobileKihapBtn?.addEventListener("click", () => kihapBtn.click());
+
   phaseButton.addEventListener("click", () => {
     if (game.battlePhase === "planning") {
       game.battlePhase = "live";
+      if (isMobile()) setTopbarCollapsed(true);
       const allF = [...game.playerFormations, ...game.enemyFormations];
       allF.forEach((f) => { f.kihapCooldown = kihapMaxCooldown(f); f.skillCooldown = skillMaxCooldown(f); });
       currentSelection().forEach((formation) => {
@@ -4246,6 +4274,7 @@ import {
 
   // ── 전투 결과 화면 ──────────────────────────────────────────────────
   function showBattleResult(won) {
+    setTopbarCollapsed(false);
     const verdict = document.getElementById("resultVerdict");
     verdict.textContent = won ? "승 리" : "패 배";
     verdict.className   = `result-verdict ${won ? "victory" : "defeat"}`;

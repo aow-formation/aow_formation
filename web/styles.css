@@ -40,7 +40,11 @@ body {
 /* ── App Shell ── */
 .app-shell {
   padding: 14px 16px;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 /* ── Topbar ── */
@@ -254,8 +258,11 @@ body {
 .board {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 290px;
+  grid-template-rows: 1fr;
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 
 /* ── 캔버스 프레임 (석재 테두리) ── */
@@ -263,6 +270,7 @@ body {
   position: relative;
   border-radius: 4px;
   padding: 3px;
+  min-height: 0;
   background: linear-gradient(145deg, var(--border-hi), var(--border-dark) 50%, var(--border-mid));
   box-shadow:
     0 0 0 1px var(--border-dark),
@@ -308,7 +316,7 @@ body {
 
 #battleCanvas {
   width: 100%;
-  height: min(76vh, 880px);
+  height: 100%;
   display: block;
   border-radius: 2px;
   background: #0a0d10;
@@ -326,7 +334,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 /* ── 패널 공통 섹션 ── */
@@ -649,10 +658,131 @@ kbd {
   text-align: center;
 }
 
+/* ── hud-row 래퍼 ── */
+.hud-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.hud-row .hud { flex: 1; margin-bottom: 0; }
+
+/* 토글 버튼: 기본 숨김 (데스크탑) */
+.topbar-toggle-btn {
+  display: none;
+  flex-shrink: 0;
+  align-self: stretch;
+  padding: 4px 10px;
+  font-size: 15px;
+  line-height: 1;
+}
+
 /* ── 반응형 ── */
-@media (max-width: 1100px) {
-  .board { grid-template-columns: 1fr; }
-  .hud   { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* ── 모바일 하단 컨트롤바 기본: 숨김 ── */
+.mobile-ctrl-bar { display: none; }
+
+/* ── 모바일 (< 950px) ── */
+@media (max-width: 949px) {
+  .app-shell { padding: 6px 8px 56px; } /* 하단바 높이만큼 패딩 */
+
+  /* 상단바 접기 */
+  .topbar {
+    overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.2s, padding 0.25s, margin-bottom 0.25s;
+    max-height: 120px;
+  }
+  .topbar--collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom-color: transparent;
+  }
+
+  /* 토글 버튼 표시 */
+  .topbar-toggle-btn { display: flex; align-items: center; justify-content: center; }
+
+  /* HUD: 5열 유지, 더 작게 */
+  .hud { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .hud-card { padding: 4px 5px; }
+  .hud-card h3 { font-size: 10px; margin-bottom: 2px; }
+  .hud-troop { display: none; }
+  .retreated-label, .retreating-label { font-size: 9px; margin-bottom: 2px; }
+  .hud-card .troop-bar-wrap { height: 5px; }
+
+  /* 보드: 캔버스 + 120px 패널 나란히, 전체 높이 유지 */
+  .board { grid-template-columns: minmax(0, 1fr) 120px; grid-template-rows: 1fr; }
+
+  /* 패널: 이름·초상화·능력치 */
+  .general-name { display: none; }
+  .general-stats { display: none; }
+  .panel-portrait-frame { width: 48px; height: 48px; }
+  .panel-general { padding: 5px 6px; gap: 6px; }
+
+  /* 패널: 바 텍스트 숨김, 바만 유지 */
+  .panel-status-row { display: none; }
+  .status-bar-wrap { margin-bottom: 4px; }
+  .panel-status { padding: 5px 6px; }
+
+  /* 패널: 속도 버튼 3줄 */
+  .panel-speed-section { padding: 5px 6px; }
+  .panel-speed-section .button-row { flex-direction: column; gap: 4px; }
+  .panel-speed-section .button-row .btn-stone { flex: none; width: 100%; }
+
+  /* 패널: 섹션 헤더 숨김 */
+  .section-header { display: none; }
+
+  /* 패널: 패딩 축소 */
+  .panel > section,
+  .panel-section { padding: 5px 6px; }
+
+  /* 패널: 대형·밀도·스킬 → 하단바로 이동 */
+  .panel-bottom-mobile { display: none; }
+
+  /* 정지 버튼 */
+  .stop-row { margin-bottom: 4px; }
+  .btn-stop { padding: 6px 4px; font-size: 11px; }
+
+  /* 도움말 숨김 */
+  .help-section { display: none; }
+
+  /* ── 모바일 하단 컨트롤바 ── */
+  .mobile-ctrl-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 50;
+    padding: 5px 8px;
+    background: linear-gradient(180deg, var(--stone-3) 0%, var(--stone-1) 100%);
+    border-top: 1px solid var(--border-mid);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.6);
+  }
+
+  .ctrl-m-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 2px;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .ctrl-m-sep {
+    width: 1px;
+    align-self: stretch;
+    background: var(--border-mid);
+    margin: 0 2px;
+  }
+
+  .ctrl-m-kihap {
+    flex: 1.5;
+    min-width: 0;
+    min-height: 34px;
+    padding: 4px 2px;
+  }
+  .ctrl-m-kihap .kihap-icon { font-size: 14px; }
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -678,7 +808,7 @@ kbd {
   opacity: 0.4;
   background:
     linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 100%),
-    url('./assets/background/main.png') center center / cover no-repeat;
+    url('./assets/background/main.jpg') center center / cover no-repeat;
   pointer-events: none;
 }
 

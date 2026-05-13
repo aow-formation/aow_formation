@@ -110,7 +110,10 @@
         </div>
       </header>
 
-      <section id="hud" class="hud"></section>
+      <div class="hud-row">
+        <button id="topbarToggleBtn" class="topbar-toggle-btn btn-stone" title="메뉴 접기/펼치기">☰</button>
+        <section id="hud" class="hud"></section>
+      </div>
 
       <main class="board">
         <div class="canvas-frame">
@@ -168,7 +171,7 @@
           </section>
 
           <!-- 이동 속도 -->
-          <section class="panel-section">
+          <section class="panel-section panel-speed-section">
             <h2 class="section-header">이동 속도</h2>
             <div class="stop-row">
               <button data-speed="STOP" class="btn-stone btn-stop">■ 정지</button>
@@ -181,7 +184,7 @@
           </section>
 
           <!-- 정렬 -->
-          <section class="panel-section">
+          <section class="panel-section panel-bottom-mobile">
             <h2 class="section-header">대형</h2>
             <div class="button-row">
               <button id="ratioDown" class="btn-stone">◀ 종정렬</button>
@@ -190,7 +193,7 @@
           </section>
 
           <!-- 밀도 -->
-          <section class="panel-section">
+          <section class="panel-section panel-bottom-mobile">
             <h2 class="section-header">밀도</h2>
             <div class="button-row">
               <button data-density="TIGHT"  class="btn-stone">촘촘</button>
@@ -200,7 +203,7 @@
           </section>
 
           <!-- 스킬 -->
-          <section class="skill-section">
+          <section class="skill-section panel-bottom-mobile">
             <h2 class="section-header">스킬</h2>
             <button id="kihapBtn" class="kihap-btn" disabled>
               <div class="kihap-fill" id="kihapFill"></div>
@@ -218,6 +221,21 @@
 
         </aside>
       </main>
+    <!-- ── 모바일 하단 컨트롤바 ── -->
+    <div id="mobileCtrlBar" class="mobile-ctrl-bar">
+      <button id="mobileRatioDown" class="btn-stone ctrl-m-btn" title="종정렬">◀</button>
+      <button id="mobileRatioUp"   class="btn-stone ctrl-m-btn" title="횡정렬">▶</button>
+      <div class="ctrl-m-sep"></div>
+      <button data-density="TIGHT"  class="btn-stone ctrl-m-btn">촘</button>
+      <button data-density="NORMAL" class="btn-stone ctrl-m-btn">보통</button>
+      <button data-density="WIDE"   class="btn-stone ctrl-m-btn">넓게</button>
+      <div class="ctrl-m-sep"></div>
+      <button id="mobileKihapBtn" class="kihap-btn ctrl-m-kihap" disabled>
+        <div class="kihap-fill" id="mobileKihapFill"></div>
+        <span class="kihap-icon" id="mobileKihapIcon">氣</span>
+      </button>
+    </div>
+
     </div>
 
     <script type="module" src="./src/bootstrap.js"></script>

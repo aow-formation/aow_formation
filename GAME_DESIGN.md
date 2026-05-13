@@ -532,4 +532,7 @@ disorder    = rawDisorder
 | 2026-05-11 | 이동속도별 방어 보정 수치 축소. STOP +3.0→+2.0, SLOW +1.5→+1.0, FAST -1.5→-1.0 |
 | 2026-05-12 | Railway 배포 설정 완료. `railway.json` 추가(빌드 명령·헬스체크·재시작 정책), `package.json`에 `engines.node>=20` 및 `deploy` 스크립트 추가, `scripts/deploy.mjs` 작성(git add→commit→push 자동화). GitHub 리포지터리 `aow-formation/aow_formation` 연결, Railway 프로젝트와 GitHub 연동 후 빌드 확인 완료 |
 | 2026-05-13 | PixiJS 초기화 오류 수정: `Texture.fromURL` → `PixiAssets.load()` (PixiJS v8 API 변경 대응). 지형 청크는 Canvas 2D 유지(성능), 나무 오브젝트만 `pixiUnitCtr`에 PixiJS 스프라이트로 분리해 유닛과 함께 Y정렬(깊이 기반 가림 효과). 유닛 zIndex를 `unit.x + unit.y` 타일 좌표 기준으로 변경. 이동 완료 진형의 목표 지점 원 표시 숨김(앵커-목표 거리 1.0 타일 미만 시) |
+| 2026-05-14 | 홈 화면 배경 `main.png`, `main1.png`를 압축 JPG(`main.jpg`, `main1.jpg`)로 변환하고 홈 배경 참조 경로를 JPG로 변경 |
 | 2026-05-13 | 나무 PixiJS Y정렬 스프라이트 비활성화(성능 이슈). `PIXI_TREE_SPRITES = false` 플래그로 캔버스 렌더링 복귀. 로직은 보존되어 플래그만으로 재활성화 가능 |
+| 2026-05-14 | 모바일 반응형(950px 미만) 추가. 상단바 전투 시작 시 자동 접기(토글 버튼), HUD 카드 5열 소형화·병력 숫자 숨김, 우측 패널 120px 나란히 배치(이름·능력치 숨김, 바만 유지, 속도 3줄), 대형·밀도·스킬 하단 고정바 이동. 전투 캔버스 높이를 `100vh - 상단바 - HUD` 자동 계산(flex 레이아웃)으로 변경 |
+| 2026-05-14 | 기병 능력치 조정: 원거리 방어 고정 보너스 4→2, 근접 방어 배율 4.0→2.0 |
