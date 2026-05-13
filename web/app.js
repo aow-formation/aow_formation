@@ -1908,8 +1908,9 @@ import {
           applyUnitDamage(enemyTarget.formation, enemyTarget.unit, damage * dt, formation);
         } else if (canFormationRangedAttack(formation) && unit.rangedCooldown <= 0) {
           // 원거리 공격 (쿨타임 1초)
-          const rangedDamage = rangedAttack(formation) * facingMult
-            * rangedDefenseDamageMult(enemyTarget.formation);
+          const rangedDamage = Math.max(0, rangedAttack(formation) * facingMult
+            * rangedDefenseDamageMult(enemyTarget.formation)
+            - (enemyTarget.formation.troopType === 'cavalry' ? 4 : 0));
           applyUnitDamage(enemyTarget.formation, enemyTarget.unit, rangedDamage, formation);
           unit.rangedCooldown = 1.0;
           game.projectiles.push({
@@ -1932,8 +1933,9 @@ import {
             const rDir = normalize({ x: rangedOnly.unit.x - unit.x, y: rangedOnly.unit.y - unit.y });
             const rDot = formation.facing.x * rDir.x + formation.facing.y * rDir.y;
             const rFacingMult = rDot >= Math.SQRT2 / 2 ? 1.25 : rDot >= 0 ? 1.0 : 0.75;
-            const rdmg = rangedAttack(formation) * rFacingMult
-              * rangedDefenseDamageMult(rangedOnly.formation);
+            const rdmg = Math.max(0, rangedAttack(formation) * rFacingMult
+              * rangedDefenseDamageMult(rangedOnly.formation)
+              - (rangedOnly.formation.troopType === 'cavalry' ? 4 : 0));
             applyUnitDamage(rangedOnly.formation, rangedOnly.unit, rdmg, formation);
             unit.rangedCooldown = 1.0;
             game.projectiles.push({ x: unit.x, y: unit.y, tx: rangedOnly.unit.x, ty: rangedOnly.unit.y, team: formation.team });
