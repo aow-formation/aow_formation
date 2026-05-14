@@ -121,6 +121,15 @@
         </div>
 
         <div class="pause-section">
+          <div class="pause-section-label">언어</div>
+          <div class="pause-btn-row">
+            <button class="btn-stone pause-speed-btn active">한국어</button>
+            <button class="btn-stone pause-speed-btn" disabled>English</button>
+            <button class="btn-stone pause-speed-btn" disabled>中文</button>
+          </div>
+        </div>
+
+        <div class="pause-section">
           <div class="pause-section-label">음향 <span class="pause-wip">(준비 중)</span></div>
           <div class="pause-btn-row">
             <button class="btn-stone pause-sound-btn" disabled>♪ 음악</button>
@@ -144,7 +153,6 @@
           <button id="troopAdjustBtn" class="btn-stone">병력 조정</button>
           <button id="phaseButton" class="btn-primary">전투 개시</button>
           <button id="speedToggleButton" class="btn-stone">2배속</button>
-          <button id="pauseMenuBtn" class="btn-stone">⏸ 메뉴</button>
         </div>
       </header>
 
@@ -169,6 +177,12 @@
             </div>
             <div class="general-info">
               <div class="general-name" id="panelGeneralName">부대를 선택하세요</div>
+              <div class="mobile-stats">
+                <span class="ms-item"><span class="ms-icon">⚔</span><span id="msMeleeAtk" class="ms-val">-</span></span>
+                <span class="ms-item"><span class="ms-icon">🛡</span><span id="msMeleeDef" class="ms-val">-</span></span>
+                <span class="ms-item"><span class="ms-icon">🏹</span><span id="msRangedAtk" class="ms-val">-</span></span>
+                <span class="ms-item"><span class="ms-icon">⬆</span><span id="msRangedDef" class="ms-val">-</span></span>
+              </div>
               <div class="general-stats">
                 <div class="stat-row">
                   <span class="stat-label">근접공격</span>
@@ -261,16 +275,17 @@
       </main>
     <!-- ── 모바일 하단 컨트롤바 ── -->
     <div id="mobileCtrlBar" class="mobile-ctrl-bar">
-      <button id="mobileRatioDown" class="btn-stone ctrl-m-btn" title="종정렬">◀</button>
-      <button id="mobileRatioUp"   class="btn-stone ctrl-m-btn" title="횡정렬">▶</button>
+      <button id="mobileRatioDown" class="btn-stone ctrl-m-btn" title="종정렬">종</button>
+      <button id="mobileRatioUp"   class="btn-stone ctrl-m-btn" title="횡정렬">횡</button>
       <div class="ctrl-m-sep"></div>
-      <button data-density="TIGHT"  class="btn-stone ctrl-m-btn">촘</button>
+      <button data-density="TIGHT"  class="btn-stone ctrl-m-btn">촘촘</button>
       <button data-density="NORMAL" class="btn-stone ctrl-m-btn">보통</button>
       <button data-density="WIDE"   class="btn-stone ctrl-m-btn">넓게</button>
       <div class="ctrl-m-sep"></div>
       <button id="mobileKihapBtn" class="kihap-btn ctrl-m-kihap" disabled>
         <div class="kihap-fill" id="mobileKihapFill"></div>
         <span class="kihap-icon" id="mobileKihapIcon">氣</span>
+        <span class="mobile-kihap-label" id="mobileKihapLabel">기합</span>
       </button>
     </div>
 

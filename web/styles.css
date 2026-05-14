@@ -772,6 +772,8 @@ kbd {
 
 /* ── 모바일 하단 컨트롤바 기본: 숨김 ── */
 .mobile-ctrl-bar { display: none; }
+.mobile-stats { display: none; }
+.mobile-kihap-label { display: none; }
 
 /* ── 모바일 (< 950px) ── */
 @media (max-width: 949px) {
@@ -806,15 +808,34 @@ kbd {
   /* 보드: 캔버스 + 120px 패널 나란히, 전체 높이 유지 */
   .board { grid-template-columns: minmax(0, 1fr) 120px; grid-template-rows: 1fr; }
 
-  /* 패널: 이름·초상화·능력치 */
+  /* 패널: 이름·능력치 숨김, 초상화 축소 */
   .general-name { display: none; }
   .general-stats { display: none; }
   .panel-portrait-frame { width: 48px; height: 48px; }
   .panel-general { padding: 5px 6px; gap: 6px; }
 
-  /* 패널: 바 텍스트 숨김, 바만 유지 */
-  .panel-status-row { display: none; }
-  .status-bar-wrap { margin-bottom: 4px; }
+  /* 모바일 능력치 요약 (1열, 아이콘 좌 · 수치 우) */
+  .mobile-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: 100%;
+  }
+  .ms-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+  }
+  .ms-icon { font-size: 10px; line-height: 1; flex-shrink: 0; }
+  .ms-val  { font-size: 9px; color: var(--text-dim); text-align: right; }
+
+  /* 패널: 바 텍스트 소형 표시 */
+  .panel-status-row { display: flex; }
+  .panel-status-label { font-size: 8px; }
+  .panel-status-value { font-size: 9px; }
+  .status-bar-wrap { margin-bottom: 2px; }
   .panel-status { padding: 5px 6px; }
 
   /* 패널: 속도 버튼 3줄 */
@@ -875,6 +896,15 @@ kbd {
     padding: 4px 2px;
   }
   .ctrl-m-kihap .kihap-icon { font-size: 14px; }
+
+  /* 모바일 스킬 버튼 한글 레이블 */
+  .mobile-kihap-label {
+    display: block;
+    font-size: 8px;
+    color: var(--text-dim);
+    line-height: 1;
+    margin-top: 1px;
+  }
 }
 
 /* ════════════════════════════════════════════════════════════

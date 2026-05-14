@@ -39,7 +39,7 @@ import {
   const TILE_W_MAX = 24;
   const DEFAULT_TILE_W = 24;
   const ZOOM_LEVELS       = [16, 20, 24];
-  const TOUCH_ZOOM_LEVELS = [8, 10, 12, 16, 20, 24];
+  const TOUCH_ZOOM_LEVELS = [8, 10, 12];
   const PANEL_WIDTH = 300;
   const NAME_POOL = [
     "관우", "장비", "조조", "유비", "제갈량", "사마의", "손권", "주유", "여포", "조운",
@@ -131,9 +131,14 @@ import {
   const topbarEl = document.querySelector(".topbar");
   const topbarToggleBtn = document.getElementById("topbarToggleBtn");
   const pauseOverlay    = document.getElementById("pauseOverlay");
-  const mobileKihapBtn  = document.getElementById("mobileKihapBtn");
-  const mobileKihapFill = document.getElementById("mobileKihapFill");
-  const mobileKihapIcon = document.getElementById("mobileKihapIcon");
+  const mobileKihapBtn   = document.getElementById("mobileKihapBtn");
+  const mobileKihapFill  = document.getElementById("mobileKihapFill");
+  const mobileKihapIcon  = document.getElementById("mobileKihapIcon");
+  const mobileKihapLabel = document.getElementById("mobileKihapLabel");
+  const msMeleeAtk  = document.getElementById("msMeleeAtk");
+  const msMeleeDef  = document.getElementById("msMeleeDef");
+  const msRangedAtk = document.getElementById("msRangedAtk");
+  const msRangedDef = document.getElementById("msRangedDef");
 
   const isMobile = () => window.innerWidth < 950;
 
@@ -143,7 +148,11 @@ import {
   }
 
   topbarToggleBtn.addEventListener("click", () => {
-    setTopbarCollapsed(!topbarEl.classList.contains("topbar--collapsed"));
+    if (isMobile()) {
+      setPaused(!game.paused);
+    } else {
+      setTopbarCollapsed(!topbarEl.classList.contains("topbar--collapsed"));
+    }
   });
 
   function setPaused(paused) {
@@ -195,11 +204,6 @@ import {
   document.getElementById("pauseSpeed2x").addEventListener("click", () => {
     game.speedMultiplier = 2;
     syncPauseSpeedBtns();
-  });
-
-  document.getElementById("pauseMenuBtn").addEventListener("click", () => {
-    if (game.battlePhase !== "live") return;
-    setPaused(!game.paused);
   });
 
   // 하이브리드 기기: 첫 터치 시 자동으로 터치 모드 전환
@@ -261,6 +265,7 @@ import {
     troopAdjustScreen.hidden  = (state !== "troopAdjust");
     battleResultScreen.hidden = (state !== "battleResult");
     appShell.hidden           = (state === "home");
+    if (state === "battle") cameraYOffset = 150 - canvas.clientHeight / 2;
     updateBattleLoadingMask();
   }
 
@@ -1206,7 +1211,7 @@ import {
 
   const game = {
     ...buildScenario(),
-    tileW: DEFAULT_TILE_W,
+    tileW: window.innerWidth < 950 ? 12 : DEFAULT_TILE_W,
     battlePhase: "planning",
     battleTime: 0,
     selectedId: 0,
@@ -1215,7 +1220,7 @@ import {
     phaseButton,
     speedMultiplier: 1,
     paused: false,
-    controlType: ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? 'touch' : 'mouse',
+    controlType: 'mouse',
     simulationAccumulator: 0,
     aiTimer: 0,
     enemyStrategy: null,
@@ -1339,10 +1344,12 @@ import {
     return vec(clamp((sx / halfW + sy / halfH) / 2, 0, MAP_WIDTH - 1), clamp((sy / halfH - sx / halfW) / 2, 0, MAP_HEIGHT - 1));
   }
 
+  let cameraYOffset = -140; // setScreen("battle") 시점에 canvas 높이 기준으로 갱신
+
   function centerCameraOn(pos) {
     const iso = isoPoint(pos.x, pos.y);
     game.camera.x = iso.x;
-    game.camera.y = iso.y - 140;
+    game.camera.y = iso.y + cameraYOffset;
   }
 
   function formationCenter(formation) {
@@ -3711,7 +3718,6 @@ import {
     speedToggleButton.classList.toggle("active", game.speedMultiplier === 2);
     speedToggleButton.textContent = game.speedMultiplier === 2 ? "기본속도" : "2배속";
     troopAdjustBtn.disabled = game.battlePhase !== "planning";
-    document.getElementById("pauseMenuBtn").disabled = game.battlePhase !== "live";
 
     // 패널: 장수 정보 + 실시간 전투 능력치
     if (selected) {
@@ -3746,6 +3752,10 @@ import {
       panelRangedAtk.textContent = rangedAtk.toFixed(1);
       panelRangedDef.textContent = (rangedDefPct >= 0 ? '+' : '') + rangedDefPct + '%';
       panelRangedDef.className   = 'stat-val' + (rangedDefPct > 0 ? ' ranged-def-good' : rangedDefPct < 0 ? ' ranged-def-bad' : '');
+      if (msMeleeAtk)  msMeleeAtk.textContent  = meleeAtk.toFixed(1);
+      if (msMeleeDef)  msMeleeDef.textContent  = meleeDef.toFixed(1);
+      if (msRangedAtk) msRangedAtk.textContent = rangedAtk.toFixed(1);
+      if (msRangedDef) msRangedDef.textContent = (rangedDefPct >= 0 ? '+' : '') + rangedDefPct + '%';
 
       const troops    = formationRemainingTroops(selected);
       const troopPct  = (troops / formationInitialTroops(selected) * 100).toFixed(1);
@@ -3773,7 +3783,8 @@ import {
       if (mobileKihapBtn) {
         mobileKihapBtn.disabled = kihapBtn.disabled;
         if (mobileKihapFill) mobileKihapFill.style.width = kihapFill.style.width;
-        if (mobileKihapIcon) mobileKihapIcon.textContent = sDef.icon;
+        if (mobileKihapIcon)  mobileKihapIcon.textContent  = sDef.icon;
+        if (mobileKihapLabel) mobileKihapLabel.textContent = sDef.label;
       }
     } else {
       panelPortrait.src = ''; panelPortrait.hidden = true;
@@ -3786,8 +3797,12 @@ import {
       panelDisorderFill.style.width  = "0%";
       kihapBtn.disabled = true;
       kihapFill.style.width = "0%";
-      if (mobileKihapBtn) { mobileKihapBtn.disabled = true; }
-      if (mobileKihapFill) mobileKihapFill.style.width = "0%";
+      if (mobileKihapBtn)   { mobileKihapBtn.disabled = true; }
+      if (mobileKihapFill)  mobileKihapFill.style.width = "0%";
+      if (msMeleeAtk)  msMeleeAtk.textContent  = '-';
+      if (msMeleeDef)  msMeleeDef.textContent  = '-';
+      if (msRangedAtk) msRangedAtk.textContent = '-';
+      if (msRangedDef) msRangedDef.textContent = '-';
     }
   }
 
@@ -4248,8 +4263,8 @@ import {
     }
     const { playerFormations, enemyFormations } = rebuildFormations(terrain, pGens, eGens);
     applyScenario(terrain, playerFormations, enemyFormations);
-    centerCameraOn(formationCenter(game.playerFormations[0]));
     setScreen("battle");
+    centerCameraOn(formationCenter(game.playerFormations[0]));
     refreshHud();
     refreshButtons();
   }
@@ -4540,8 +4555,8 @@ import {
     const { playerFormations, enemyFormations } =
       rebuildFormations(savedTerrain, savedPlayerGenerals, savedEnemyGenerals);
     applyScenario(savedTerrain, playerFormations, enemyFormations);
-    centerCameraOn(formationCenter(game.playerFormations[0]));
     setScreen("battle");
+    centerCameraOn(formationCenter(game.playerFormations[0]));
     refreshHud();
     refreshButtons();
   });
