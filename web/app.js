@@ -38,7 +38,8 @@ import {
   const TILE_W_MIN = 16;
   const TILE_W_MAX = 24;
   const DEFAULT_TILE_W = 24;
-  const ZOOM_LEVELS = [16, 20, 24];
+  const ZOOM_LEVELS       = [16, 20, 24];
+  const TOUCH_ZOOM_LEVELS = [8, 10, 12, 16, 20, 24];
   const PANEL_WIDTH = 300;
   const NAME_POOL = [
     "관우", "장비", "조조", "유비", "제갈량", "사마의", "손권", "주유", "여포", "조운",
@@ -129,6 +130,7 @@ import {
   const battleLoadingMask = document.getElementById("battleLoadingMask");
   const topbarEl = document.querySelector(".topbar");
   const topbarToggleBtn = document.getElementById("topbarToggleBtn");
+  const pauseOverlay    = document.getElementById("pauseOverlay");
   const mobileKihapBtn  = document.getElementById("mobileKihapBtn");
   const mobileKihapFill = document.getElementById("mobileKihapFill");
   const mobileKihapIcon = document.getElementById("mobileKihapIcon");
@@ -142,6 +144,74 @@ import {
 
   topbarToggleBtn.addEventListener("click", () => {
     setTopbarCollapsed(!topbarEl.classList.contains("topbar--collapsed"));
+  });
+
+  function setPaused(paused) {
+    game.paused = paused;
+    pauseOverlay.hidden = !paused;
+    if (paused) { syncPauseSpeedBtns(); syncPauseCtrlBtns(); }
+  }
+
+  function syncPauseSpeedBtns() {
+    document.getElementById("pauseSpeed1x").classList.toggle("active", game.speedMultiplier === 1);
+    document.getElementById("pauseSpeed2x").classList.toggle("active", game.speedMultiplier === 2);
+  }
+
+  function setControlType(type) {
+    game.controlType = type;
+    // 터치 → 마우스 전환 시 줌 레벨 보정
+    if (type === 'mouse' && !ZOOM_LEVELS.includes(game.tileW)) {
+      game.tileW = ZOOM_LEVELS[0];
+      invalidateTerrainChunkCache();
+    }
+    syncPauseCtrlBtns();
+  }
+
+  function syncPauseCtrlBtns() {
+    document.getElementById("pauseCtrlMouse").classList.toggle("active", game.controlType === 'mouse');
+    document.getElementById("pauseCtrlTouch").classList.toggle("active", game.controlType === 'touch');
+  }
+
+  document.getElementById("pauseCtrlMouse").addEventListener("click", () => setControlType('mouse'));
+  document.getElementById("pauseCtrlTouch").addEventListener("click", () => setControlType('touch'));
+
+  document.getElementById("pauseResumeBtn").addEventListener("click", () => setPaused(false));
+
+  document.getElementById("pauseRestartBtn").addEventListener("click", () => {
+    setPaused(false);
+    enterQuickBattle(true);
+  });
+
+  document.getElementById("pauseEndBtn").addEventListener("click", () => {
+    setPaused(false);
+    setScreen("home");
+  });
+
+  document.getElementById("pauseSpeed1x").addEventListener("click", () => {
+    game.speedMultiplier = 1;
+    syncPauseSpeedBtns();
+  });
+
+  document.getElementById("pauseSpeed2x").addEventListener("click", () => {
+    game.speedMultiplier = 2;
+    syncPauseSpeedBtns();
+  });
+
+  document.getElementById("pauseMenuBtn").addEventListener("click", () => {
+    if (game.battlePhase !== "live") return;
+    setPaused(!game.paused);
+  });
+
+  // 하이브리드 기기: 첫 터치 시 자동으로 터치 모드 전환
+  window.addEventListener("touchstart", () => {
+    if (game.controlType !== 'touch') setControlType('touch');
+  }, { passive: true, once: false });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (appShell.hidden) return;
+    if (game.battlePhase !== "live") return;
+    setPaused(!game.paused);
   });
   const buttons = {
     speed: document.querySelectorAll("[data-speed]"),
@@ -1144,6 +1214,8 @@ import {
     dragState: null,
     phaseButton,
     speedMultiplier: 1,
+    paused: false,
+    controlType: ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? 'touch' : 'mouse',
     simulationAccumulator: 0,
     aiTimer: 0,
     enemyStrategy: null,
@@ -1451,8 +1523,9 @@ import {
   function unitDefense(formation, unit) {
     const tx = clamp(Math.floor(unit.x), 0, MAP_WIDTH - 1);
     const ty = clamp(Math.floor(unit.y), 0, MAP_HEIGHT - 1);
-    const tile = terrainInfo[game.terrain.tiles[ty][tx]];
-    const base = Math.max(0, 2 + speedInfo[formation.speed].defense + densityInfo[formation.density].defense + tile.defense - formation.disorder * 2);
+    const tileKey = game.terrain.tiles[ty][tx];
+    const tileDefense = (formation.troopType === 'cavalry' && tileKey === 'mountain') ? -2 : terrainInfo[tileKey].defense;
+    const base = Math.max(0, 2 + speedInfo[formation.speed].defense + densityInfo[formation.density].defense + tileDefense - formation.disorder * 2);
     const defense = base * troopTypeInfo(formation.troopType).meleeDefenseMult;
     return formation.troopType === 'cavalry' ? defense + 10 : defense;
   }
@@ -1526,10 +1599,17 @@ import {
     return (15 + formation.general.power / 100 * 15) * 0.2 * troopTypeInfo(formation.troopType).rangedAttackMult;
   }
 
-  function moveMultiplier(x, y) {
+  // 기병은 험지(강·산·습지)에서 추가 이동 패널티 적용
+  const CAVALRY_TERRAIN_MOVE_PENALTY = { river: 0.45, mountain: 0.55, wetland: 0.5 };
+
+  function moveMultiplier(x, y, troopType) {
     const tx = clamp(Math.floor(x), 0, MAP_WIDTH - 1);
     const ty = clamp(Math.floor(y), 0, MAP_HEIGHT - 1);
-    return terrainInfo[game.terrain.tiles[ty][tx]].move;
+    const tile = game.terrain.tiles[ty][tx];
+    const base = terrainInfo[tile].move;
+    return troopType === 'cavalry'
+      ? base * (CAVALRY_TERRAIN_MOVE_PENALTY[tile] ?? 1.0)
+      : base;
   }
 
   function tileAt(x, y) {
@@ -1788,14 +1868,14 @@ import {
   function anchorMoveSpeed(formation, x, y) {
     const troopPenalty = Math.max(0.65, 1 - (formationRemainingPopulation(formation) / 50000) * 0.35);
     const swift = formation.swiftTimer > 0 ? 1.5 : 1.0;
-    return speedInfo[formation.speed].move * moveMultiplier(x, y) * troopPenalty * swift * troopTypeInfo(formation.troopType).moveMult;
+    return speedInfo[formation.speed].move * moveMultiplier(x, y, formation.troopType) * troopPenalty * swift * troopTypeInfo(formation.troopType).moveMult;
   }
 
   function unitMoveSpeed(formation, x, y) {
     const troopPenalty = Math.max(0.65, 1 - (formationRemainingPopulation(formation) / 50000) * 0.35);
     const swift = formation.swiftTimer > 0 ? 1.5 : 1.0;
     const disorderPenalty = Math.max(0.1, 1 - formation.disorder * 1.4 * (1 - speedInfo["NORMAL"].move / speedInfo["FAST"].move));
-    return speedInfo["FAST"].move * moveMultiplier(x, y) * (1 + formation.general.leadership / 100 * 0.4) * troopPenalty * swift * troopTypeInfo(formation.troopType).moveMult * disorderPenalty;
+    return speedInfo["FAST"].move * moveMultiplier(x, y, formation.troopType) * (1 + formation.general.leadership / 100 * 0.4) * troopPenalty * swift * troopTypeInfo(formation.troopType).moveMult * disorderPenalty;
   }
 
   function reactionRadius(formation) {
@@ -1849,7 +1929,11 @@ import {
       const ax = clamp(Math.floor(formation.anchor.x), 0, MAP_WIDTH - 1);
       const ay = clamp(Math.floor(formation.anchor.y), 0, MAP_HEIGHT - 1);
       const anchorTile = game.terrain.tiles[ay][ax];
-      const terrainMult = (anchorTile === "mountain" || anchorTile === "river") ? 1.5 : 1.0;
+      const baseTerrainMult = (anchorTile === "mountain" || anchorTile === "river") ? 1.5 : 1.0;
+      const cavalryTerrainExtra = formation.troopType === 'cavalry'
+        ? ({ mountain: 1.8, river: 1.8, wetland: 1.5 }[anchorTile] ?? 1.0)
+        : 1.0;
+      const terrainMult = baseTerrainMult * cavalryTerrainExtra;
       const outOfPositionCount = alive.filter(u => {
         const slot = add(formation.anchor, worldFromLocal(formation, u.slotLocal));
         return len(slot.x - u.x, slot.y - u.y) >= POSITION_DEFENSE_THRESHOLD;
@@ -3627,6 +3711,7 @@ import {
     speedToggleButton.classList.toggle("active", game.speedMultiplier === 2);
     speedToggleButton.textContent = game.speedMultiplier === 2 ? "기본속도" : "2배속";
     troopAdjustBtn.disabled = game.battlePhase !== "planning";
+    document.getElementById("pauseMenuBtn").disabled = game.battlePhase !== "live";
 
     // 패널: 장수 정보 + 실시간 전투 능력치
     if (selected) {
@@ -3641,11 +3726,12 @@ import {
       // 근접 방어력 (앵커 위치 지형 기준)
       const atx = clamp(Math.floor(selected.anchor.x), 0, MAP_WIDTH - 1);
       const aty = clamp(Math.floor(selected.anchor.y), 0, MAP_HEIGHT - 1);
-      const aTile = terrainInfo[game.terrain.tiles[aty][atx]];
+      const aTileKey = game.terrain.tiles[aty][atx];
+      const aTileDefense = (selected.troopType === 'cavalry' && aTileKey === 'mountain') ? -2 : terrainInfo[aTileKey].defense;
       const meleeDef = Math.max(0,
         2 + speedInfo[selected.speed].defense
           + densityInfo[selected.density].defense
-          + aTile.defense
+          + aTileDefense
           - selected.disorder * 2) * troopTypeInfo(selected.troopType).meleeDefenseMult
         + (selected.troopType === 'cavalry' ? 10 : 0);
 
@@ -3861,6 +3947,8 @@ import {
 
   window.addEventListener("mouseup", (event) => {
     if (game.dragState && event.button === 0) {
+      // 터치 모드에서는 캔버스 클릭 진형 선택 불가
+      if (game.controlType === 'touch') { game.dragState = null; return; }
       const dx = event.clientX - game.dragState.x;
       const dy = event.clientY - game.dragState.y;
       const wasDrag = Math.hypot(dx, dy) > 5;
@@ -3887,27 +3975,9 @@ import {
     game.dragState = null;
   });
 
-  canvas.addEventListener("wheel", (event) => {
-    event.preventDefault();
-    const old = game.tileW;
-    const idx = ZOOM_LEVELS.indexOf(old);
-    const curIdx = idx !== -1 ? idx : ZOOM_LEVELS.length - 1;
-    const nextIdx = clamp(curIdx + (event.deltaY < 0 ? 1 : -1), 0, ZOOM_LEVELS.length - 1);
-    game.tileW = ZOOM_LEVELS[nextIdx];
-    if (game.tileW === old) return;
-    const before = toTile(event.offsetX, event.offsetY);
-    const afterIso = isoPoint(before.x, before.y);
-    const oldIso = { x: (before.x - before.y) * (old / 2), y: (before.x + before.y) * ((old / 2) / 2) };
-    game.camera.x += afterIso.x - oldIso.x;
-    game.camera.y += afterIso.y - oldIso.y;
-    invalidateTerrainChunkCache();
-  }, { passive: false });
-
-  canvas.addEventListener("mouseup", (event) => {
-    if (event.button !== 2) return;
-    const tile = toTile(event.offsetX, event.offsetY);
-
-    // 클릭 위치에서 가장 가까운 적 진영 탐색 (반경 8타일)
+  // ── 이동 명령 헬퍼 (우클릭 / 터치 공용) ─────────────────────────────
+  function issueMoveCommand(offsetX, offsetY) {
+    const tile = toTile(offsetX, offsetY);
     let clickedEnemy = null;
     let minDist = 8.0;
     for (const f of game.enemyFormations) {
@@ -3916,7 +3986,6 @@ import {
       const d = len(center.x - tile.x, center.y - tile.y);
       if (d < minDist) { minDist = d; clickedEnemy = f; }
     }
-
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       if (clickedEnemy) {
@@ -3935,12 +4004,128 @@ import {
         }
       }
     });
+  }
+
+  // ── 터치 컨트롤 ───────────────────────────────────────────────────────
+  let touchState = null;
+
+  canvas.addEventListener("touchstart", (e) => {
+    if (game.controlType !== 'touch') return;
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      touchState = {
+        type: 'single',
+        startX: e.touches[0].clientX, startY: e.touches[0].clientY,
+        lastX:  e.touches[0].clientX, lastY:  e.touches[0].clientY,
+        moved: false,
+      };
+    } else if (e.touches.length >= 2) {
+      const t0 = e.touches[0], t1 = e.touches[1];
+      const dist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+      const midX = (t0.clientX + t1.clientX) / 2;
+      const midY = (t0.clientY + t1.clientY) / 2;
+      touchState = {
+        type: 'multi',
+        lastDist: dist, lastMidX: midX, lastMidY: midY,
+      };
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("touchmove", (e) => {
+    if (game.controlType !== 'touch') return;
+    e.preventDefault();
+    if (!touchState) return;
+
+    if (e.touches.length === 1 && touchState.type === 'single') {
+      const dx = e.touches[0].clientX - touchState.lastX;
+      const dy = e.touches[0].clientY - touchState.lastY;
+      game.camera.x -= dx;
+      game.camera.y -= dy;
+      touchState.lastX = e.touches[0].clientX;
+      touchState.lastY = e.touches[0].clientY;
+      const totalMoved = Math.hypot(e.touches[0].clientX - touchState.startX, e.touches[0].clientY - touchState.startY);
+      if (totalMoved > 6) touchState.moved = true;
+
+    } else if (e.touches.length >= 2) {
+      if (touchState.type !== 'multi') return;
+      const t0 = e.touches[0], t1 = e.touches[1];
+      const dist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+      const midX = (t0.clientX + t1.clientX) / 2;
+      const midY = (t0.clientY + t1.clientY) / 2;
+
+      // 패닝
+      game.camera.x -= midX - touchState.lastMidX;
+      game.camera.y -= midY - touchState.lastMidY;
+
+      // 핀치 줌
+      const ratio = dist / touchState.lastDist;
+      const levels = TOUCH_ZOOM_LEVELS;
+      const idx = levels.indexOf(game.tileW);
+      const curIdx = idx !== -1 ? idx : levels.length - 1;
+      if (ratio > 1.20 && curIdx < levels.length - 1) {
+        const rect = canvas.getBoundingClientRect();
+        const before = toTile(midX - rect.left, midY - rect.top);
+        game.tileW = levels[curIdx + 1];
+        const afterIso = isoPoint(before.x, before.y);
+        const oldIso   = isoPoint(before.x, before.y);
+        invalidateTerrainChunkCache();
+        touchState.lastDist = dist;
+      } else if (ratio < 0.80 && curIdx > 0) {
+        game.tileW = levels[curIdx - 1];
+        invalidateTerrainChunkCache();
+        touchState.lastDist = dist;
+      }
+
+      touchState.lastMidX = midX;
+      touchState.lastMidY = midY;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("touchend", (e) => {
+    if (game.controlType !== 'touch') return;
+    e.preventDefault();
+    if (touchState?.type === 'single' && !touchState.moved && e.changedTouches.length === 1) {
+      const rect = canvas.getBoundingClientRect();
+      const t = e.changedTouches[0];
+      issueMoveCommand(t.clientX - rect.left, t.clientY - rect.top);
+    }
+    if (e.touches.length === 0) touchState = null;
+    else if (e.touches.length === 1) {
+      touchState = {
+        type: 'single',
+        startX: e.touches[0].clientX, startY: e.touches[0].clientY,
+        lastX:  e.touches[0].clientX, lastY:  e.touches[0].clientY,
+        moved: false,
+      };
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    const old = game.tileW;
+    const idx = ZOOM_LEVELS.indexOf(old);
+    const curIdx = idx !== -1 ? idx : ZOOM_LEVELS.length - 1;
+    const nextIdx = clamp(curIdx + (event.deltaY < 0 ? 1 : -1), 0, ZOOM_LEVELS.length - 1);
+    game.tileW = ZOOM_LEVELS[nextIdx];
+    if (game.tileW === old) return;
+    const before = toTile(event.offsetX, event.offsetY);
+    const afterIso = isoPoint(before.x, before.y);
+    const oldIso = { x: (before.x - before.y) * (old / 2), y: (before.x + before.y) * ((old / 2) / 2) };
+    game.camera.x += afterIso.x - oldIso.x;
+    game.camera.y += afterIso.y - oldIso.y;
+    invalidateTerrainChunkCache();
+  }, { passive: false });
+
+  canvas.addEventListener("mouseup", (event) => {
+    if (event.button !== 2) return;
+    issueMoveCommand(event.offsetX, event.offsetY);
   });
 
   function tick(now) {
     if (!tick.last) tick.last = now;
     const dt = Math.min(0.05, (now - tick.last) / 1000);
     tick.last = now;
+    if (game.paused) { requestAnimationFrame(tick); return; }
     game.simulationAccumulator = Math.min(game.simulationAccumulator + dt * game.speedMultiplier, SIMULATION_STEP * MAX_SIMULATION_STEPS);
     let stepCount = 0;
     while (game.simulationAccumulator >= SIMULATION_STEP && stepCount < MAX_SIMULATION_STEPS) {
@@ -3995,6 +4180,8 @@ import {
     game.battleTime          = 0;
     game.simulationAccumulator = 0;
     game.speedMultiplier     = 1;
+    game.paused              = false;
+    pauseOverlay.hidden      = true;
     game.aiTimer             = 0;
     game.enemyStrategy       = null;
     game.strategyTick        = 0;

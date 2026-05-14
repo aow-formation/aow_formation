@@ -678,6 +678,98 @@ kbd {
 }
 
 /* ── 반응형 ── */
+/* ════════════════════════════════════════════════════════════
+   일시정지 오버레이
+════════════════════════════════════════════════════════════ */
+.pause-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 3, 1, 0.78);
+  backdrop-filter: blur(3px);
+}
+
+.pause-panel {
+  background: linear-gradient(180deg, var(--stone-3) 0%, var(--stone-1) 100%);
+  border: 1px solid var(--border-mid);
+  border-radius: 4px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.9), 0 0 0 1px var(--border-dark);
+  padding: 32px 36px;
+  width: min(380px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.pause-title {
+  font-family: "Cinzel", "Noto Serif KR", serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold-bright);
+  text-align: center;
+  letter-spacing: 0.12em;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-mid);
+  text-shadow: 0 0 20px rgba(184,138,8,0.4);
+}
+
+.pause-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pause-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-dark);
+  text-transform: uppercase;
+}
+
+.pause-wip {
+  font-size: 9px;
+  color: var(--text-dark);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.pause-btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.pause-speed-btn {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 12px;
+}
+
+.pause-sound-btn {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 12px;
+}
+
+.pause-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-dark);
+}
+
+.pause-action-btn {
+  width: 100%;
+  padding: 11px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
 /* ── 모바일 하단 컨트롤바 기본: 숨김 ── */
 .mobile-ctrl-bar { display: none; }
 

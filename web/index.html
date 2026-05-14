@@ -99,6 +99,43 @@
       </div>
     </div>
 
+    <!-- ── 일시정지 오버레이 ── -->
+    <div id="pauseOverlay" class="pause-overlay" hidden>
+      <div class="pause-panel">
+        <h2 class="pause-title">일시정지</h2>
+
+        <div class="pause-section">
+          <div class="pause-section-label">게임 속도</div>
+          <div class="pause-btn-row">
+            <button id="pauseSpeed1x" class="btn-stone pause-speed-btn">보통</button>
+            <button id="pauseSpeed2x" class="btn-stone pause-speed-btn">2배속</button>
+          </div>
+        </div>
+
+        <div class="pause-section">
+          <div class="pause-section-label">컨트롤</div>
+          <div class="pause-btn-row">
+            <button id="pauseCtrlMouse" class="btn-stone pause-speed-btn">마우스</button>
+            <button id="pauseCtrlTouch" class="btn-stone pause-speed-btn">터치</button>
+          </div>
+        </div>
+
+        <div class="pause-section">
+          <div class="pause-section-label">음향 <span class="pause-wip">(준비 중)</span></div>
+          <div class="pause-btn-row">
+            <button class="btn-stone pause-sound-btn" disabled>♪ 음악</button>
+            <button class="btn-stone pause-sound-btn" disabled>♬ 효과음</button>
+          </div>
+        </div>
+
+        <div class="pause-actions">
+          <button id="pauseResumeBtn"  class="btn-primary pause-action-btn">게임 복귀</button>
+          <button id="pauseRestartBtn" class="btn-stone  pause-action-btn">게임 재시작</button>
+          <button id="pauseEndBtn"     class="btn-stone  pause-action-btn">게임 종료</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── 전투 화면 ── -->
     <div class="app-shell" id="appShell" hidden>
       <header class="topbar">
@@ -107,6 +144,7 @@
           <button id="troopAdjustBtn" class="btn-stone">병력 조정</button>
           <button id="phaseButton" class="btn-primary">전투 개시</button>
           <button id="speedToggleButton" class="btn-stone">2배속</button>
+          <button id="pauseMenuBtn" class="btn-stone">⏸ 메뉴</button>
         </div>
       </header>
 
