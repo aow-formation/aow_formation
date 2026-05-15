@@ -394,6 +394,9 @@ import {
   const UNIT_WALK_FRAMES = 5;
   const UNIT_WALK_SCALE = 0.85;
   const FIRST_ROW_BONUS_DIVISOR = 50;
+  const FOG_BLUR_STRENGTH = 14;
+  const FOG_BLUR_PADDING = 56;
+  const FOG_BUFFER_PADDING = 96;
 
   // ── PixiJS 상태 ──────────────────────────────────────────────────────────
   let pixiApp        = null;
@@ -401,6 +404,7 @@ import {
   let pixiGlowGfx    = null;
   let pixiUnitCtr    = null;
   let pixiFogSprite  = null;
+  let pixiFogBlur    = null;
   let pixiFogRT      = null;
   let pixiFogDark    = null; // 영구 재사용 Graphics (dark overlay)
   let pixiFogVision  = null; // 영구 재사용 Graphics (vision erase)
@@ -450,8 +454,11 @@ import {
       pixiFogScene.addChild(pixiFogDark);
       pixiFogScene.addChild(pixiFogVision);
 
+      pixiFogBlur = new BlurFilter({ strength: FOG_BLUR_STRENGTH });
+      pixiFogBlur.repeatEdgePixels = true;
+      pixiFogBlur.padding = FOG_BLUR_PADDING;
       pixiFogSprite = new PixiSprite();
-      pixiFogSprite.filters = [new BlurFilter({ strength: 14 })];
+      pixiFogSprite.filters = [pixiFogBlur];
       pixiFogSprite.visible = false;
 
       pixiApp.stage.addChild(pixiTerrainCtr);
@@ -921,7 +928,7 @@ import {
       do { endEdge = Math.floor(Math.random() * 4); } while (endEdge === startEdge);
       let [x, y] = edgePoint(startEdge);
       const [tx, ty] = edgePoint(endEdge);
-      const baseRadius = 5 + Math.floor(Math.random() * 4);
+      const baseRadius = 6 + Math.floor(Math.random() * 5);
       const maxSteps = (MAP_WIDTH + MAP_HEIGHT) * 6;
       let currentDrift = (Math.random() - 0.5) * 3.0;
       for (let step = 0; step < maxSteps; step += 1) {
@@ -1078,6 +1085,18 @@ import {
               wetlandQueue.push([nk, dist + 1]);
             }
           }
+        }
+      }
+    }
+
+    // ── 강 주변부 습지: 강에서 3타일 이내 plain/grassland → wetland ────
+    if (riverGenerated) {
+      for (let y = 0; y < MAP_HEIGHT; y++) {
+        for (let x = 0; x < MAP_WIDTH; x++) {
+          const d = rDist[y * MAP_WIDTH + x];
+          if (d < 1 || d > 3) continue;
+          const t = tiles[y][x];
+          if (t === "plain" || t === "grassland") tiles[y][x] = "wetland";
         }
       }
     }
@@ -1916,6 +1935,76 @@ import {
     return formation.facing.x < -0.05;
   }
 
+  function updateUnitVisualFacing(formation, unit) {
+    const now = game.battleTime || 0;
+    const speed = len(unit.vx, unit.vy);
+    const MOVE_ENTER = 0.16;
+    const MOVE_EXIT = 0.05;
+    const FORMATION_LR_ENTER = 0.16;
+    const VELOCITY_LR_ENTER = 0.24;
+    const FORMATION_BACK_ENTER = -0.20;
+    const FORMATION_BACK_EXIT = 0.12;
+    const VELOCITY_BACK_ENTER = -0.42;
+    const VELOCITY_BACK_EXIT = 0.16;
+    const CHANGE_COOLDOWN = 0.45;
+    const facing = normalize(formation.facing || vec());
+    const hasFormationFacing = len(facing.x, facing.y) > 0.001;
+    const velocityAligned = !hasFormationFacing || (unit.vx * facing.x + unit.vy * facing.y) > 0.02;
+
+    if (typeof unit.visualFacingLeft !== "boolean") {
+      unit.visualFacingLeft = visualFacingLeftFromFormation(formation);
+      unit.visualFacingChangedAt = -999;
+    }
+    if (typeof unit.visualFacingBack !== "boolean") {
+      unit.visualFacingBack = false;
+      unit.visualFacingBackChangedAt = -999;
+    }
+    if (typeof unit.visualMoving !== "boolean") {
+      unit.visualMoving = speed > MOVE_ENTER;
+    } else if (unit.visualMoving) {
+      if (speed < MOVE_EXIT) unit.visualMoving = false;
+    } else if (speed > MOVE_ENTER) {
+      unit.visualMoving = true;
+    }
+
+    let nextLeft = unit.visualFacingLeft;
+    if (hasFormationFacing && facing.x < -FORMATION_LR_ENTER) {
+      nextLeft = true;
+    } else if (hasFormationFacing && facing.x > FORMATION_LR_ENTER) {
+      nextLeft = false;
+    } else if (unit.visualMoving && velocityAligned) {
+      if (unit.vx < -VELOCITY_LR_ENTER) nextLeft = true;
+      else if (unit.vx > VELOCITY_LR_ENTER) nextLeft = false;
+    }
+    if (nextLeft !== unit.visualFacingLeft &&
+        now - (unit.visualFacingChangedAt ?? -999) >= CHANGE_COOLDOWN) {
+      unit.visualFacingLeft = nextLeft;
+      unit.visualFacingChangedAt = now;
+    }
+
+    let nextBack = unit.visualFacingBack;
+    if (hasFormationFacing) {
+      const diag = facing.x + facing.y;
+      if (diag < FORMATION_BACK_ENTER) nextBack = true;
+      else if (diag > FORMATION_BACK_EXIT) nextBack = false;
+    } else if (unit.visualMoving && velocityAligned) {
+      const diag = unit.vx + unit.vy;
+      if (diag < VELOCITY_BACK_ENTER) nextBack = true;
+      else if (diag > VELOCITY_BACK_EXIT) nextBack = false;
+    }
+    if (nextBack !== unit.visualFacingBack &&
+        now - (unit.visualFacingBackChangedAt ?? -999) >= CHANGE_COOLDOWN) {
+      unit.visualFacingBack = nextBack;
+      unit.visualFacingBackChangedAt = now;
+    }
+
+    return {
+      moving: unit.visualMoving,
+      facingLeft: unit.visualFacingLeft,
+      facingBack: unit.visualMoving && unit.visualFacingBack,
+    };
+  }
+
   function updateFormation(formation, enemySpatialHash, allSpatialHash, dt) {
     const alive = formation.units.filter(isUnitAlive);
     if (!alive.length) return;
@@ -2037,8 +2126,10 @@ import {
           applyUnitDamage(enemyTarget.formation, enemyTarget.unit, rangedDamage, formation);
           unit.rangedCooldown = 1.0;
           game.projectiles.push({
-            x: unit.x, y: unit.y,
+            ox: unit.x, oy: unit.y,
+            x:  unit.x, y:  unit.y,
             tx: enemyTarget.unit.x, ty: enemyTarget.unit.y,
+            t: 0, totalDist: len(enemyTarget.unit.x - unit.x, enemyTarget.unit.y - unit.y),
             team: formation.team
           });
         }
@@ -2061,7 +2152,13 @@ import {
               - (rangedOnly.formation.troopType === 'cavalry' ? 2 : 0));
             applyUnitDamage(rangedOnly.formation, rangedOnly.unit, rdmg, formation);
             unit.rangedCooldown = 1.0;
-            game.projectiles.push({ x: unit.x, y: unit.y, tx: rangedOnly.unit.x, ty: rangedOnly.unit.y, team: formation.team });
+            game.projectiles.push({
+              ox: unit.x, oy: unit.y,
+              x:  unit.x, y:  unit.y,
+              tx: rangedOnly.unit.x, ty: rangedOnly.unit.y,
+              t: 0, totalDist: len(rangedOnly.unit.x - unit.x, rangedOnly.unit.y - unit.y),
+              team: formation.team
+            });
           }
         }
       }
@@ -2407,15 +2504,13 @@ import {
       checkBattleEnd();
       updateBattleEndPending(dt);
 
-      const PROJ_SPEED = 4.0;
+      const PROJ_SPEED = 4.5;
       game.projectiles = game.projectiles.filter((p) => {
-        const dx = p.tx - p.x;
-        const dy = p.ty - p.y;
-        const d = len(dx, dy);
-        if (d < 0.15) return false;
-        const step = Math.min(d, PROJ_SPEED * dt);
-        p.x += dx / d * step;
-        p.y += dy / d * step;
+        if (!p.totalDist || p.totalDist < 0.01) return false;
+        p.t += (PROJ_SPEED * dt) / p.totalDist;
+        if (p.t >= 1.0) return false;
+        p.x = p.ox + (p.tx - p.ox) * p.t;
+        p.y = p.oy + (p.ty - p.oy) * p.t;
         return true;
       });
     }
@@ -2524,6 +2619,7 @@ import {
       chunkCtx.imageSmoothingQuality = "high";
 
       // Pass 2A: 1×1 center 타일 — 전체 영역 베이스 (경계 타일 포함 모두)
+      chunkCtx.imageSmoothingEnabled = false;
       tiles.forEach(([, x, y]) => {
         const tile = game.terrain.tiles[y][x];
         const variants = terrainSprites.tiles[TERRAIN_ASSET[tile]];
@@ -2532,12 +2628,14 @@ import {
         if (!sp?.naturalWidth) return;
         const iso = isoPoint(x, y);
         const px = iso.x - minIsoX, py = iso.y - minIsoY;
-        const w  = game.tileW;
-        const h  = Math.round(w * sp.naturalHeight / sp.naturalWidth);
-        chunkCtx.drawImage(sp, px - w / 2, py, w, h);
+        const w  = game.tileW + 1.0;
+        const h  = getTileH() + 0.5;
+        chunkCtx.drawImage(sp, px - w / 2, py - 0.25, w, h);
       });
 
       // Pass 2B: 3×3 베이스 텍스처 — 1×1 위에 덮어씌움 (경계 타일 제외)
+      chunkCtx.imageSmoothingEnabled = true;
+      chunkCtx.imageSmoothingQuality = "high";
       tiles.forEach(([, x, y]) => {
         if (game.terrainRender.block[y][x] !== 1) return;
 
@@ -2679,7 +2777,8 @@ import {
               }
             }
             if (bx === undefined) { bx = cx; by = cy; }
-            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: tx, tileY: ty });
+            const scale = 0.85 + rng() * 0.30; // ±15% 사이즈 지터
+            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: tx, tileY: ty, scale });
           }
         }
       }
@@ -2689,8 +2788,11 @@ import {
         trees.sort((a, b) => a.worldBy - b.worldBy);
         chunkCtx.imageSmoothingEnabled = true;
         chunkCtx.imageSmoothingQuality = "high";
-        for (const { worldBx, worldBy } of trees)
-          chunkCtx.drawImage(treeImg, worldBx - minIsoX - tW / 2, worldBy - minIsoY - tH, tW, tH);
+        for (const { worldBx, worldBy, scale } of trees) {
+          const stW = Math.round(tW * (scale ?? 1));
+          const stH = Math.round(tH * (scale ?? 1));
+          chunkCtx.drawImage(treeImg, worldBx - minIsoX - stW / 2, worldBy - minIsoY - stH, stW, stH);
+        }
       }
     }
 
@@ -2741,16 +2843,21 @@ import {
     const H = Math.ceil(canvas.clientHeight);
     const tileH = getTileH();
     const NUM_RAYS = 120;
+    const pad = FOG_BUFFER_PADDING;
+    const rtW = W + pad * 2;
+    const rtH = H + pad * 2;
 
-    if (!pixiFogRT || pixiFogRT.width !== W || pixiFogRT.height !== H) {
+    if (!pixiFogRT || pixiFogRT.width !== rtW || pixiFogRT.height !== rtH) {
       if (pixiFogRT) pixiFogRT.destroy();
-      pixiFogRT = RenderTexture.create({ width: W, height: H });
+      pixiFogRT = RenderTexture.create({ width: rtW, height: rtH });
       pixiFogSprite.texture = pixiFogRT;
     }
     pixiFogSprite.visible = true;
+    pixiFogSprite.x = -pad;
+    pixiFogSprite.y = -pad;
 
     // 영구 Graphics를 clear()하고 재사용 — 매 프레임 객체 생성 없음
-    pixiFogDark.clear().rect(0, 0, W, H).fill({ color: 0x000000, alpha: 0.62 });
+    pixiFogDark.clear().rect(0, 0, rtW, rtH).fill({ color: 0x000000, alpha: 0.62 });
 
     pixiFogVision.clear();
     game.playerFormations.forEach((f) => {
@@ -2764,7 +2871,7 @@ import {
         const ex = clamp(center.x + dirX * dist, 0, MAP_WIDTH);
         const ey = clamp(center.y + dirY * dist, 0, MAP_HEIGHT);
         const s = toScreen(ex, ey);
-        pts.push(s.x, s.y + tileH / 2);
+        pts.push(s.x + pad, s.y + tileH / 2 + pad);
       }
       if (pts.length >= 6) pixiFogVision.poly(pts).fill({ color: 0xffffff, alpha: 1 });
     });
@@ -2837,10 +2944,11 @@ import {
                     || (formation.guardTimer > 0 && slotD < POSITION_DEFENSE_THRESHOLD);
 
       if (frBonus || posBonus || kBonus || skBonus) {
-        const strong = frBonus || kBonus || skBonus;
+        const strong       = frBonus || kBonus || skBonus;
+        const cavalryScale = troopType === 'cavalry' ? 0.80 : 1.0; // 기병 글로우 크기 축소
         const alpha  = strong ? 0.24 : 0.14;
-        const gx     = strong ? 0.60 : 0.50;
-        const gy     = strong ? 0.50 : 0.40;
+        const gx     = (strong ? 0.60 : 0.50) * cavalryScale;
+        const gy     = (strong ? 0.50 : 0.40) * cavalryScale;
         const color  = formation.team === 'player' ? 0xff3c3c : 0xffaa46;
         pixiGlowGfx.ellipse(cx, cy - dh * 0.35, dw * gx, dh * gy).fill({ color, alpha });
       }
@@ -2854,17 +2962,9 @@ import {
         pixiUnitSprites.set(unit.id, sprite);
       }
 
-      // 방향
-      if (typeof unit.visualFacingLeft !== "boolean")
-        unit.visualFacingLeft = visualFacingLeftFromFormation(formation);
-      if (formation.speed === "STOP")
-        unit.visualFacingLeft = visualFacingLeftFromFormation(formation);
-      else if (Math.abs(unit.vx) > 0.12)
-        unit.visualFacingLeft = unit.vx < 0;
-
-      // 텍스처
-      const moving = len(unit.vx, unit.vy) > 0.08;
-      const facingBack = moving && (unit.vx + unit.vy) < -0.05;
+      const visualFacing = updateUnitVisualFacing(formation, unit);
+      const moving = visualFacing.moving;
+      const facingBack = visualFacing.facingBack;
       if (hasPixiSprites(troopType)) {
         if (moving) {
           const fi = Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % troopWalkFrames(troopType);
@@ -2880,7 +2980,7 @@ import {
 
       sprite.x = cx;
       sprite.y = cy;
-      sprite.scale.x = unit.visualFacingLeft ? -spScale : spScale;
+      sprite.scale.x = visualFacing.facingLeft ? -spScale : spScale;
       sprite.scale.y = spScale;
       sprite.zIndex  = unit.x + unit.y;
       sprite.visible = true;
@@ -2993,10 +3093,10 @@ import {
         if (PIXI_TREE_SPRITES && pixiReady && pixiTreeTex && chunk.trees.length > 0) {
           const tW = Math.round(game.tileW * 11 / 24);
           const tH = Math.round(game.tileW * 22 / 24);
-          for (const { worldBx, worldBy, tileX, tileY } of chunk.trees) {
+          for (const { worldBx, worldBy, tileX, tileY, scale } of chunk.trees) {
             const tspr = new PixiSprite(pixiTreeTex);
-            tspr.width  = tW;
-            tspr.height = tH;
+            tspr.width  = Math.round(tW * (scale ?? 1));
+            tspr.height = Math.round(tH * (scale ?? 1));
             tspr.anchor.set(0.5, 1.0);
             tspr.zIndex = tileX + tileY;
             pixiUnitCtr.addChild(tspr);
@@ -3352,20 +3452,12 @@ import {
         || formation.archeryTimer > 0
         || (formation.guardTimer > 0 && slotDist < POSITION_DEFENSE_THRESHOLD);
 
-      // 유닛 이동 여부 + 위상 오프셋으로 발걸음 다양화
-      const isMoving = len(unit.vx, unit.vy) > 0.08;
-      const isFacingBack = isMoving && (unit.vx + unit.vy) < -0.05;
+      const visualFacing = updateUnitVisualFacing(formation, unit);
+      const isMoving = visualFacing.moving;
+      const isFacingBack = visualFacing.facingBack;
       const frameCount = externalUnitLoaded ? troopWalkFrames(troopType) : 2;
       const frameIdx = isMoving ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % frameCount : 0;
-      if (typeof unit.visualFacingLeft !== "boolean") {
-        unit.visualFacingLeft = visualFacingLeftFromFormation(formation);
-      }
-      if (formation.speed === "STOP") {
-        unit.visualFacingLeft = visualFacingLeftFromFormation(formation);
-      } else if (Math.abs(unit.vx) > 0.12) {
-        unit.visualFacingLeft = unit.vx < 0;
-      }
-      const facingLeft = unit.visualFacingLeft;
+      const facingLeft = visualFacing.facingLeft;
       const spriteSet = externalUnitLoaded ? null : game.spriteCache[formation.team][frameIdx];
       const sprite = externalUnitLoaded ? null : (firstRowBonusActive || kihapActive || skillBuffActive
         ? (facingLeft ? spriteSet.bonusLeft : spriteSet.bonusRight)
@@ -3376,12 +3468,13 @@ import {
 
       // 보너스 이펙트: 선두행은 강하게, 일반 정위치는 은은하게 표시
       if (firstRowBonusActive || positionBonusActive || kihapActive || skillBuffActive) {
-        const strongGlow = firstRowBonusActive || kihapActive || skillBuffActive;
-        const glowAlpha = strongGlow ? 0.24 : 0.14;
-        const glowSize = strongGlow
-          ? { x: 0.60, y: 0.50 }
-          : { x: 0.50, y: 0.40 };
-        const glowColor = formation.team === 'player'
+        const strongGlow  = firstRowBonusActive || kihapActive || skillBuffActive;
+        const cavalryScale = troopType === 'cavalry' ? 0.80 : 1.0; // 기병 글로우 크기 축소
+        const glowAlpha   = strongGlow ? 0.24 : 0.14;
+        const glowSize    = strongGlow
+          ? { x: 0.60 * cavalryScale, y: 0.50 * cavalryScale }
+          : { x: 0.50 * cavalryScale, y: 0.40 * cavalryScale };
+        const glowColor   = formation.team === 'player'
           ? `rgba(255,60,60,${glowAlpha})`
           : `rgba(255,170,70,${glowAlpha})`;
         ctx.save();
@@ -3536,23 +3629,31 @@ import {
 
   function renderProjectiles() {
     const tileH = getTileH();
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
-    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = "rgba(60, 35, 10, 0.9)";
+    ctx.lineWidth = 1.2;
     game.projectiles.forEach((p) => {
-      const dx = p.tx - p.x;
-      const dy = p.ty - p.y;
-      const d = len(dx, dy);
-      if (d < 0.001) return;
-      const nx = dx / d;
-      const ny = dy / d;
-      const tailX = p.x - nx * 0.5;
-      const tailY = p.y - ny * 0.5;
+      if (!p.totalDist || p.totalDist < 0.01) return;
+
+      // 포물선 높이: 비행 거리에 비례, 최대 제한
+      const arcHeight = Math.min(p.totalDist * game.tileW * 0.10, game.tileW * 1.8);
+
+      // 머리 위치 (현재 t)
+      const headArcY = -Math.sin(p.t * Math.PI) * arcHeight;
       const head = toScreen(p.x, p.y);
-      const tail = toScreen(tailX, tailY);
-      const cy = tileH / 2;
+      const headSY = head.y + tileH / 2 + headArcY;
+
+      // 꼬리 위치 (약 0.5타일 뒤 궤적 위)
+      const tailFrac = Math.min(0.15, 0.55 / p.totalDist);
+      const t_tail   = Math.max(0, p.t - tailFrac);
+      const tail_px  = p.ox + (p.tx - p.ox) * t_tail;
+      const tail_py  = p.oy + (p.ty - p.oy) * t_tail;
+      const tailArcY = -Math.sin(t_tail * Math.PI) * arcHeight;
+      const tail = toScreen(tail_px, tail_py);
+      const tailSY = tail.y + tileH / 2 + tailArcY;
+
       ctx.beginPath();
-      ctx.moveTo(tail.x, tail.y + cy);
-      ctx.lineTo(head.x, head.y + cy);
+      ctx.moveTo(tail.x, tailSY);
+      ctx.lineTo(head.x, headSY);
       ctx.stroke();
     });
   }
@@ -3621,17 +3722,7 @@ import {
       ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();
 
-      // ── 내부 십자선 ───────────────────────────────────────────────────
-      ctx.shadowBlur  = 0;
-      ctx.globalAlpha = 0.28 + pulse * 0.25;
-      ctx.strokeStyle = mainColor;
-      ctx.lineWidth   = 1;
-      ctx.beginPath();
-      ctx.moveTo(cx - rx * 0.45, cy);
-      ctx.lineTo(cx + rx * 0.45, cy);
-      ctx.moveTo(cx, cy - ry * 0.7);
-      ctx.lineTo(cx, cy + ry * 0.7);
-      ctx.stroke();
+      ctx.shadowBlur = 0;
 
       ctx.restore();
 
@@ -3645,8 +3736,8 @@ import {
         const nx = lineDx / lineLen, ny = lineDy / lineLen;
         const segLen = Math.min(lineLen * 0.85, 180); // 세그먼트 길이
         const cycle  = segLen * 2;                    // 세그먼트 + 동일 길이 공백
-        const PIXEL_SPEED = 22;                       // 고정 픽셀 속도 (px/s)
-        const offset = (now * PIXEL_SPEED) % cycle;
+        const CYCLE_DURATION = 5.5;                   // 항상 이 시간(초)에 한 사이클 완료
+        const offset = ((now % CYCLE_DURATION) / CYCLE_DURATION) * cycle;
 
         ctx.save();
         ctx.lineWidth = 1.5;

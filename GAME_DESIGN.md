@@ -533,6 +533,16 @@ disorder    = rawDisorder
 | 2026-05-12 | Railway 배포 설정 완료. `railway.json` 추가(빌드 명령·헬스체크·재시작 정책), `package.json`에 `engines.node>=20` 및 `deploy` 스크립트 추가, `scripts/deploy.mjs` 작성(git add→commit→push 자동화). GitHub 리포지터리 `aow-formation/aow_formation` 연결, Railway 프로젝트와 GitHub 연동 후 빌드 확인 완료 |
 | 2026-05-13 | PixiJS 초기화 오류 수정: `Texture.fromURL` → `PixiAssets.load()` (PixiJS v8 API 변경 대응). 지형 청크는 Canvas 2D 유지(성능), 나무 오브젝트만 `pixiUnitCtr`에 PixiJS 스프라이트로 분리해 유닛과 함께 Y정렬(깊이 기반 가림 효과). 유닛 zIndex를 `unit.x + unit.y` 타일 좌표 기준으로 변경. 이동 완료 진형의 목표 지점 원 표시 숨김(앵커-목표 거리 1.0 타일 미만 시) |
 | 2026-05-14 | 홈 화면 배경 `main.png`, `main1.png`를 압축 JPG(`main.jpg`, `main1.jpg`)로 변환하고 홈 배경 참조 경로를 JPG로 변경 |
+| 2026-05-15 | 1x1 지형 타일 리소스(`terrain_tiles_v3/tile_1x1`)를 기존 `43x21`에서 정확한 2:1 규격인 `48x24`로 리사이즈. 기존 리소스는 `_backup_tile_1x1_20260515`에 백업 |
+| 2026-05-15 | 유닛 시각 방향 갱신을 `updateUnitVisualFacing()` 공통 함수로 통합. 이동/정지 잔여 속도에 의한 좌우·전후 반전 진동을 줄이기 위해 dead zone, hysteresis, 0.45초 방향 변경 쿨다운 적용 |
+| 2026-05-15 | 정지 직전 슬롯 보정 속도 때문에 유닛이 진행 반대 방향으로 일제히 뒤집히는 현상을 줄이기 위해, 유닛 좌우·전후 시각 방향은 개별 속도보다 진형의 `facing`을 우선하도록 변경 |
+| 2026-05-15 | 1x1 지형 타일의 미세 경계선 완화를 위해 Pass 2A 베이스 타일을 가로 1px, 세로 0.5px 오버랩 렌더링하도록 조정 |
+| 2026-05-15 | 1x1 지형 타일의 미세 경계선 추가 완화를 위해 Pass 2A 베이스 타일 렌더링에만 `imageSmoothingEnabled=false` 적용. Pass 2B 이후 렌더링은 기존 고품질 스무딩 유지 |
+| 2026-05-15 | 강 주변부 습지 생성 폭을 강에서 2타일 이내에서 3타일 이내로 확대 |
+| 2026-05-16 | FOG 블러가 화면 가장자리에서 투명 영역을 샘플링해 포그가 옅어지는 현상을 줄이기 위해 PixiJS `BlurFilter`에 `repeatEdgePixels`, padding, 확장 `filterArea` 적용 |
+| 2026-05-16 | FOG 가장자리 블러 완화 추가 실험: PixiJS FOG `BlurFilter` padding을 56px에서 112px로 확대하고, 화면 밖 투명 영역 샘플링 가능성이 있는 확장 `filterArea` 지정 제거 |
+| 2026-05-16 | FOG 가장자리 블러가 완화되었으나 일부 남아 있어 PixiJS FOG `BlurFilter` padding을 112px에서 192px로 추가 확대 |
+| 2026-05-16 | FOG 가장자리 블러 해결 방식을 단순 필터 padding 확대에서 확장 RenderTexture 방식으로 변경. PixiJS FOG 버퍼를 화면보다 사방 96px 크게 만들고 시야 마스크 좌표를 보정한 뒤 스프라이트를 -96px 위치에 배치 |
 | 2026-05-13 | 나무 PixiJS Y정렬 스프라이트 비활성화(성능 이슈). `PIXI_TREE_SPRITES = false` 플래그로 캔버스 렌더링 복귀. 로직은 보존되어 플래그만으로 재활성화 가능 |
 | 2026-05-14 | 모바일 반응형(950px 미만) 추가. 상단바 전투 시작 시 자동 접기(토글 버튼), HUD 카드 5열 소형화·병력 숫자 숨김, 우측 패널 120px 나란히 배치(이름·능력치 숨김, 바만 유지, 속도 3줄), 대형·밀도·스킬 하단 고정바 이동. 전투 캔버스 높이를 `100vh - 상단바 - HUD` 자동 계산(flex 레이아웃)으로 변경 |
 | 2026-05-14 | 기병 능력치 조정: 원거리 방어 고정 보너스 4→2, 근접 방어 배율 4.0→2.0 |
