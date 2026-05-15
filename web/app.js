@@ -39,7 +39,7 @@ import {
   const TILE_W_MAX = 24;
   const DEFAULT_TILE_W = 24;
   const ZOOM_LEVELS       = [16, 20, 24];
-  const TOUCH_ZOOM_LEVELS = [8, 10, 12];
+  const TOUCH_ZOOM_LEVELS = [12, 14, 16];
   const PANEL_WIDTH = 300;
   const NAME_POOL = [
     "관우", "장비", "조조", "유비", "제갈량", "사마의", "손권", "주유", "여포", "조운",
@@ -375,6 +375,8 @@ import {
   cavalryWalkSprite.src = './assets/units/ancient_cavity_helmet_walk.png';
   const cavalryWalkBlueSprite = new Image();
   cavalryWalkBlueSprite.src = './assets/units/ancient_cavity_helmet_walk_blue.png';
+  const cavalryWalkBackSprite = new Image();
+  cavalryWalkBackSprite.src = './assets/units/ancient_cavity_helmet_walk_back.png';
   const unitIdleSprite = new Image();
   unitIdleSprite.src = './assets/units/ancient_infantry_helmet_idle_1.png';
   const unitIdleBlueSprite = new Image();
@@ -385,6 +387,7 @@ import {
     unitWalkBlueSprite,
     cavalryWalkSprite,
     cavalryWalkBlueSprite,
+    cavalryWalkBackSprite,
     unitIdleSprite,
     unitIdleBlueSprite,
   ];
@@ -407,6 +410,7 @@ import {
     infantry: { player: [], enemy: [] },
     cavalry:  { player: [], enemy: [] },
   };
+  const pixiWalkBackTex = { cavalry: [] }; // 기병 후방(우상향) 스프라이트
   const pixiIdleTex  = {
     infantry: { player: null, enemy: null },
     cavalry:  { player: null, enemy: null },
@@ -459,18 +463,19 @@ import {
 
       // 유닛 텍스처 로드
       const load = url => PixiAssets.load(url).catch(() => null);
-      const [wP, wE, cP, cE, iP, iE, treeT] = await Promise.all([
+      const [wP, wE, cP, cE, cBack, iP, iE, treeT] = await Promise.all([
         load('./assets/units/ancient_infantry_helmet_walk.png'),
         load('./assets/units/ancient_infantry_helmet_walk_blue.png'),
         load('./assets/units/ancient_cavity_helmet_walk.png'),
         load('./assets/units/ancient_cavity_helmet_walk_blue.png'),
+        load('./assets/units/ancient_cavity_helmet_walk_back.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1_blue.png'),
         load('./assets/terrain_tiles_v3/objects/trees/tree.png'),
       ]);
       pixiTreeTex = treeT;
       // 픽셀아트: 모든 유닛 텍스처에 nearest-neighbor 보간 설정
-      [wP, wE, cP, cE, iP, iE].forEach(tex => { if (tex) tex.source.scaleMode = 'nearest'; });
+      [wP, wE, cP, cE, cBack, iP, iE].forEach(tex => { if (tex) tex.source.scaleMode = 'nearest'; });
 
       const makeFrames = (tex, type) => {
         if (!tex) return [];
@@ -480,10 +485,11 @@ import {
           new Texture({ source: tex.source, frame: new PixiRect(i * fw, 0, fw, tex.height) })
         );
       };
-      pixiWalkTex.infantry.player = makeFrames(wP, "infantry");
-      pixiWalkTex.infantry.enemy  = makeFrames(wE, "infantry");
-      pixiWalkTex.cavalry.player  = makeFrames(cP, "cavalry");
-      pixiWalkTex.cavalry.enemy   = makeFrames(cE, "cavalry");
+      pixiWalkTex.infantry.player  = makeFrames(wP, "infantry");
+      pixiWalkTex.infantry.enemy   = makeFrames(wE, "infantry");
+      pixiWalkTex.cavalry.player   = makeFrames(cP, "cavalry");
+      pixiWalkTex.cavalry.enemy    = makeFrames(cE, "cavalry");
+      pixiWalkBackTex.cavalry      = makeFrames(cBack, "cavalry");
       if (iP) pixiIdleTex.infantry.player = iP;
       if (iE) pixiIdleTex.infantry.enemy  = iE;
       pixiIdleTex.cavalry.player = pixiWalkTex.cavalry.player[0] || null;
@@ -1211,7 +1217,7 @@ import {
 
   const game = {
     ...buildScenario(),
-    tileW: window.innerWidth < 950 ? 12 : DEFAULT_TILE_W,
+    tileW: window.innerWidth < 950 ? 16 : DEFAULT_TILE_W,
     battlePhase: "planning",
     battleTime: 0,
     selectedId: 0,
@@ -2848,10 +2854,15 @@ import {
 
       // 텍스처
       const moving = len(unit.vx, unit.vy) > 0.08;
+      const facingBack = moving && (unit.vx + unit.vy) < -0.05;
       if (hasPixiSprites(troopType)) {
         if (moving) {
           const fi = Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % troopWalkFrames(troopType);
-          sprite.texture = pixiWalkTex[troopType][formation.team][fi];
+          if (facingBack && troopType === 'cavalry' && pixiWalkBackTex.cavalry.length > 0) {
+            sprite.texture = pixiWalkBackTex.cavalry[fi];
+          } else {
+            sprite.texture = pixiWalkTex[troopType][formation.team][fi];
+          }
         } else {
           sprite.texture = pixiIdleTex[troopType][formation.team];
         }
@@ -3333,6 +3344,7 @@ import {
 
       // 유닛 이동 여부 + 위상 오프셋으로 발걸음 다양화
       const isMoving = len(unit.vx, unit.vy) > 0.08;
+      const isFacingBack = isMoving && (unit.vx + unit.vy) < -0.05;
       const frameCount = externalUnitLoaded ? troopWalkFrames(troopType) : 2;
       const frameIdx = isMoving ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % frameCount : 0;
       if (typeof unit.visualFacingLeft !== "boolean") {
@@ -3372,7 +3384,9 @@ import {
 
       if (externalUnitLoaded) {
         const teamSprite = troopType === "cavalry"
-          ? (formation.team === 'enemy' ? cavalryWalkBlueSprite : cavalryWalkSprite)
+          ? (isFacingBack && cavalryWalkBackSprite.naturalWidth > 0
+              ? cavalryWalkBackSprite
+              : (formation.team === 'enemy' ? cavalryWalkBlueSprite : cavalryWalkSprite))
           : formation.team === 'enemy'
             ? (isMoving && unitWalkBlueSprite.naturalWidth > 0 ? unitWalkBlueSprite : unitIdleBlueSprite)
             : (isMoving ? unitWalkSprite : unitIdleSprite);
