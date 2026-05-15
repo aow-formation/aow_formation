@@ -1156,6 +1156,7 @@ import {
       density: "NORMAL",
       speed: "STOP",
       target: null,
+      targetSetTime: -999,
       followTarget: null,
       retreated: false,
       retreating: false,
@@ -1351,6 +1352,7 @@ import {
   }
 
   let cameraYOffset = -140; // setScreen("battle") 시점에 canvas 높이 기준으로 갱신
+  let autoSelectDeadline = -1; // 선택 진형 사망 후 자동 선택 타이머 (battleTime 기준)
 
   function centerCameraOn(pos) {
     const iso = isoPoint(pos.x, pos.y);
@@ -1592,9 +1594,17 @@ import {
   }
 
   function unitAttack(formation) {
-    const rawSpeed  = anchorMoveSpeed(formation, formation.anchor.x, formation.anchor.y);
-    const speedRatio = Math.min(1.0, rawSpeed / speedInfo["FAST"].move); // 0~1
-    const attackMult = 0.95 + speedRatio * (1.05 - 0.95);
+    const rawSpeed = anchorMoveSpeed(formation, formation.anchor.x, formation.anchor.y);
+    let attackMult;
+    if (formation.troopType === 'cavalry') {
+      // 기병: 자신의 최대속도 기준 정규화, 속도 감소 시 공격력 급감 (0.55~1.05)
+      const cavalryMaxSpeed = speedInfo["FAST"].move * troopTypeInfo("cavalry").moveMult;
+      const speedRatio = Math.min(1.0, rawSpeed / cavalryMaxSpeed);
+      attackMult = 0.55 + speedRatio * 0.50;
+    } else {
+      const speedRatio = Math.min(1.0, rawSpeed / speedInfo["FAST"].move);
+      attackMult = 0.95 + speedRatio * 0.10;
+    }
     return Math.max(0, (15 + formation.general.power / 100 * 15) * (1 - formation.disorder * 0.25) * attackMult)
       * troopTypeInfo(formation.troopType).meleeAttackMult;
   }
@@ -3548,21 +3558,122 @@ import {
   }
 
   function renderPlayerTargets() {
+    const now    = game.battleTime;
+    const tileH  = getTileH();
+    const baseRx = game.tileW * 0.48;
+    const baseRy = baseRx * 0.42; // 이소메트릭 지면 비율
+
     game.playerFormations.forEach((formation) => {
       if (!formation.target) return;
       if (formation.retreated || !formation.units.some(isUnitAlive)) return;
       if (len(formation.anchor.x - formation.target.x, formation.anchor.y - formation.target.y) < 1.0) return;
-      const point = toScreen(formation.target.x, formation.target.y);
+
+      const point  = toScreen(formation.target.x, formation.target.y);
       const anchor = toScreen(formation.anchor.x, formation.anchor.y);
-      const cy = point.y + getTileH() / 2;
-      ctx.strokeStyle = "#ffe992";
+      const cx = point.x;
+      const cy = point.y + tileH / 2;
+
+      // 적 진형 타겟 여부에 따른 색상
+      const isEnemyTarget = !!formation.followTarget;
+      const mainColor  = isEnemyTarget ? "#ff8844" : "#ffe992";
+      const glowColor  = isEnemyTarget ? "rgba(255,120,50,0.55)" : "rgba(255,220,80,0.55)";
+      const burstColor = isEnemyTarget ? "rgba(255,130,60,1)"    : "rgba(255,233,146,1)";
+
+      // 왕왕 진동: 두 주파수 합성
+      const wobble = 1 + 0.11 * Math.sin(now * 3.8) + 0.05 * Math.sin(now * 6.1);
+      const rx = baseRx * wobble;
+      const ry = baseRy * wobble;
+
+      // 명도 펄스
+      const pulse = 0.5 + 0.5 * ((1 + Math.sin(now * 2.5)) / 2);
+
+      ctx.save();
+
+      // ── 버스트 이펙트 (최초 설정 후 0.8초) ──────────────────────────
+      const age = now - formation.targetSetTime;
+      if (age < 0.8) {
+        const t = age / 0.8;
+        ctx.strokeStyle = burstColor;
+        ctx.lineWidth   = 2.5 * (1 - t);
+        ctx.globalAlpha = (1 - t) * 0.85;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, baseRx * (1 + t * 2.8), baseRy * (1 + t * 2.8), 0, 0, Math.PI * 2);
+        ctx.stroke();
+        if (age > 0.1) {
+          const t2 = (age - 0.1) / 0.8;
+          if (t2 < 1) {
+            ctx.lineWidth   = 1.5 * (1 - t2);
+            ctx.globalAlpha = (1 - t2) * 0.5;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, baseRx * (1 + t2 * 2.0), baseRy * (1 + t2 * 2.0), 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // ── 메인 이소메트릭 타원 ──────────────────────────────────────────
+      ctx.globalAlpha = 0.45 + pulse * 0.45;
+      ctx.strokeStyle = mainColor;
+      ctx.lineWidth   = 1.8;
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur  = 5;
       ctx.beginPath();
-      ctx.arc(point.x, cy, 8, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();
+
+      // ── 내부 십자선 ───────────────────────────────────────────────────
+      ctx.shadowBlur  = 0;
+      ctx.globalAlpha = 0.28 + pulse * 0.25;
+      ctx.strokeStyle = mainColor;
+      ctx.lineWidth   = 1;
       ctx.beginPath();
-      ctx.moveTo(anchor.x, anchor.y + getTileH() / 2);
-      ctx.lineTo(point.x, cy);
+      ctx.moveTo(cx - rx * 0.45, cy);
+      ctx.lineTo(cx + rx * 0.45, cy);
+      ctx.moveTo(cx, cy - ry * 0.7);
+      ctx.lineTo(cx, cy + ry * 0.7);
       ctx.stroke();
+
+      ctx.restore();
+
+      // ── 안내선: 선택 진형 + 전투 진행 중에만 표시 ───────────────────
+      if (game.battlePhase !== 'live' || game.paused) return;
+      if (formation.id !== game.selectedId) return;
+      const ax = anchor.x, ay = anchor.y + tileH / 2;
+      const lineDx = cx - ax, lineDy = cy - ay;
+      const lineLen = Math.hypot(lineDx, lineDy);
+      if (lineLen > 4) {
+        const nx = lineDx / lineLen, ny = lineDy / lineLen;
+        const segLen = Math.min(lineLen * 0.85, 180); // 세그먼트 길이
+        const cycle  = segLen * 2;                    // 세그먼트 + 동일 길이 공백
+        const PIXEL_SPEED = 22;                       // 고정 픽셀 속도 (px/s)
+        const offset = (now * PIXEL_SPEED) % cycle;
+
+        ctx.save();
+        ctx.lineWidth = 1.5;
+
+        // 세그먼트 시작 위치를 순회 (한 주기 앞에서 시작해 누락 방지)
+        for (let segStart = offset - cycle; segStart < lineLen; segStart += cycle) {
+          const segEnd   = segStart + segLen;
+          const drawStart = Math.max(0, segStart);
+          const drawEnd   = Math.min(lineLen, segEnd);
+          if (drawEnd <= drawStart) continue;
+
+          const tx = ax + nx * drawStart, ty = ay + ny * drawStart;
+          const hx = ax + nx * drawEnd,   hy = ay + ny * drawEnd;
+
+          // 꼬리(앵커 방향) → 투명, 머리(목표 방향) → 불투명
+          const grad = ctx.createLinearGradient(tx, ty, hx, hy);
+          grad.addColorStop(0, 'rgba(255,233,146,0.0)');
+          grad.addColorStop(1, 'rgba(255,233,146,0.6)');
+
+          ctx.strokeStyle = grad;
+          ctx.beginPath();
+          ctx.moveTo(tx, ty);
+          ctx.lineTo(hx, hy);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
     });
   }
 
@@ -3680,6 +3791,7 @@ import {
       card.addEventListener("click", () => {
         const f = game.playerFormations[index];
         if (!f) return;
+        autoSelectDeadline = -1;
         game.selectedId = f.id;
         centerCameraOn(formationCenter(f));
         game.hudDirty = true;
@@ -3947,6 +4059,7 @@ import {
     if (!candidates.length) return;
     const idx = candidates.findIndex((f) => f.id === game.selectedId);
     const next = candidates[(idx + 1) % candidates.length];
+    autoSelectDeadline = -1;
     game.selectedId = next.id;
     centerCameraOn(formationCenter(next));
     game.hudDirty = true;
@@ -3995,6 +4108,7 @@ import {
           if (d < minDist) { minDist = d; closest = f; }
         }
         if (closest) {
+          autoSelectDeadline = -1;
           game.selectedId = closest.id;
           game.hudDirty = true;
           refreshButtons();
@@ -4020,6 +4134,7 @@ import {
       if (clickedEnemy) {
         formation.followTarget = clickedEnemy;
         formation.target = formationCenter(clickedEnemy);
+        formation.targetSetTime = game.battleTime;
         const desiredFacing = normalize(sub(formation.target, formation.anchor));
         if (canTurnWhileMoving(formation)) applyTurnRule(formation, desiredFacing);
       } else {
@@ -4027,9 +4142,13 @@ import {
         const desiredFacing = normalize(sub(tile, formation.anchor));
         if (canTurnWhileMoving(formation)) applyTurnRule(formation, desiredFacing);
         if (formation.speed === "STOP") {
-          if (game.battlePhase === "planning") formation.target = vec(tile.x, tile.y);
+          if (game.battlePhase === "planning") {
+            formation.target = vec(tile.x, tile.y);
+            formation.targetSetTime = game.battleTime;
+          }
         } else {
           formation.target = vec(tile.x, tile.y);
+          formation.targetSetTime = game.battleTime;
         }
       }
     });
@@ -4162,6 +4281,26 @@ import {
       game.simulationAccumulator -= SIMULATION_STEP;
       stepCount += 1;
     }
+    // ── 선택 진형 사망 시 자동 선택 (2초 대기) ────────────────────────
+    if (game.battlePhase === 'live') {
+      const sel = game.playerFormations.find(f => f.id === game.selectedId);
+      const selDead = !sel || !sel.units.some(isUnitAlive);
+      if (selDead && autoSelectDeadline < 0) {
+        autoSelectDeadline = game.battleTime + 2;
+      } else if (!selDead) {
+        autoSelectDeadline = -1;
+      }
+      if (autoSelectDeadline > 0 && game.battleTime >= autoSelectDeadline) {
+        const next = game.playerFormations.find(f => f.units.some(isUnitAlive));
+        if (next) {
+          game.selectedId = next.id;
+          centerCameraOn(formationCenter(next));
+          game.hudDirty = true;
+        }
+        autoSelectDeadline = -1;
+      }
+    }
+
     game.hudRefreshAccumulator += dt;
     if (game.hudDirty || game.hudRefreshAccumulator >= 0.25) {
       refreshHud();
