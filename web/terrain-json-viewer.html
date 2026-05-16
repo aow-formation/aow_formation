@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Terrain JSON Viewer</title>
+    <title>Terrain Editor</title>
     <style>
       :root {
         color-scheme: dark;
@@ -16,48 +16,119 @@
         margin: 0;
         min-height: 100vh;
         display: grid;
-        grid-template-rows: auto 1fr;
+        grid-template-rows: auto auto 1fr;
       }
 
       header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 12px 14px;
+        gap: 10px;
+        padding: 10px 14px;
         border-bottom: 1px solid #333;
         background: #181818;
+        flex-wrap: wrap;
       }
 
       h1 {
         margin: 0;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 700;
       }
 
-      button,
-      input {
+      .sep {
+        width: 1px;
+        height: 20px;
+        background: #444;
+      }
+
+      button, input {
         font: inherit;
       }
 
       button {
-        padding: 7px 10px;
+        padding: 6px 10px;
         border: 1px solid #555;
         border-radius: 4px;
         color: #eee;
         background: #2a2a2a;
         cursor: pointer;
+        white-space: nowrap;
       }
 
-      button:hover {
-        background: #363636;
+      button:hover { background: #363636; }
+
+      button.save-btn {
+        border-color: #4a8a4a;
+        background: #1e3d1e;
+        color: #7ddb7d;
       }
+      button.save-btn:hover { background: #254d25; }
 
       #status {
         margin-left: auto;
         color: #aaa;
-        font-size: 13px;
+        font-size: 12px;
       }
 
+      /* ── 팔레트 툴바 ── */
+      #palette {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-bottom: 1px solid #2a2a2a;
+        background: #161616;
+        flex-wrap: wrap;
+      }
+
+      #palette label {
+        font-size: 12px;
+        color: #888;
+        margin-right: 4px;
+      }
+
+      .palette-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 9px;
+        border: 2px solid transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        background: #222;
+        color: #ccc;
+        transition: border-color 0.1s;
+      }
+
+      .palette-btn:hover { background: #2e2e2e; }
+
+      .palette-btn.active {
+        border-color: #fff;
+        color: #fff;
+      }
+
+      .brush-btn {
+        padding: 5px 9px;
+        border: 2px solid transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        background: #222;
+        color: #ccc;
+      }
+      .brush-btn:hover { background: #2e2e2e; }
+      .brush-btn.active { border-color: #fff; color: #fff; }
+
+      .palette-swatch {
+        width: 13px;
+        height: 13px;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+
+      /* ── 캔버스 영역 ── */
       main {
         position: relative;
         overflow: auto;
@@ -67,19 +138,22 @@
       canvas {
         display: block;
         image-rendering: pixelated;
+        cursor: crosshair;
       }
 
+      /* ── 범례 (우하단) ── */
       .legend {
         position: fixed;
         right: 14px;
         bottom: 14px;
         display: grid;
-        gap: 6px;
-        padding: 10px 12px;
+        gap: 5px;
+        padding: 9px 12px;
         border: 1px solid #444;
         border-radius: 4px;
-        background: rgba(20,20,20,0.88);
+        background: rgba(16,16,16,0.9);
         font-size: 12px;
+        pointer-events: none;
       }
 
       .legend-row {
@@ -89,118 +163,275 @@
       }
 
       .swatch {
-        width: 14px;
-        height: 14px;
-        border: 1px solid rgba(255,255,255,0.25);
+        width: 13px;
+        height: 13px;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 2px;
+      }
+
+      /* ── 좌표 툴팁 ── */
+      #tooltip {
+        position: fixed;
+        padding: 3px 7px;
+        background: rgba(0,0,0,0.75);
+        border: 1px solid #555;
+        border-radius: 3px;
+        font-size: 11px;
+        color: #ddd;
+        pointer-events: none;
+        display: none;
       }
     </style>
   </head>
   <body>
     <header>
-      <h1>Terrain JSON Viewer</h1>
+      <h1>Terrain Editor</h1>
+      <div class="sep"></div>
       <button id="loadDefaultBtn" type="button">칸나에 맵 열기</button>
       <input id="fileInput" type="file" accept=".json,application/json" />
-      <button id="zoomOutBtn" type="button">-</button>
-      <button id="zoomInBtn" type="button">+</button>
+      <div class="sep"></div>
+      <button id="zoomOutBtn" type="button">－</button>
+      <button id="zoomInBtn" type="button">＋</button>
+      <div class="sep"></div>
+      <button id="undoBtn" type="button">↩ 실행 취소</button>
+      <button id="saveBtn" class="save-btn" type="button">💾 JSON 저장</button>
       <span id="status">대기 중</span>
     </header>
+
+    <div id="palette">
+      <label>지형 선택:</label>
+      <!-- terrain buttons injected by JS -->
+      <div class="sep" style="margin:0 4px;"></div>
+      <label>브러시:</label>
+      <button class="brush-btn active" data-brush="1" type="button">1×1</button>
+      <button class="brush-btn"       data-brush="3" type="button">3×3</button>
+      <button class="brush-btn"       data-brush="5" type="button">5×5</button>
+    </div>
+
     <main>
       <canvas id="mapCanvas"></canvas>
     </main>
+
     <div id="legend" class="legend"></div>
+    <div id="tooltip"></div>
 
     <script>
-      const canvas = document.getElementById("mapCanvas");
-      const ctx = canvas.getContext("2d");
+      const canvas   = document.getElementById("mapCanvas");
+      const ctx      = canvas.getContext("2d");
       const statusEl = document.getElementById("status");
       const legendEl = document.getElementById("legend");
-      const colors = {
-        plain: "#b89a63",
-        grassland: "#789b4c",
-        road: "#d2b071",
-        river: "#4d9ccb",
-        wetland: "#4f8f9d",
-        mountain: "#58694f",
-        unknown: "#d13f3f"
-      };
-      let terrain = null;
-      let cellSize = 4;
+      const paletteEl = document.getElementById("palette");
+      const tooltipEl = document.getElementById("tooltip");
 
-      function setStatus(text) {
-        statusEl.textContent = text;
+      const TERRAIN_TYPES = ["plain", "grassland", "road", "river", "wetland", "mountain"];
+      const colors = {
+        plain:     "#b89a63",
+        grassland: "#789b4c",
+        road:      "#d2b071",
+        river:     "#4d9ccb",
+        wetland:   "#4f8f9d",
+        mountain:  "#58694f",
+        unknown:   "#d13f3f"
+      };
+
+      let terrain    = null;
+      let cellSize   = 4;
+      let selected   = "plain";
+      let brushSize  = 1;
+      let isPainting = false;
+      let undoStack  = [];   // 각 항목: { x, y, prev }[]
+
+      // ── 상태 표시 ─────────────────────────────────────────────────────────
+      function setStatus(text) { statusEl.textContent = text; }
+
+      // ── 팔레트 생성 ───────────────────────────────────────────────────────
+      function buildPalette() {
+        TERRAIN_TYPES.forEach((type) => {
+          const btn = document.createElement("button");
+          btn.className = "palette-btn" + (type === selected ? " active" : "");
+          btn.dataset.type = type;
+          btn.innerHTML = `<span class="palette-swatch" style="background:${colors[type]}"></span>${type}`;
+          btn.addEventListener("click", () => {
+            selected = type;
+            document.querySelectorAll(".palette-btn").forEach(b => b.classList.toggle("active", b.dataset.type === type));
+          });
+          paletteEl.appendChild(btn);
+        });
       }
 
+      // ── 범례 생성 ─────────────────────────────────────────────────────────
       function drawLegend() {
         legendEl.innerHTML = "";
-        Object.entries(colors).forEach(([key, color]) => {
-          if (key === "unknown") return;
+        TERRAIN_TYPES.forEach((key) => {
           const row = document.createElement("div");
           row.className = "legend-row";
-          row.innerHTML = `<span class="swatch" style="background:${color}"></span><span>${key}</span>`;
+          row.innerHTML = `<span class="swatch" style="background:${colors[key]}"></span><span>${key}</span>`;
           legendEl.appendChild(row);
         });
       }
 
+      // ── 단일 타일 그리기 ──────────────────────────────────────────────────
+      function drawTile(x, y) {
+        const tile = terrain.tiles[y][x];
+        ctx.fillStyle = colors[tile] || colors.unknown;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+      }
+
+      // ── 전체 맵 그리기 ────────────────────────────────────────────────────
       function drawTerrain() {
         if (!terrain?.tiles?.length) return;
         const h = terrain.tiles.length;
         const w = terrain.tiles[0].length;
-        canvas.width = w * cellSize;
+        canvas.width  = w * cellSize;
         canvas.height = h * cellSize;
         ctx.imageSmoothingEnabled = false;
-
-        for (let y = 0; y < h; y += 1) {
-          for (let x = 0; x < w; x += 1) {
-            const tile = terrain.tiles[y][x];
-            ctx.fillStyle = colors[tile] || colors.unknown;
-            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-          }
-        }
-
-        setStatus(`${terrain.name || terrain.id || "map"} · ${w}x${h} · zoom ${cellSize}px`);
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) drawTile(x, y);
+        setStatus(`${terrain.name || terrain.id || "map"} · ${w}×${h} · zoom ${cellSize}px`);
       }
 
+      // ── 캔버스 좌표 → 타일 좌표 ───────────────────────────────────────────
+      function tileAt(event) {
+        const rect = canvas.getBoundingClientRect();
+        const px = event.clientX - rect.left;
+        const py = event.clientY - rect.top;
+        const x = Math.floor(px / cellSize);
+        const y = Math.floor(py / cellSize);
+        if (!terrain?.tiles) return null;
+        const h = terrain.tiles.length;
+        const w = terrain.tiles[0].length;
+        if (x < 0 || x >= w || y < 0 || y >= h) return null;
+        return { x, y };
+      }
+
+      // ── 페인트 (실행취소 지원) ────────────────────────────────────────────
+      let strokePatch = null; // 현재 드래그 스트로크의 변경 목록
+
+      function paintAt(event) {
+        const pos = tileAt(event);
+        if (!pos) return;
+        const h = terrain.tiles.length;
+        const w = terrain.tiles[0].length;
+        const half = Math.floor(brushSize / 2);
+        for (let dy = -half; dy <= half; dy++) {
+          for (let dx = -half; dx <= half; dx++) {
+            const tx = pos.x + dx;
+            const ty = pos.y + dy;
+            if (tx < 0 || tx >= w || ty < 0 || ty >= h) continue;
+            const prev = terrain.tiles[ty][tx];
+            if (prev === selected) continue;
+            strokePatch.push({ x: tx, y: ty, prev });
+            terrain.tiles[ty][tx] = selected;
+            drawTile(tx, ty);
+          }
+        }
+      }
+
+      canvas.addEventListener("mousedown", (e) => {
+        if (!terrain) return;
+        isPainting = true;
+        strokePatch = [];
+        paintAt(e);
+      });
+
+      canvas.addEventListener("mousemove", (e) => {
+        // 툴팁
+        const pos = tileAt(e);
+        if (pos) {
+          tooltipEl.style.display = "block";
+          tooltipEl.style.left = (e.clientX + 14) + "px";
+          tooltipEl.style.top  = (e.clientY + 14) + "px";
+          tooltipEl.textContent = `(${pos.x}, ${pos.y})  ${terrain.tiles[pos.y][pos.x]}`;
+        } else {
+          tooltipEl.style.display = "none";
+        }
+        // 페인팅
+        if (isPainting) paintAt(e);
+      });
+
+      canvas.addEventListener("mouseup",    () => { if (isPainting && strokePatch?.length) { undoStack.push(strokePatch); } isPainting = false; strokePatch = null; });
+      canvas.addEventListener("mouseleave", () => { tooltipEl.style.display = "none"; if (isPainting && strokePatch?.length) { undoStack.push(strokePatch); } isPainting = false; strokePatch = null; });
+
+      // ── 실행 취소 ─────────────────────────────────────────────────────────
+      function undo() {
+        if (!undoStack.length) return;
+        const patch = undoStack.pop();
+        patch.forEach(({ x, y, prev }) => {
+          terrain.tiles[y][x] = prev;
+          drawTile(x, y);
+        });
+      }
+
+      document.getElementById("undoBtn").addEventListener("click", undo);
+
+      document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); undo(); }
+      });
+
+      // ── JSON 저장 ─────────────────────────────────────────────────────────
+      document.getElementById("saveBtn").addEventListener("click", () => {
+        if (!terrain) return;
+        const json = JSON.stringify(terrain, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href     = url;
+        a.download = `${terrain.id || "terrain"}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus("저장 완료");
+      });
+
+      // ── 로드 ──────────────────────────────────────────────────────────────
       async function loadDefault() {
         if (location.protocol === "file:") {
-          throw new Error("file://에서는 브라우저 보안 정책 때문에 자동 로드가 막힙니다. 파일 선택으로 JSON을 열어주세요.");
+          throw new Error("file://에서는 자동 로드가 막힙니다. 파일 선택으로 열어주세요.");
         }
         const res = await fetch("./data/scenarios/cannae_terrain.json");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         terrain = await res.json();
+        undoStack = [];
         drawTerrain();
       }
 
       function loadFile(file) {
         const reader = new FileReader();
         reader.onload = () => {
-          terrain = JSON.parse(reader.result);
-          drawTerrain();
+          try {
+            terrain = JSON.parse(reader.result);
+            undoStack = [];
+            drawTerrain();
+          } catch {
+            setStatus("JSON 파싱 실패");
+          }
         };
         reader.onerror = () => setStatus("파일을 읽지 못했습니다.");
         reader.readAsText(file, "utf-8");
       }
 
       document.getElementById("loadDefaultBtn").addEventListener("click", () => {
-        loadDefault().catch((error) => setStatus(`기본 맵 로드 실패: ${error.message}`));
+        loadDefault().catch((e) => setStatus(`로드 실패: ${e.message}`));
       });
 
-      document.getElementById("fileInput").addEventListener("change", (event) => {
-        const file = event.target.files?.[0];
+      document.getElementById("fileInput").addEventListener("change", (e) => {
+        const file = e.target.files?.[0];
         if (file) loadFile(file);
       });
 
-      document.getElementById("zoomOutBtn").addEventListener("click", () => {
-        cellSize = Math.max(1, cellSize - 1);
-        drawTerrain();
+      document.getElementById("zoomOutBtn").addEventListener("click", () => { cellSize = Math.max(1, cellSize - 1); drawTerrain(); });
+      document.getElementById("zoomInBtn").addEventListener("click",  () => { cellSize = Math.min(20, cellSize + 1); drawTerrain(); });
+
+      // ── 브러시 버튼 ───────────────────────────────────────────────────────
+      document.querySelectorAll(".brush-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          brushSize = parseInt(btn.dataset.brush, 10);
+          document.querySelectorAll(".brush-btn").forEach(b => b.classList.toggle("active", b === btn));
+        });
       });
 
-      document.getElementById("zoomInBtn").addEventListener("click", () => {
-        cellSize = Math.min(12, cellSize + 1);
-        drawTerrain();
-      });
-
+      // ── 초기화 ────────────────────────────────────────────────────────────
+      buildPalette();
       drawLegend();
-      loadDefault().catch((error) => setStatus(error.message));
+      loadDefault().catch((e) => setStatus(e.message));
     </script>
   </body>
 </html>

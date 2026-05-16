@@ -1709,23 +1709,20 @@ input[type="range"].adjust-slider {
   border: 1px solid rgba(184,138,8,0.42);
   border-radius: 4px;
   background-color: #19140a;
-  background:
-    radial-gradient(circle at 50% 44%, rgba(184,138,8,0.12), transparent 62%),
-    linear-gradient(180deg, rgba(80,66,34,0.45), rgba(12,9,4,0.65));
-  background-image: url('./assets/ui/scenario_icons_cropped.png');
-  background-size: 700% 100%;
+  background-size: cover;
+  background-position: center;
   box-shadow:
     inset 0 0 18px rgba(0,0,0,0.82),
     0 3px 9px rgba(0,0,0,0.55);
 }
 
-.scenario-card[data-icon="0"] .scenario-card-icon { background-position: 0% 0%; }
-.scenario-card[data-icon="1"] .scenario-card-icon { background-position: 16.666% 0%; }
-.scenario-card[data-icon="2"] .scenario-card-icon { background-position: 33.333% 0%; }
-.scenario-card[data-icon="3"] .scenario-card-icon { background-position: 50% 0%; }
-.scenario-card[data-icon="4"] .scenario-card-icon { background-position: 66.666% 0%; }
-.scenario-card[data-icon="5"] .scenario-card-icon { background-position: 83.333% 0%; }
-.scenario-card[data-icon="6"] .scenario-card-icon { background-position: 100% 0%; }
+.scenario-card[data-icon="0"] .scenario-card-icon { background-image: url('./assets/ui/01.jpg'); }
+.scenario-card[data-icon="1"] .scenario-card-icon { background-image: url('./assets/ui/02.jpg'); }
+.scenario-card[data-icon="2"] .scenario-card-icon { background-image: url('./assets/ui/03.jpg'); }
+.scenario-card[data-icon="3"] .scenario-card-icon { background-image: url('./assets/ui/04.jpg'); }
+.scenario-card[data-icon="4"] .scenario-card-icon { background-image: url('./assets/ui/05.jpg'); }
+.scenario-card[data-icon="5"] .scenario-card-icon { background-image: url('./assets/ui/06.jpg'); }
+.scenario-card[data-icon="6"] .scenario-card-icon { background-image: url('./assets/ui/07.jpg'); }
 
 .scenario-card[data-enabled="false"] .scenario-card-icon {
   filter: grayscale(0.45);
