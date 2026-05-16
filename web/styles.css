@@ -828,7 +828,13 @@ kbd {
     width: 100%;
     min-width: 0;
   }
-  .ms-icon { font-size: 10px; line-height: 1; flex-shrink: 0; }
+  .ms-icon {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+    flex-shrink: 0;
+    image-rendering: auto;
+  }
   .ms-val  { font-size: 9px; color: var(--text-dim); text-align: right; }
 
   /* 패널: 바 텍스트 소형 표시 */

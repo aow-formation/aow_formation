@@ -1722,7 +1722,7 @@ import {
         break;
       }
       case "archery": {
-        formation.archeryTimer = 5.0;
+        formation.archeryTimer = 10.0;
         if (speechData) tryShowSpeech(formation, "화살이 하늘을 덮는다!", "high");
         break;
       }
@@ -2778,7 +2778,9 @@ import {
             }
             if (bx === undefined) { bx = cx; by = cy; }
             const scale = 0.85 + rng() * 0.30; // ±15% 사이즈 지터
-            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: tx, tileY: ty, scale });
+            const hue = (rng() - 0.5) * 36;   // ±18deg (색상 5% 지터)
+            const sat = 95 + rng() * 10;       // 95%~105% (채도 5% 지터)
+            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: tx, tileY: ty, scale, hue, sat });
           }
         }
       }
@@ -2788,11 +2790,13 @@ import {
         trees.sort((a, b) => a.worldBy - b.worldBy);
         chunkCtx.imageSmoothingEnabled = true;
         chunkCtx.imageSmoothingQuality = "high";
-        for (const { worldBx, worldBy, scale } of trees) {
+        for (const { worldBx, worldBy, scale, hue, sat } of trees) {
           const stW = Math.round(tW * (scale ?? 1));
           const stH = Math.round(tH * (scale ?? 1));
+          chunkCtx.filter = `hue-rotate(${hue.toFixed(1)}deg) saturate(${sat.toFixed(1)}%)`;
           chunkCtx.drawImage(treeImg, worldBx - minIsoX - stW / 2, worldBy - minIsoY - stH, stW, stH);
         }
+        chunkCtx.filter = "none";
       }
     }
 
@@ -3784,16 +3788,16 @@ import {
     const enemyRetX = x + ((MAP_WIDTH - 8) / MAP_WIDTH) * width;
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 2]);
-    ctx.strokeStyle = "rgba(100,180,255,0.7)";
-    ctx.beginPath(); ctx.moveTo(playerRetX, y); ctx.lineTo(playerRetX, y + height); ctx.stroke();
     ctx.strokeStyle = "rgba(255,100,100,0.7)";
+    ctx.beginPath(); ctx.moveTo(playerRetX, y); ctx.lineTo(playerRetX, y + height); ctx.stroke();
+    ctx.strokeStyle = "rgba(100,180,255,0.7)";
     ctx.beginPath(); ctx.moveTo(enemyRetX, y); ctx.lineTo(enemyRetX, y + height); ctx.stroke();
     ctx.setLineDash([]);
     ctx.lineWidth = 1;
 
     game.playerFormations.forEach((formation) => {
       const center = formationCenter(formation);
-      ctx.fillStyle = "#5ea6ff";
+      ctx.fillStyle = "#e25b5b";
       ctx.beginPath();
       ctx.arc(x + center.x / MAP_WIDTH * width, y + center.y / MAP_HEIGHT * height, 3, 0, Math.PI * 2);
       ctx.fill();
@@ -3801,7 +3805,7 @@ import {
 
     game.enemyFormations.forEach((formation) => {
       const center = formationCenter(formation);
-      ctx.fillStyle = "#e25b5b";
+      ctx.fillStyle = "#5ea6ff";
       ctx.beginPath();
       ctx.arc(x + center.x / MAP_WIDTH * width, y + center.y / MAP_HEIGHT * height, 3, 0, Math.PI * 2);
       ctx.fill();
@@ -3867,7 +3871,6 @@ import {
     renderPlayerTargets();
     renderSpeechBubbles();
     if (game.battlePhase !== "live") renderMinimap();
-    renderOverlay();
   }
 
   function refreshHud() {
