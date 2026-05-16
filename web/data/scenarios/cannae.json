@@ -1,0 +1,515 @@
+{
+  "id": "cannae",
+  "name": "칸나에 전투",
+  "subtitle": "The Art of Encirclement",
+  "terrain": "./data/scenarios/cannae_terrain.json",
+  "summary": "한니발은 수적으로 우세한 로마군을 중앙으로 끌어들인 뒤 양익 기병으로 포위 섬멸하려 한다.",
+  "player": {
+    "name": "카르타고 군단",
+    "formations": [
+      {
+        "id": "hannibal",
+        "name": "한니발",
+        "troopType": "infantry",
+        "troops": 15000,
+        "power": 90,
+        "leadership": 100,
+        "charm": 98,
+        "skillType": "kihap",
+        "combatOverrides": {
+          "meleeDefenseMult": 4.5,
+          "rangedDefenseMult": 4.5,
+          "kihapAttackBonusMult": 1.5
+        },
+        "portrait": "assets/portraits/hannibal.png",
+        "position": {
+          "x": 16,
+          "y": 80
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      },
+      {
+        "id": "mago",
+        "name": "마고",
+        "troopType": "infantry",
+        "troops": 12500,
+        "power": 85,
+        "leadership": 90,
+        "charm": 88,
+        "skillType": "guard",
+        "combatOverrides": {
+          "meleeDefenseMult": 3,
+          "rangedDefenseMult": 3
+        },
+        "portrait": "assets/portraits/hannibal.png",
+        "position": {
+          "x": 16,
+          "y": 68
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      },
+      {
+        "id": "gisgo",
+        "name": "기스코",
+        "troopType": "infantry",
+        "troops": 12500,
+        "power": 80,
+        "leadership": 82,
+        "charm": 85,
+        "skillType": "guard",
+        "combatOverrides": {
+          "meleeDefenseMult": 3,
+          "rangedDefenseMult": 3
+        },
+        "portrait": "assets/portraits/hannibal.png",
+        "position": {
+          "x": 16,
+          "y": 92
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      },
+      {
+        "id": "hasdrubal",
+        "name": "하스드루발",
+        "troopType": "cavalry",
+        "troops": 5000,
+        "power": 92,
+        "leadership": 88,
+        "charm": 75,
+        "skillType": "kihap",
+        "combatOverrides": {
+          "meleeDefenseMult": 1.5,
+          "rangedDefenseMult": 1.5
+        },
+        "portrait": "assets/portraits/hannibal.png",
+        "position": {
+          "x": 14,
+          "y": 44
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      },
+      {
+        "id": "maharbal",
+        "name": "마하르발",
+        "troopType": "cavalry",
+        "troops": 5000,
+        "power": 88,
+        "leadership": 85,
+        "charm": 80,
+        "skillType": "kihap",
+        "combatOverrides": {
+          "meleeDefenseMult": 1.5,
+          "rangedDefenseMult": 1.5
+        },
+        "portrait": "assets/portraits/hannibal.png",
+        "position": {
+          "x": 14,
+          "y": 116
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      }
+    ]
+  },
+  "enemy": {
+    "name": "로마 군단",
+    "formations": [
+      {
+        "id": "paullus",
+        "name": "아이밀리우스 파울루스",
+        "troopType": "infantry",
+        "troops": 25000,
+        "power": 80,
+        "leadership": 92,
+        "charm": 85,
+        "skillType": "guard",
+        "combatOverrides": {
+          "meleeDefenseMult": 2,
+          "rangedDefenseMult": 2
+        },
+        "portrait": "assets/portraits/caesar.png",
+        "position": {
+          "x": 218,
+          "y": 68
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "TIGHT",
+        "speed": "STOP"
+      },
+      {
+        "id": "servilius",
+        "name": "세르빌리우스",
+        "troopType": "infantry",
+        "troops": 25000,
+        "power": 82,
+        "leadership": 85,
+        "charm": 70,
+        "skillType": "guard",
+        "combatOverrides": {
+          "meleeDefenseMult": 2,
+          "rangedDefenseMult": 2
+        },
+        "portrait": "assets/portraits/caesar.png",
+        "position": {
+          "x": 224,
+          "y": 82
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "TIGHT",
+        "speed": "STOP"
+      },
+      {
+        "id": "minucius",
+        "name": "미누키우스",
+        "troopType": "infantry",
+        "troops": 30000,
+        "power": 78,
+        "leadership": 80,
+        "charm": 65,
+        "skillType": "guard",
+        "combatOverrides": {
+          "meleeDefenseMult": 2,
+          "rangedDefenseMult": 2
+        },
+        "portrait": "assets/portraits/caesar.png",
+        "position": {
+          "x": 230,
+          "y": 82
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "TIGHT",
+        "speed": "STOP"
+      },
+      {
+        "id": "scipio",
+        "name": "젊은 스키피오",
+        "troopType": "cavalry",
+        "troops": 3000,
+        "power": 90,
+        "leadership": 85,
+        "charm": 90,
+        "skillType": "kihap",
+        "portrait": "assets/portraits/caesar.png",
+        "position": {
+          "x": 224,
+          "y": 45
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      },
+      {
+        "id": "varro",
+        "name": "바로",
+        "troopType": "cavalry",
+        "troops": 3000,
+        "power": 85,
+        "leadership": 70,
+        "charm": 60,
+        "skillType": "kihap",
+        "portrait": "assets/portraits/caesar.png",
+        "position": {
+          "x": 224,
+          "y": 112
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      }
+    ]
+  },
+  "phases": [
+    {
+      "id": "deployment",
+      "title": "결전을 앞둔 진형 정비",
+      "dialogue": [
+        {
+          "speaker": "마고",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "장군님, 정찰병이 돌아왔습니다. 로마가 다시 군단병을 소집해 평원 너머에 집결하고 있습니다."
+        },
+        {
+          "speaker": "기스코",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "이번에는 임시로 긁어모은 병력이 아닙니다. 집정관들이 결전을 각오하고 군단을 정비한 모양입니다."
+        },
+        {
+          "speaker": "한니발",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "그래서 우리도 흐트러진 모습으로 맞아서는 안 된다. 모든 부대는 지정된 집결지로 이동해 진형을 다시 세워라."
+        },
+        {
+          "speaker": "한니발",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "보병은 중앙을 단단히 잡고, 기병은 양익을 넓게 지켜라. 오늘의 승리는 전투가 시작되기 전에 이미 준비에서 갈릴 것이다."
+        },
+        {
+          "speaker": "바로",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "camera": {
+            "x": 184,
+            "y": 82
+          },
+          "text": "군단병들이여, 오늘 우리는 카르타고의 침략자에게 로마의 힘을 보여줄 것이다. 대열을 맞추고 전진하라!"
+        },
+        {
+          "speaker": "파울루스",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "text": "서두르지 마시오, 바로 장군. 한니발은 기병 운용의 천재요. 보병 대열을 밀집시키고 흐트러지지 않게 하시오."
+        }
+      ],
+      "briefing": {
+        "text": "모든 아군 진형을 평원 중앙의 집결 구역 안으로 이동시키고 정지 상태를 유지하십시오. 로마군도 맞은편 평지에 집결해 결전을 준비합니다.",
+        "camera": {
+          "x": 88,
+          "y": 80
+        },
+        "markers": [
+          {
+            "id": "player_rally_rect",
+            "type": "rect",
+            "label": "아군 집결 구역",
+            "x": 78,
+            "y": 42,
+            "w": 18,
+            "h": 78
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "id": "player_rally_hold",
+          "type": "allPlayerFormationsInRectStopped",
+          "x": 78,
+          "y": 42,
+          "w": 18,
+          "h": 78,
+          "holdSeconds": 2,
+          "label": "모든 아군 진형을 집결 구역 안에서 정지 상태로 유지하십시오."
+        }
+      ]
+    },
+    {
+      "id": "lure",
+      "title": "압도적인 대군",
+      "dialogue": [
+        {
+          "speaker": "기스코",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "camera": {
+            "x": 78,
+            "y": 84
+          },
+          "text": "한니발 장군님, 보십시오. 평원이 보이지 않을 정도로 적의 창끝이 가득합니다."
+        },
+        {
+          "speaker": "한니발",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "확실히 장관이군. 기스코, 자네가 보기에 저 병사가 얼마나 되어 보이나?"
+        },
+        {
+          "speaker": "기스코",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "적어도 8만은 족히 넘을 것입니다. 우리보다 두 배는 많습니다. 저 압도적인 대군을 정면에서 이길 방법이 있겠습니까?"
+        },
+        {
+          "speaker": "한니발",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "기스코, 한 가지만 묻지. 저 거대한 로마군 중에 기스코라고 불리는 자가 한 명이라도 있나?"
+        },
+        {
+          "speaker": "기스코",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "예? 그건 무슨... 아니, 없을 것입니다."
+        },
+        {
+          "speaker": "한니발",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "그럼 됐네. 승리는 숫자가 아니라, 그 숫자를 움직이는 장수들의 이름이 가져다주는 법이지."
+        },
+        {
+          "speaker": "한니발",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "중앙 보병은 천천히 물러서며 놈들을 깊숙이 끌어들여라. 양익은 로마 기병을 묶어두고, 때가 오면 포위망을 닫는다."
+        },
+        {
+          "speaker": "파울루스",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "camera": {
+            "x": 130,
+            "y": 82
+          },
+          "text": "적의 중앙이 물러난다! 전방 부대를 따라 밀고 들어가라. 대열을 흩트리지 말고 압박하라!"
+        }
+      ],
+      "briefing": {
+        "text": "중앙 보병을 후퇴선까지 유인하십시오. 로마 기병은 자리를 지키며, 로마 보병은 촘촘한 대형으로 각자 전방의 아군 진형을 따라 전진합니다.",
+        "camera": {
+          "x": 88,
+          "y": 86
+        },
+        "markers": [
+          {
+            "id": "retreat_rect",
+            "type": "rect",
+            "label": "중앙 후퇴선",
+            "x": 40,
+            "y": 66,
+            "w": 28,
+            "h": 34
+          },
+          {
+            "id": "roman_north_cavalry",
+            "label": "로마 북익 기병",
+            "x": 128,
+            "y": 60,
+            "radius": 8
+          },
+          {
+            "id": "roman_south_cavalry",
+            "label": "로마 남익 기병",
+            "x": 128,
+            "y": 100,
+            "radius": 8
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "id": "infantry_retreat",
+          "type": "formationsInRect",
+          "formationIds": [
+            "mago",
+            "gisgo"
+          ],
+          "x": 40,
+          "y": 66,
+          "w": 28,
+          "h": 34,
+          "label": "마고와 기스코를 중앙 후퇴선 안으로 이동시키십시오."
+        },
+        {
+          "id": "roman_cavalry_routed",
+          "type": "enemyTroopsBelow",
+          "formationIds": [
+            "varro",
+            "scipio"
+          ],
+          "ratio": 0.5,
+          "label": "로마 기병 두 부대를 50% 이하로 약화시키십시오."
+        }
+      ]
+    },
+    {
+      "id": "encirclement",
+      "title": "독 안에 든 쥐",
+      "dialogue": [
+        {
+          "speaker": "바로",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "camera": {
+            "x": 110,
+            "y": 82
+          },
+          "text": "이... 이게 무슨 일인가! 우리 보병들이 너무 좁은 곳에 뭉쳐버렸다! 앞쪽은 막혔고, 뒤쪽에서 적의 기병 소리가 들린다!"
+        },
+        {
+          "speaker": "파울루스",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "text": "늦었소... 한니발이 우리를 스스로 그물 속으로 들어오게 했구나. 대열을 유지하라! 제발 대열을 유지하라!"
+        },
+        {
+          "speaker": "한니발",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "생각한 대로군. 적들은 너무 빽빽하게 뭉쳐 창을 휘두를 공간조차 잃었다."
+        },
+        {
+          "speaker": "한니발",
+          "side": "player",
+          "portrait": "assets/portraits/hannibal.png",
+          "text": "하스드루발, 마하르발! 이제 적의 등 뒤를 완전히 닫아라. 마고, 기스코! 정면에서 적을 압박하라. 오늘, 로마는 이 평원에서 사라질 것이다!"
+        }
+      ],
+      "briefing": {
+        "text": "로마군의 대열이 무너졌습니다. 사방에서 압박해 포위된 로마군을 섬멸하십시오.",
+        "camera": {
+          "x": 108,
+          "y": 82
+        },
+        "markers": []
+      },
+      "onStart": {
+        "setEnemyDisorder": 0.7
+      },
+      "objectives": [
+        {
+          "id": "destroy_roman_army",
+          "type": "enemyTotalBelow",
+          "ratio": 0.2,
+          "label": "로마군 총 병력을 20% 이하로 줄이십시오."
+        }
+      ]
+    }
+  ],
+  "failure": {
+    "type": "playerTotalBelow",
+    "ratio": 0.25,
+    "label": "카르타고군 총 병력이 25% 이하로 줄어들면 실패합니다."
+  }
+}

@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "server": "node server/index.js",
     "start": "node server/index.js",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "scenario:terrain:cannae": "node scripts/generate-cannae-terrain.mjs"
   },
   "dependencies": {
     "express": "^4.19.2",

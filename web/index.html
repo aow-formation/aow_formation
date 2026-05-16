@@ -21,7 +21,7 @@
         </div>
         <nav class="home-menu">
           <button id="menuQuickBattle"  class="home-btn home-btn--main">⚔&nbsp; 빠른 전투</button>
-          <button class="home-btn wip-btn">📜&nbsp; 역사 시나리오</button>
+          <button id="menuHistoricalScenario" class="home-btn">📜&nbsp; 역사 시나리오</button>
           <button class="home-btn wip-btn">🌍&nbsp; 월드 모드</button>
           <button class="home-btn wip-btn">📖&nbsp; 게임 소개</button>
           <button class="home-btn wip-btn">💬&nbsp; 커뮤니티</button>
@@ -31,6 +31,20 @@
     </div>
 
     <!-- ── 병력 조정 화면 ── -->
+    <div id="scenarioSelectScreen" class="screen-overlay scenario-select-screen" hidden>
+      <div class="scenario-select-bg"></div>
+      <div class="scenario-select-panel">
+        <div class="scenario-select-header">
+          <div>
+            <div class="scenario-select-kicker">HISTORICAL CAMPAIGN</div>
+            <h2 class="scenario-select-title">역사 시나리오</h2>
+          </div>
+          <button id="scenarioSelectBackBtn" class="btn-stone" type="button">뒤로</button>
+        </div>
+        <div id="scenarioSelectGrid" class="scenario-select-grid"></div>
+      </div>
+    </div>
+
     <div id="troopAdjustScreen" class="screen-overlay troop-adjust-screen" hidden>
       <div class="adjust-panel">
         <h2 class="adjust-title">병력 조정</h2>
@@ -164,6 +178,25 @@
       <main class="board">
         <div class="canvas-frame">
           <canvas id="battleCanvas" width="1440" height="900"></canvas>
+          <div id="scenarioHud" class="scenario-hud" hidden>
+            <div class="scenario-title" id="scenarioTitle">역사 시나리오</div>
+            <div class="scenario-objectives" id="scenarioObjectives"></div>
+          </div>
+          <div id="scenarioDialogue" class="scenario-dialogue" hidden>
+            <div class="scenario-dialogue-portrait-frame">
+              <img id="scenarioDialoguePortrait" class="scenario-dialogue-portrait" src="" alt="" />
+            </div>
+            <div class="scenario-dialogue-body">
+              <div class="scenario-dialogue-speaker" id="scenarioDialogueSpeaker"></div>
+              <div class="scenario-dialogue-text" id="scenarioDialogueText"></div>
+              <button id="scenarioNextBtn" class="scenario-next-btn" type="button">계속</button>
+            </div>
+          </div>
+          <div id="scenarioBriefing" class="scenario-briefing" hidden>
+            <div class="scenario-briefing-title" id="scenarioBriefingTitle"></div>
+            <div class="scenario-briefing-text" id="scenarioBriefingText"></div>
+            <button id="scenarioStartPhaseBtn" class="scenario-start-btn" type="button">목표 수행</button>
+          </div>
           <div id="battleLoadingMask" class="battle-loading-mask">
             <div class="battle-loading-text">전장 구성 중</div>
           </div>

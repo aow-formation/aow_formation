@@ -238,10 +238,26 @@ import {
 
   // ── 화면 상태 관리 ────────────────────────────────────────────────────
   const homeScreen         = document.getElementById("homeScreen");
+  const scenarioSelectScreen = document.getElementById("scenarioSelectScreen");
+  const scenarioSelectGrid = document.getElementById("scenarioSelectGrid");
+  const scenarioSelectBackBtn = document.getElementById("scenarioSelectBackBtn");
   const troopAdjustScreen  = document.getElementById("troopAdjustScreen");
   const battleResultScreen = document.getElementById("battleResultScreen");
   const appShell           = document.getElementById("appShell");
   const homeBg             = document.querySelector(".home-bg");
+  const menuHistoricalScenario = document.getElementById("menuHistoricalScenario");
+  const scenarioHud = document.getElementById("scenarioHud");
+  const scenarioTitle = document.getElementById("scenarioTitle");
+  const scenarioObjectives = document.getElementById("scenarioObjectives");
+  const scenarioDialogue = document.getElementById("scenarioDialogue");
+  const scenarioDialoguePortrait = document.getElementById("scenarioDialoguePortrait");
+  const scenarioDialogueSpeaker = document.getElementById("scenarioDialogueSpeaker");
+  const scenarioDialogueText = document.getElementById("scenarioDialogueText");
+  const scenarioNextBtn = document.getElementById("scenarioNextBtn");
+  const scenarioBriefing = document.getElementById("scenarioBriefing");
+  const scenarioBriefingTitle = document.getElementById("scenarioBriefingTitle");
+  const scenarioBriefingText = document.getElementById("scenarioBriefingText");
+  const scenarioStartPhaseBtn = document.getElementById("scenarioStartPhaseBtn");
 
   // 현재 앱 상태: "home" | "battle" | "troopAdjust" | "battleResult"
   let appState = "home";
@@ -262,9 +278,10 @@ import {
   function setScreen(state) {
     appState = state;
     homeScreen.hidden         = (state !== "home");
+    if (scenarioSelectScreen) scenarioSelectScreen.hidden = (state !== "scenarioSelect");
     troopAdjustScreen.hidden  = (state !== "troopAdjust");
     battleResultScreen.hidden = (state !== "battleResult");
-    appShell.hidden           = (state === "home");
+    appShell.hidden           = (state === "home" || state === "scenarioSelect");
     if (state === "battle") cameraYOffset = 150 - canvas.clientHeight / 2;
     updateBattleLoadingMask();
   }
@@ -281,6 +298,131 @@ import {
   }
 
   applyRandomHomeBackground();
+
+  const HISTORICAL_SCENARIOS = [
+    {
+      id: "gaugamela",
+      no: "01",
+      title: "망치와 모루 - 가우가멜라 전투",
+      year: "BC 331",
+      icon: 1,
+      enabled: false
+    },
+    {
+      id: "cannae",
+      no: "02",
+      title: "포위 - 칸나에 전투",
+      year: "BC 216",
+      icon: 0,
+      enabled: true
+    },
+    {
+      id: "bomangpa",
+      no: "03",
+      title: "매복 - 박망파 전투",
+      year: "202",
+      icon: 2,
+      enabled: false
+    },
+    {
+      id: "kalka",
+      no: "04",
+      title: "거짓 후퇴 - 칼카강 전투",
+      year: "1223",
+      icon: 3,
+      enabled: false
+    },
+    {
+      id: "gwiju",
+      no: "05",
+      title: "수공 - 흥화진/귀주 대첩",
+      year: "1018",
+      icon: 4,
+      enabled: false
+    },
+    {
+      id: "jupil",
+      no: "06",
+      title: "복합 전술 - 주필산 전투",
+      year: "645",
+      icon: 5,
+      enabled: false
+    },
+    {
+      id: "yiling",
+      no: "07",
+      title: "화공 - 이릉 대첩",
+      year: "222",
+      icon: 6,
+      enabled: false
+    },
+    {
+      id: "tours",
+      no: "08",
+      title: "방진 - 투르 푸아티에 전투",
+      year: "732",
+      icon: 1,
+      enabled: false
+    },
+    {
+      id: "hastings",
+      no: "09",
+      title: "고지전 - 헤이스팅스 전투",
+      year: "1066",
+      icon: 5,
+      enabled: false
+    },
+    {
+      id: "agincourt",
+      no: "10",
+      title: "장궁 - 아쟁쿠르 전투",
+      year: "1415",
+      icon: 3,
+      enabled: false
+    }
+  ];
+
+  function renderScenarioSelect() {
+    if (!scenarioSelectGrid) return;
+    scenarioSelectGrid.innerHTML = "";
+    HISTORICAL_SCENARIOS.forEach((scenario) => {
+      const card = document.createElement("article");
+      card.className = "scenario-card";
+      card.dataset.enabled = scenario.enabled ? "true" : "false";
+      card.dataset.icon = String(scenario.icon);
+      if (scenario.enabled) {
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.addEventListener("click", () => enterHistoricalScenario(scenario.id));
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            enterHistoricalScenario(scenario.id);
+          }
+        });
+      }
+
+      const top = document.createElement("div");
+      top.className = "scenario-card-top";
+      const index = document.createElement("div");
+      index.className = "scenario-card-index";
+      index.textContent = `MISSION ${scenario.no}`;
+      const status = document.createElement("div");
+      status.className = "scenario-card-status";
+      status.textContent = scenario.year;
+      top.append(index, status);
+
+      const icon = document.createElement("div");
+      icon.className = "scenario-card-icon";
+
+      const title = document.createElement("h3");
+      title.className = "scenario-card-title";
+      title.textContent = scenario.title;
+
+      card.append(top, icon, title);
+      scenarioSelectGrid.appendChild(card);
+    });
+  }
 
   function showBattleLoadingMask() {
     if (!battleLoadingMask) return;
@@ -839,6 +981,9 @@ import {
   }
 
   function selectableSkills(general, troopType = general.troopType) {
+    if (Array.isArray(general.allowedSkills)) {
+      return general.allowedSkills.filter(skill => SKILL_DEF[skill]);
+    }
     const typeInfo = troopTypeInfo(troopType);
     if (Array.isArray(typeInfo.allowedSkills)) return [...typeInfo.allowedSkills];
     const optional = Array.isArray(general.optionalSkills)
@@ -1262,7 +1407,105 @@ import {
     speechEnemySighted: new Set(),
     fires: [],     // 화공 화염 오브젝트 배열
     flood: null,   // 수공 상태 { timer, damageDealt, cleanupTimer }
+    mode: "quick",
+    scenarioData: null,
+    scenarioPhaseIndex: -1,
+    scenarioStep: "none",
+    scenarioDialogueIndex: 0,
+    scenarioMarkers: [],
+    scenarioObjectiveState: {},
+    scenarioSkillUseCounts: {},
+    scenarioSceneLocked: false,
+    scenarioAggro: false,
+    scenarioMarkerRevealUntil: 0,
   };
+
+  function isHistoricalMode() {
+    return game.mode === "historical" && game.scenarioData;
+  }
+
+  function isScenarioSceneActive() {
+    return isHistoricalMode() && game.scenarioSceneLocked;
+  }
+
+  function createScenarioGeneral(spec) {
+    return {
+      id: spec.id,
+      name: spec.name,
+      power: spec.power,
+      leadership: spec.leadership,
+      charm: spec.charm,
+      portrait: spec.portrait || null,
+      optionalSkills: [],
+      allowedSkills: spec.allowedSkills || (spec.skillType ? [spec.skillType] : null),
+      troopType: spec.troopType || "infantry",
+      troops: spec.troops || 10000,
+      skillType: spec.skillType || "kihap",
+      kills: 0,
+      losses: 0,
+      alive: true,
+    };
+  }
+
+  function createFormationFromScenarioSpec(spec, team, index) {
+    const general = createScenarioGeneral(spec);
+    const formation = createFormation(spec.id || index, team, general,
+      vec(spec.position?.x ?? 0, spec.position?.y ?? 0),
+      normalize(vec(spec.facing?.x ?? (team === "player" ? 1 : -1), spec.facing?.y ?? 0)));
+    formation.scenarioId = spec.id || String(index);
+    formation.density = normalizeDensityForTroopType(formation.troopType, spec.density || "NORMAL");
+    formation.speed = spec.speed || "STOP";
+    formation.prevSpeed = spec.prevSpeed || "NORMAL";
+    formation.combatOverrides = spec.combatOverrides || null;
+    formation.skillType = normalizeSkillForGeneral(general, spec.skillType || general.skillType, formation.troopType);
+    formation.general.skillType = formation.skillType;
+    initializeFormationSlots(formation, false);
+    return formation;
+  }
+
+  function normalizeScenarioTerrain(rawTerrain) {
+    const tiles = Array.from({ length: MAP_HEIGHT }, (_, y) =>
+      Array.from({ length: MAP_WIDTH }, (_, x) => rawTerrain.tiles?.[y]?.[x] || "plain"));
+    return {
+      tiles,
+      playerStart: vec(rawTerrain.playerStart?.x ?? MAP_WIDTH * 0.08, rawTerrain.playerStart?.y ?? MAP_HEIGHT * 0.5),
+      enemyStart: vec(rawTerrain.enemyStart?.x ?? MAP_WIDTH * 0.92, rawTerrain.enemyStart?.y ?? MAP_HEIGHT * 0.5),
+      markers: rawTerrain.markers || {},
+      source: rawTerrain,
+    };
+  }
+
+  async function loadScenarioBundle(id) {
+    const scenarioRes = await fetch(`./data/scenarios/${id}.json`);
+    if (!scenarioRes.ok) throw new Error(`Scenario not found: ${id}`);
+    const scenario = await scenarioRes.json();
+    const terrainRes = await fetch(scenario.terrain);
+    if (!terrainRes.ok) throw new Error(`Scenario terrain not found: ${scenario.terrain}`);
+    const terrain = normalizeScenarioTerrain(await terrainRes.json());
+    return { scenario, terrain };
+  }
+
+  function formationByScenarioId(id, team = null) {
+    const formations = team === "player" ? game.playerFormations
+      : team === "enemy" ? game.enemyFormations
+      : [...game.playerFormations, ...game.enemyFormations];
+    return formations.find(f => f.scenarioId === id || f.id === id);
+  }
+
+  function scenarioCurrentPhase() {
+    return game.scenarioData?.phases?.[game.scenarioPhaseIndex] || null;
+  }
+
+  function resetScenarioRuntime() {
+    game.scenarioDialogueIndex = 0;
+    game.scenarioMarkers = [];
+    game.scenarioObjectiveState = {};
+    game.scenarioSkillUseCounts = {};
+    game.scenarioSceneLocked = false;
+    game.scenarioAggro = false;
+    game.scenarioMarkerRevealUntil = 0;
+    hideScenarioOverlays();
+  }
   // ── 픽셀아트 스프라이트 시스템 ──────────────────────────────────────
   const SPRITE_W = 10;
   const SPRITE_H = 14;
@@ -1561,7 +1804,8 @@ import {
     const tileDefense = (formation.troopType === 'cavalry' && tileKey === 'mountain') ? -2 : terrainInfo[tileKey].defense;
     const base = Math.max(0, 2 + speedInfo[formation.speed].defense + densityInfo[formation.density].defense + tileDefense - formation.disorder * 2);
     const defense = base * troopTypeInfo(formation.troopType).meleeDefenseMult;
-    return formation.troopType === 'cavalry' ? defense + 10 : defense;
+    const scenarioMult = formation.combatOverrides?.meleeDefenseMult ?? 1;
+    return (formation.troopType === 'cavalry' ? defense + 10 : defense) * scenarioMult;
   }
 
   function unitRemainingTroops(unit) {
@@ -1625,20 +1869,23 @@ import {
       attackMult = 0.95 + speedRatio * 0.10;
     }
     return Math.max(0, (15 + formation.general.power / 100 * 15) * (1 - formation.disorder * 0.25) * attackMult)
-      * troopTypeInfo(formation.troopType).meleeAttackMult;
+      * troopTypeInfo(formation.troopType).meleeAttackMult
+      * (formation.combatOverrides?.meleeAttackMult ?? 1);
   }
 
   function rangedDefenseDamageMult(formation) {
-    return densityInfo[formation.density].rangedDefenseMult / troopTypeInfo(formation.troopType).rangedDefenseMult;
+    return densityInfo[formation.density].rangedDefenseMult /
+      (troopTypeInfo(formation.troopType).rangedDefenseMult * (formation.combatOverrides?.rangedDefenseMult ?? 1));
   }
 
   function canFormationRangedAttack(formation) {
-    return troopTypeInfo(formation.troopType).canRangedAttack;
+    return formation.combatOverrides?.canRangedAttack ?? troopTypeInfo(formation.troopType).canRangedAttack;
   }
 
   function rangedAttack(formation) {
     if (!canFormationRangedAttack(formation)) return 0;
-    return (15 + formation.general.power / 100 * 15) * 0.2 * troopTypeInfo(formation.troopType).rangedAttackMult;
+    const rangedMult = formation.combatOverrides?.rangedAttackMult ?? troopTypeInfo(formation.troopType).rangedAttackMult;
+    return (15 + formation.general.power / 100 * 15) * 0.2 * rangedMult;
   }
 
   // 기병은 험지(강·산·습지)에서 추가 이동 패널티 적용
@@ -1765,6 +2012,7 @@ import {
         break;
       }
     }
+    recordScenarioSkillUse(formation, formation.skillType);
   }
 
   // ── 스킬 상태 업데이트 ──────────────────────────────────────────────────
@@ -2096,9 +2344,13 @@ import {
         const FIRST_ROW_THRESHOLD = 1.5;
         const IN_POSITION_THRESHOLD = POSITION_DEFENSE_THRESHOLD;
         const hasKihap = unit.kihapTimer > 0;
-        const attackerBonus = (unit.isFirstRow || hasKihap) && slotDistance < FIRST_ROW_THRESHOLD
+        let attackerBonus = (unit.isFirstRow || hasKihap) && slotDistance < FIRST_ROW_THRESHOLD
           ? formation._firstRowBonus
           : slotDistance < IN_POSITION_THRESHOLD ? 1.1 : 1.0;
+        if (hasKihap && slotDistance < FIRST_ROW_THRESHOLD) {
+          const kihapMult = formation.combatOverrides?.kihapAttackBonusMult ?? 1;
+          attackerBonus = 1 + (formation._firstRowBonus - 1) * kihapMult;
+        }
 
         // 진영 방향 vs 공격 방향 보너스
         // cos(45°)≈0.707: 정면±45° → ×1.25 / ±45~90° → ×1.0 / 후방 → ×0.75
@@ -2111,7 +2363,7 @@ import {
           ? FIRST_ROW_DEFENSE_BONUS
           : defSlotDist < IN_POSITION_THRESHOLD ? 1.1 : 1.0;
         const guardDefenseMult = enemyTarget.formation.guardTimer > 0 && defSlotDist < IN_POSITION_THRESHOLD
-          ? 2.0
+          ? 3.0
           : 1.0;
 
         if (enemyDist < 0.85) {
@@ -2445,6 +2697,7 @@ import {
   }
 
   function update(dt) {
+    if (isHistoricalMode() && game.battlePhase === "live" && game.scenarioSceneLocked) return;
     if (game.battlePhase === "live") {
       game.battleTime += dt;
 
@@ -2498,11 +2751,13 @@ import {
       game.playerFormations.forEach((formation) => updateFormation(formation, enemySpatialHash, allSpatialHash, dt));
       game.enemyFormations.forEach((formation) => updateFormation(formation, playerSpatialHash, allSpatialHash, dt));
       applyPositionCorrection();
-      updateAI(dt);
+      if (isHistoricalMode()) updateHistoricalAI(dt);
+      else updateAI(dt);
       updateSkills(dt);
       updateSpeechTriggers();
       checkBattleEnd();
       updateBattleEndPending(dt);
+      updateHistoricalScenario(dt);
 
       const PROJ_SPEED = 4.5;
       game.projectiles = game.projectiles.filter((p) => {
@@ -3822,6 +4077,65 @@ import {
     }
   }
 
+  function renderScenarioMarkers() {
+    if (!isHistoricalMode() || !game.scenarioMarkers?.length) return;
+    const tileH = getTileH();
+    ctx.save();
+    game.scenarioMarkers.forEach((marker) => {
+      if (marker.type === "rect") {
+        const corners = [
+          toScreen(marker.x, marker.y),
+          toScreen(marker.x + marker.w, marker.y),
+          toScreen(marker.x + marker.w, marker.y + marker.h),
+          toScreen(marker.x, marker.y + marker.h),
+        ].map((p) => ({ x: p.x, y: p.y + tileH / 2 }));
+        const pulse = (1 + Math.sin(performance.now() / 260)) / 2;
+        ctx.beginPath();
+        ctx.moveTo(corners[0].x, corners[0].y);
+        for (let i = 1; i < corners.length; i += 1) ctx.lineTo(corners[i].x, corners[i].y);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(255, 215, 80, ${0.08 + pulse * 0.07})`;
+        ctx.strokeStyle = `rgba(255, 220, 90, ${0.58 + pulse * 0.30})`;
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+        if (marker.label) {
+          const labelPoint = toScreen(marker.x + marker.w / 2, marker.y);
+          ctx.font = "700 12px 'Noto Serif KR', serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.fillStyle = "rgba(18,12,4,0.86)";
+          const textWidth = ctx.measureText(marker.label).width;
+          ctx.fillRect(labelPoint.x - textWidth / 2 - 6, labelPoint.y - 14, textWidth + 12, 18);
+          ctx.fillStyle = "#f2d37a";
+          ctx.fillText(marker.label, labelPoint.x, labelPoint.y);
+        }
+        return;
+      }
+      const screen = toScreen(marker.x, marker.y);
+      const radius = Math.max(10, (marker.radius || 6) * game.tileW * 0.35);
+      const pulse = (1 + Math.sin(performance.now() / 260)) / 2;
+      ctx.beginPath();
+      ctx.ellipse(screen.x, screen.y + tileH / 2, radius * 1.25, radius * 0.58, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 215, 80, ${0.10 + pulse * 0.10})`;
+      ctx.strokeStyle = `rgba(255, 220, 90, ${0.52 + pulse * 0.36})`;
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+      if (marker.label) {
+        ctx.font = "700 12px 'Noto Serif KR', serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillStyle = "rgba(18,12,4,0.86)";
+        const textWidth = ctx.measureText(marker.label).width;
+        ctx.fillRect(screen.x - textWidth / 2 - 6, screen.y - 14, textWidth + 12, 18);
+        ctx.fillStyle = "#f2d37a";
+        ctx.fillText(marker.label, screen.x, screen.y);
+      }
+    });
+    ctx.restore();
+  }
+
   function render() {
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.clientWidth;
@@ -3869,6 +4183,7 @@ import {
     renderProjectiles();
     renderFires();
     renderPlayerTargets();
+    renderScenarioMarkers();
     renderSpeechBubbles();
     if (game.battlePhase !== "live") renderMinimap();
   }
@@ -3937,7 +4252,13 @@ import {
     speedToggleButton.disabled = game.battlePhase !== "live";
     speedToggleButton.classList.toggle("active", game.speedMultiplier === 2);
     speedToggleButton.textContent = game.speedMultiplier === 2 ? "기본속도" : "2배속";
-    troopAdjustBtn.disabled = game.battlePhase !== "planning";
+    troopAdjustBtn.hidden = isHistoricalMode();
+    troopAdjustBtn.disabled = game.battlePhase !== "planning" || isHistoricalMode();
+    if (isScenarioSceneActive()) {
+      phaseButton.disabled = true;
+      speedToggleButton.disabled = true;
+      troopAdjustBtn.disabled = true;
+    }
 
     // 패널: 장수 정보 + 실시간 전투 능력치
     if (selected) {
@@ -4028,6 +4349,7 @@ import {
 
   buttons.speed.forEach((button) => {
     button.addEventListener("click", () => {
+      if (isScenarioSceneActive()) return;
       const newSpeed = button.dataset.speed;
       currentSelection().forEach((formation) => {
         if (formation.retreating) return;
@@ -4061,6 +4383,7 @@ import {
 
   buttons.density.forEach((button) => {
     button.addEventListener("click", () => {
+      if (isScenarioSceneActive()) return;
       const newDensity = button.dataset.density;
       currentSelection().forEach((formation) => {
         if (formation.retreating) return;
@@ -4079,6 +4402,7 @@ import {
   });
 
   buttons.ratioDown.addEventListener("click", () => {
+    if (isScenarioSceneActive()) return;
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       formation.ratio = clamp(formation.ratio - 0.3, 0.33, 3.0);
@@ -4088,6 +4412,7 @@ import {
   });
 
   buttons.ratioUp.addEventListener("click", () => {
+    if (isScenarioSceneActive()) return;
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       formation.ratio = clamp(formation.ratio + 0.3, 0.33, 3.0);
@@ -4100,21 +4425,26 @@ import {
   document.getElementById("mobileRatioUp")?.addEventListener("click",   () => buttons.ratioUp.click());
   mobileKihapBtn?.addEventListener("click", () => kihapBtn.click());
 
+  function startLiveBattle() {
+    if (game.battlePhase !== "planning") return;
+    game.battlePhase = "live";
+    if (isMobile()) setTopbarCollapsed(true);
+    const allF = [...game.playerFormations, ...game.enemyFormations];
+    allF.forEach((f) => { f.kihapCooldown = kihapMaxCooldown(f); f.skillCooldown = skillMaxCooldown(f); });
+    currentSelection().forEach((formation) => {
+      if (formation.speed === "STOP" && formation.target) formation.speed = "NORMAL";
+    });
+    game.hudDirty = true;
+    refreshButtons();
+  }
+
   phaseButton.addEventListener("click", () => {
-    if (game.battlePhase === "planning") {
-      game.battlePhase = "live";
-      if (isMobile()) setTopbarCollapsed(true);
-      const allF = [...game.playerFormations, ...game.enemyFormations];
-      allF.forEach((f) => { f.kihapCooldown = kihapMaxCooldown(f); f.skillCooldown = skillMaxCooldown(f); });
-      currentSelection().forEach((formation) => {
-        if (formation.speed === "STOP" && formation.target) formation.speed = "NORMAL";
-      });
-      game.hudDirty = true;
-      refreshButtons();
-    }
+    if (isScenarioSceneActive()) return;
+    startLiveBattle();
   });
 
   speedToggleButton.addEventListener("click", () => {
+    if (isScenarioSceneActive()) return;
     if (game.battlePhase !== "live") return;
     // 정지 상태에서 배속 토글 → 정지 전 속도로 복귀
     currentSelection().forEach((formation) => {
@@ -4126,11 +4456,13 @@ import {
   });
 
   kihapBtn.addEventListener("click", () => {
+    if (isScenarioSceneActive()) return;
     currentSelection().forEach((formation) => activateSkill(formation));
     refreshButtons();
   });
 
   function toggleStop() {
+    if (isScenarioSceneActive()) return;
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       if (formation.speed === "STOP") {
@@ -4161,6 +4493,7 @@ import {
   }
 
   window.addEventListener("keydown", (e) => {
+    if (isScenarioSceneActive()) return;
     const tag = e.target?.tagName;
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
     if (e.code === "Space") { e.preventDefault(); toggleStop(); }
@@ -4214,6 +4547,7 @@ import {
 
   // ── 이동 명령 헬퍼 (우클릭 / 터치 공용) ─────────────────────────────
   function issueMoveCommand(offsetX, offsetY) {
+    if (isScenarioSceneActive()) return;
     const tile = toTile(offsetX, offsetY);
     let clickedEnemy = null;
     let minDist = 8.0;
@@ -4420,6 +4754,13 @@ import {
     if (game.battleEndPending) return;
     const outcome = getBattleOutcome();
     if (!outcome) return;
+    if (isHistoricalMode() && !outcome.won) {
+      game.battleEndPending = true;
+      game.battleEndTimer = 3.0;
+      game.battleEndWon = false;
+      return;
+    }
+    if (isHistoricalMode() && outcome.won && scenarioCurrentPhase()?.id !== "encirclement") return;
     game.battleEndPending = true;
     game.battleEndTimer = 3.0;
     game.battleEndWon = outcome.won;
@@ -4458,6 +4799,13 @@ import {
     game.hudRefreshAccumulator = 0;
     game.hudDirty            = true;
     game.speechEnemySighted  = new Set();
+    game.scenarioSceneLocked = false;
+    game.scenarioMarkers     = [];
+    game.scenarioObjectiveState = {};
+    game.scenarioSkillUseCounts = {};
+    game.scenarioStep        = "none";
+    game.scenarioAggro       = false;
+    game.scenarioMarkerRevealUntil = 0;
     speedToggleButton.classList.remove("active");
   }
 
@@ -4468,6 +4816,7 @@ import {
     game.terrainRender    = buildTerrainRenderData(terrain);
     invalidateTerrainChunkCache();
     resetGameState();
+    game.selectedId = playerFormations[0]?.id ?? 0;
     savedTerrain        = terrain;
     savedPlayerGenerals = playerFormations.map(f => ({ ...f.general }));
     savedEnemyGenerals  = enemyFormations.map(f => ({ ...f.general }));
@@ -4497,6 +4846,9 @@ import {
 
   // ── 빠른 전투 진입 ──────────────────────────────────────────────────
   function enterQuickBattle(isNew) {
+    game.mode = "quick";
+    game.scenarioData = null;
+    resetScenarioRuntime();
     let terrain, pGens, eGens;
     if (isNew || !savedTerrain) {
       const scenario = buildScenario();
@@ -4514,6 +4866,400 @@ import {
     centerCameraOn(formationCenter(game.playerFormations[0]));
     refreshHud();
     refreshButtons();
+  }
+
+  function hideScenarioOverlays() {
+    if (scenarioHud) scenarioHud.hidden = true;
+    if (scenarioDialogue) scenarioDialogue.hidden = true;
+    if (scenarioBriefing) scenarioBriefing.hidden = true;
+  }
+
+  function applyHistoricalScenario(scenario, terrain) {
+    const playerFormations = scenario.player.formations.map((spec, index) =>
+      createFormationFromScenarioSpec(spec, "player", index));
+    const enemyFormations = scenario.enemy.formations.map((spec, index) =>
+      createFormationFromScenarioSpec(spec, "enemy", index));
+    applyScenario(terrain, playerFormations, enemyFormations);
+    game.mode = "historical";
+    game.scenarioData = scenario;
+    game.scenarioPhaseIndex = -1;
+    game.selectedId = playerFormations[0]?.id ?? 0;
+    resetScenarioRuntime();
+  }
+
+  async function enterHistoricalScenario(id = "cannae") {
+    try {
+      showBattleLoadingMask();
+      const { scenario, terrain } = await loadScenarioBundle(id);
+      applyHistoricalScenario(scenario, terrain);
+      setScreen("battle");
+      centerCameraOn(formationCenter(game.playerFormations[0]));
+      refreshHud();
+      refreshButtons();
+      beginScenarioPhase(0);
+    } catch (error) {
+      console.error(error);
+      setScreen("home");
+      const toast = document.getElementById("homeToast");
+      toast.textContent = "역사 시나리오를 불러오지 못했습니다.";
+      toast.hidden = false;
+      window.setTimeout(() => { toast.hidden = true; toast.textContent = "준비 중인 기능입니다"; }, 2600);
+    }
+  }
+
+  function beginScenarioPhase(index) {
+    const phases = game.scenarioData?.phases || [];
+    if (index >= phases.length) {
+      game.battlePhase = "ended";
+      game.scenarioStep = "complete";
+      game.scenarioSceneLocked = false;
+      hideScenarioOverlays();
+      showBattleResult(true);
+      return;
+    }
+    game.scenarioPhaseIndex = index;
+    game.scenarioDialogueIndex = 0;
+    game.scenarioObjectiveState = {};
+    game.scenarioSkillUseCounts = {};
+    game.scenarioStep = "dialogue";
+    game.scenarioSceneLocked = true;
+    game.scenarioMarkers = [];
+    showScenarioDialogue();
+    updateScenarioHud();
+    refreshButtons();
+  }
+
+  function showScenarioDialogue() {
+    const phase = scenarioCurrentPhase();
+    const line = phase?.dialogue?.[game.scenarioDialogueIndex];
+    if (!line) {
+      showScenarioBriefing();
+      return;
+    }
+    if (line.camera) centerCameraOn(vec(line.camera.x, line.camera.y));
+    scenarioDialogue.hidden = false;
+    scenarioBriefing.hidden = true;
+    scenarioHud.hidden = false;
+    scenarioDialogueSpeaker.textContent = line.speaker || "";
+    scenarioDialogueText.textContent = line.text || "";
+    scenarioDialoguePortrait.src = line.portrait || "";
+    scenarioDialoguePortrait.hidden = !line.portrait;
+    scenarioTitle.textContent = `${game.scenarioData.name} - ${phase.title}`;
+  }
+
+  function showScenarioBriefing() {
+    const phase = scenarioCurrentPhase();
+    const briefing = phase?.briefing || {};
+    game.scenarioStep = "briefing";
+    game.scenarioSceneLocked = true;
+    game.scenarioMarkers = briefing.markers || [];
+    if (briefing.camera) centerCameraOn(vec(briefing.camera.x, briefing.camera.y));
+    scenarioDialogue.hidden = true;
+    scenarioBriefing.hidden = false;
+    scenarioHud.hidden = false;
+    scenarioBriefingTitle.textContent = phase?.title || "목표";
+    scenarioBriefingText.textContent = briefing.text || "";
+    updateScenarioHud();
+    refreshButtons();
+  }
+
+  function startScenarioPhasePlay() {
+    const phase = scenarioCurrentPhase();
+    game.scenarioStep = "play";
+    game.scenarioSceneLocked = false;
+    game.scenarioMarkers = [];
+    game.scenarioMarkerRevealUntil = 0;
+    scenarioDialogue.hidden = true;
+    scenarioBriefing.hidden = true;
+    scenarioHud.hidden = false;
+    applyScenarioPhaseStartEffects(phase);
+    if (game.battlePhase === "planning") startLiveBattle();
+    updateScenarioHud();
+    refreshButtons();
+  }
+
+  function applyScenarioPhaseStartEffects(phase) {
+    const start = phase?.onStart;
+    if (!start) return;
+    if (typeof start.setEnemyDisorder === "number") {
+      game.enemyFormations.forEach((formation) => {
+        formation.disorderAccum = Math.max(formation.disorderAccum, start.setEnemyDisorder);
+        formation.disorder = Math.max(formation.disorder, start.setEnemyDisorder);
+        if (formation.troopType === "infantry") {
+          formation.combatOverrides = {
+            ...(formation.combatOverrides || {}),
+            meleeAttackMult: 0.35,
+            meleeDefenseMult: 0.45,
+            rangedAttackMult: 0.35,
+            rangedDefenseMult: 0.6,
+          };
+        }
+      });
+    }
+  }
+
+  function recordScenarioSkillUse(formation, skillType) {
+    if (!isHistoricalMode() || game.scenarioStep !== "play") return;
+    const key = `${formation.scenarioId || formation.id}:${skillType}`;
+    game.scenarioSkillUseCounts[key] = (game.scenarioSkillUseCounts[key] || 0) + 1;
+  }
+
+  function pointInRect(point, rect) {
+    return point.x >= rect.x && point.x <= rect.x + rect.w &&
+      point.y >= rect.y && point.y <= rect.y + rect.h;
+  }
+
+  function isFormationStoppedInRect(formation, rect) {
+    if (!formation || !formation.units.some(isUnitAlive)) return false;
+    if (formation.speed !== "STOP") return false;
+    return pointInRect(formationCenter(formation), rect);
+  }
+
+  function objectiveProgress(objective, dt) {
+    const state = game.scenarioObjectiveState[objective.id] || { elapsed: 0, complete: false };
+    if (state.complete) return state;
+
+    if (objective.type === "timer") {
+      state.elapsed += dt;
+      state.complete = state.elapsed >= (objective.seconds || 0);
+    } else if (objective.type === "formationsAtArea") {
+      const radius = objective.radius || 8;
+      state.complete = objective.formationIds.every((id) => {
+        const formation = formationByScenarioId(id, "player");
+        if (!formation || !formation.units.some(isUnitAlive)) return false;
+        const center = formationCenter(formation);
+        return len(center.x - objective.x, center.y - objective.y) <= radius;
+      });
+    } else if (objective.type === "formationsInRect") {
+      state.complete = objective.formationIds.every((id) => {
+        const formation = formationByScenarioId(id, "player");
+        if (!formation || !formation.units.some(isUnitAlive)) return false;
+        return pointInRect(formationCenter(formation), objective);
+      });
+    } else if (objective.type === "allPlayerFormationsInRectStopped") {
+      const allStopped = game.playerFormations.every((formation) =>
+        isFormationStoppedInRect(formation, objective));
+      state.elapsed = allStopped ? state.elapsed + dt : 0;
+      state.complete = state.elapsed >= (objective.holdSeconds || 0);
+    } else if (objective.type === "skillUsed") {
+      const total = objective.formationIds.reduce((sum, id) =>
+        sum + (game.scenarioSkillUseCounts[`${id}:${objective.skillType}`] || 0), 0);
+      state.complete = total >= (objective.count || 1);
+    } else if (objective.type === "enemyTroopsBelow") {
+      state.complete = objective.formationIds.every((id) => {
+        const formation = formationByScenarioId(id, "enemy");
+        if (!formation) return true;
+        const ratio = formationRemainingTroops(formation) / Math.max(1, formationInitialTroops(formation));
+        return ratio <= objective.ratio || formation.retreating || formation.retreated;
+      });
+    } else if (objective.type === "enemyTotalBelow") {
+      const initial = game.enemyFormations.reduce((sum, f) => sum + formationInitialTroops(f), 0);
+      const remain = game.enemyFormations.reduce((sum, f) => sum + formationRemainingTroops(f), 0);
+      state.complete = remain / Math.max(1, initial) <= objective.ratio;
+    }
+
+    game.scenarioObjectiveState[objective.id] = state;
+    return state;
+  }
+
+  function updateScenarioHud() {
+    if (!isHistoricalMode() || !scenarioHud) {
+      if (scenarioHud) scenarioHud.hidden = true;
+      return;
+    }
+    const phase = scenarioCurrentPhase();
+    scenarioHud.hidden = false;
+    scenarioTitle.textContent = `${game.scenarioData.name} - ${phase?.title || ""}`;
+    scenarioObjectives.innerHTML = "";
+    (phase?.objectives || []).forEach((objective) => {
+      const state = game.scenarioObjectiveState[objective.id] || { complete: false };
+      const item = document.createElement("div");
+      item.className = "scenario-objective";
+      item.dataset.complete = state.complete ? "true" : "false";
+      item.textContent = `${state.complete ? "완료" : "진행"} · ${objective.label}`;
+      scenarioObjectives.appendChild(item);
+    });
+  }
+
+  function updateHistoricalScenario(dt) {
+    if (!isHistoricalMode() || game.scenarioStep !== "play") return;
+    const phase = scenarioCurrentPhase();
+    if (!phase) return;
+    if (game.scenarioMarkerRevealUntil > 0 && game.battleTime >= game.scenarioMarkerRevealUntil) {
+      game.scenarioMarkers = [];
+      game.scenarioMarkerRevealUntil = 0;
+    }
+    const objectives = phase.objectives || [];
+    const complete = objectives.every((objective) => objectiveProgress(objective, dt).complete);
+    updateScenarioHud();
+    if (checkHistoricalFailure()) {
+      game.battlePhase = "ended";
+      game.scenarioStep = "complete";
+      showBattleResult(false);
+      return;
+    }
+    if (complete) beginScenarioPhase(game.scenarioPhaseIndex + 1);
+  }
+
+  function revealScenarioMarkers() {
+    if (!isHistoricalMode() || game.scenarioStep !== "play") return;
+    const phase = scenarioCurrentPhase();
+    const markers = phase?.briefing?.markers || [];
+    if (!markers.length) return;
+    game.scenarioMarkers = markers;
+    game.scenarioMarkerRevealUntil = game.battleTime + 5;
+  }
+
+  function checkHistoricalFailure() {
+    const failure = game.scenarioData?.failure;
+    if (!failure || failure.type !== "playerTotalBelow") return false;
+    const initial = game.playerFormations.reduce((sum, f) => sum + formationInitialTroops(f), 0);
+    const remain = game.playerFormations.reduce((sum, f) => sum + formationRemainingTroops(f), 0);
+    return remain / Math.max(1, initial) <= failure.ratio;
+  }
+
+  function updateHistoricalAI(dt) {
+    if (!isHistoricalMode() || game.battlePhase !== "live" || game.scenarioStep !== "play") return;
+    game.aiTimer += dt;
+    if (game.aiTimer < 1.0) return;
+    game.aiTimer = 0;
+    const phaseId = scenarioCurrentPhase()?.id;
+    const trap = game.terrain.markers?.romanCenterTrap || { x: 108, y: 82 };
+
+    const setMove = (formation, target, speed = "NORMAL", density = null) => {
+      if (!formation || formation.retreated || !formation.units.some(isUnitAlive)) return;
+      formation.followTarget = null;
+      formation.target = vec(target.x, target.y);
+      formation.speed = speed;
+      if (density) formation.density = normalizeDensityForTroopType(formation.troopType, density);
+    };
+
+    const holdAt = (formation, target, density = null) => {
+      if (!formation || formation.retreated || !formation.units.some(isUnitAlive)) return;
+      formation.followTarget = null;
+      formation.target = null;
+      formation.speed = "STOP";
+      formation.facing = normalize(vec(-1, 0));
+      if (density) formation.density = normalizeDensityForTroopType(formation.troopType, density);
+      if (target) {
+        const center = formationCenter(formation);
+        if (len(center.x - target.x, center.y - target.y) > 2.0) {
+          formation.target = vec(target.x, target.y);
+          formation.speed = "NORMAL";
+        }
+      }
+    };
+
+    const nearestPlayerTo = (formation) => {
+      const livePlayers = game.playerFormations.filter(f => f.units.some(isUnitAlive) && !f.retreated);
+      if (!livePlayers.length || !formation) return null;
+      const center = formationCenter(formation);
+      return livePlayers.reduce((best, candidate) => {
+        const bc = formationCenter(best);
+        const cc = formationCenter(candidate);
+        return len(cc.x - center.x, cc.y - center.y) < len(bc.x - center.x, bc.y - center.y)
+          ? candidate
+          : best;
+      });
+    };
+
+    const forwardPlayerTo = (formation) => {
+      const livePlayers = game.playerFormations.filter(f => f.units.some(isUnitAlive) && !f.retreated);
+      if (!livePlayers.length || !formation) return null;
+      const center = formationCenter(formation);
+      const moveDir = formation.target ? normalize(sub(formation.target, center)) : vec();
+      const forward = len(moveDir.x, moveDir.y) > 0.001 ? moveDir : normalize(formation.facing || vec(-1, 0));
+      const scored = livePlayers.map((candidate) => {
+        const candidateCenter = formationCenter(candidate);
+        const toCandidate = sub(candidateCenter, center);
+        const distance = Math.max(0.001, len(toCandidate.x, toCandidate.y));
+        const direction = normalize(toCandidate);
+        return {
+          candidate,
+          distance,
+          dot: forward.x * direction.x + forward.y * direction.y
+        };
+      });
+      const frontScored = scored.filter(item => item.dot > -0.15);
+      return (frontScored.length ? frontScored : scored)
+        .sort((a, b) => (b.dot - a.dot) || (a.distance - b.distance))[0]?.candidate || null;
+    };
+
+    const pursue = (formation, targetFormation, speed = "NORMAL", density = null) => {
+      if (!formation || !targetFormation || formation.retreated || formation.retreating) return;
+      formation.followTarget = targetFormation;
+      formation.target = formationCenter(targetFormation);
+      formation.speed = speed;
+      if (density) formation.density = normalizeDensityForTroopType(formation.troopType, density);
+    };
+
+    const routeAtHalf = (id) => {
+      const formation = formationByScenarioId(id, "enemy");
+      if (!formation || formation.retreating || formation.retreated) return;
+      const ratio = formationRemainingTroops(formation) / Math.max(1, formationInitialTroops(formation));
+      if (ratio <= 0.5) {
+        formation.retreating = true;
+        formation.followTarget = null;
+        formation.target = vec(MAP_WIDTH, formation.anchor.y);
+        formation.speed = "FAST";
+      }
+    };
+
+    if (phaseId === "deployment") {
+      if (!game.scenarioAggro && game.enemyFormations.some(f => (f.general.losses || 0) > 0)) {
+        game.scenarioAggro = true;
+      }
+      if (game.scenarioAggro) {
+        game.enemyFormations.forEach((formation) => {
+          pursue(formation, nearestPlayerTo(formation), "NORMAL", formation.troopType === "infantry" ? "TIGHT" : "NORMAL");
+        });
+        return;
+      }
+      const targets = {
+        scipio: { x: 128, y: 60 },
+        paullus: { x: 128, y: 70 },
+        servilius: { x: 128, y: 80 },
+        minucius: { x: 128, y: 90 },
+        varro: { x: 128, y: 100 },
+      };
+      Object.entries(targets).forEach(([id, target]) => {
+        const formation = formationByScenarioId(id, "enemy");
+        if (!formation) return;
+        const center = formationCenter(formation);
+        const reached = len(center.x - target.x, center.y - target.y) <= 2.5;
+        if (reached) holdAt(formation, null, formation.troopType === "infantry" ? "TIGHT" : "NORMAL");
+        else setMove(formation, target, "FAST", formation.troopType === "infantry" ? "TIGHT" : "NORMAL");
+      });
+    } else if (phaseId === "lure") {
+      const mago = formationByScenarioId("mago", "player");
+      const gisgo = formationByScenarioId("gisgo", "player");
+      const hannibal = formationByScenarioId("hannibal", "player");
+      const paullus = formationByScenarioId("paullus", "enemy");
+      const servilius = formationByScenarioId("servilius", "enemy");
+      const minucius = formationByScenarioId("minucius", "enemy");
+      pursue(paullus, forwardPlayerTo(paullus) || mago, "NORMAL", "TIGHT");
+      pursue(servilius, forwardPlayerTo(servilius) || gisgo, "NORMAL", "TIGHT");
+      pursue(minucius, forwardPlayerTo(minucius) || hannibal || gisgo || mago, "NORMAL", "TIGHT");
+      holdAt(formationByScenarioId("scipio", "enemy"), null, "NORMAL");
+      holdAt(formationByScenarioId("varro", "enemy"), null, "NORMAL");
+      routeAtHalf("scipio");
+      routeAtHalf("varro");
+    } else if (phaseId === "encirclement") {
+      const frontEnemy = game.enemyFormations
+        .filter((formation) => formation.troopType === "infantry" && formation.units.some(isUnitAlive) && !formation.retreated)
+        .sort((a, b) => formationCenter(a).x - formationCenter(b).x)[0];
+      const gatherPoint = frontEnemy ? formationCenter(frontEnemy) : trap;
+      game.enemyFormations.forEach((formation) => {
+        if (formation.troopType !== "infantry") return;
+        formation.disorderAccum = Math.max(formation.disorderAccum, 0.7);
+        formation.disorder = Math.max(formation.disorder, 0.7);
+        if (formation === frontEnemy) {
+          holdAt(formation, null, "TIGHT");
+        } else {
+          setMove(formation, gatherPoint, "FAST", "TIGHT");
+        }
+      });
+    }
   }
 
   // ── 병력 조정 화면 ──────────────────────────────────────────────────
@@ -4772,6 +5518,28 @@ import {
     enterQuickBattle(true);
   });
 
+  menuHistoricalScenario?.addEventListener("click", () => {
+    renderScenarioSelect();
+    setScreen("scenarioSelect");
+  });
+
+  scenarioSelectBackBtn?.addEventListener("click", () => {
+    setScreen("home");
+  });
+
+  scenarioNextBtn?.addEventListener("click", () => {
+    game.scenarioDialogueIndex += 1;
+    showScenarioDialogue();
+  });
+
+  scenarioStartPhaseBtn?.addEventListener("click", () => {
+    startScenarioPhasePlay();
+  });
+
+  scenarioHud?.addEventListener("click", () => {
+    revealScenarioMarkers();
+  });
+
   // 홈: 준비 중 메뉴
   let toastTimer = null;
   document.querySelectorAll(".wip-btn").forEach(btn => {
@@ -4785,6 +5553,7 @@ import {
 
   // 전투 화면: 병력 조정
   troopAdjustBtn.addEventListener("click", () => {
+    if (isHistoricalMode()) return;
     if (game.battlePhase === "live") return;
     openTroopAdjust();
   });
@@ -4799,6 +5568,10 @@ import {
 
   // 결과 화면: 같은 조건 재전투
   document.getElementById("resultReplay").addEventListener("click", () => {
+    if (isHistoricalMode()) {
+      enterHistoricalScenario(game.scenarioData?.id || "cannae");
+      return;
+    }
     const { playerFormations, enemyFormations } =
       rebuildFormations(savedTerrain, savedPlayerGenerals, savedEnemyGenerals);
     applyScenario(savedTerrain, playerFormations, enemyFormations);

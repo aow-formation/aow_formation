@@ -17,7 +17,7 @@ function copyPath(from, to) {
 }
 
 function copyRuntimeAssets() {
-  const paths = ["assets", "data", "screenshot.png"];
+  const paths = ["assets", "data", "screenshot.png", "terrain-json-viewer.html"];
   return {
     name: "copy-runtime-assets",
     closeBundle() {
