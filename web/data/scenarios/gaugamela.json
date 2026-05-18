@@ -1,0 +1,1014 @@
+{
+  "id": "gaugamela",
+  "name": "가우가멜라 전투",
+  "subtitle": "The Hammer and Anvil",
+  "terrain": "./data/scenarios/gaugamela_terrain.json",
+  "summary": "팔랑크스가 페르시아 대군을 정면에서 붙잡는 동안 알렉산더의 기병이 열린 틈으로 돌파해 다리우스의 본진을 위협한다.",
+  "player": {
+    "name": "마케도니아군",
+    "formations": [
+      {
+        "id": "alexander",
+        "name": "알렉산더",
+        "troopType": "cavalry",
+        "troops": 10000,
+        "power": 98,
+        "leadership": 98,
+        "charm": 95,
+        "skillType": "kihap",
+        "combatOverrides": {
+          "meleeAttackMult": 1.25,
+          "kihapAttackBonusMult": 1.5
+        },
+        "portrait": "assets/portraits/alexander.png",
+        "position": {
+          "x": 42,
+          "y": 42
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      },
+      {
+        "id": "philotus",
+        "name": "필로타스",
+        "troopType": "cavalry",
+        "troops": 8000,
+        "power": 86,
+        "leadership": 84,
+        "charm": 70,
+        "skillType": "kihap",
+        "portrait": "assets/portraits/alexander.png",
+        "position": {
+          "x": 46,
+          "y": 52
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      },
+      {
+        "id": "craterus",
+        "name": "크라테로스",
+        "troopType": "infantry",
+        "troops": 10000,
+        "power": 84,
+        "leadership": 88,
+        "charm": 75,
+        "skillType": "guard",
+        "combatOverrides": {
+          "meleeDefenseMult": 1.5,
+          "rangedDefenseMult": 1.25
+        },
+        "portrait": "assets/portraits/alexander.png",
+        "position": {
+          "x": 44,
+          "y": 76
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "TIGHT",
+        "speed": "STOP"
+      },
+      {
+        "id": "coenus",
+        "name": "코이노스",
+        "troopType": "infantry",
+        "troops": 9000,
+        "power": 80,
+        "leadership": 86,
+        "charm": 72,
+        "skillType": "guard",
+        "combatOverrides": {
+          "meleeDefenseMult": 1.5,
+          "rangedDefenseMult": 1.25
+        },
+        "portrait": "assets/portraits/alexander.png",
+        "position": {
+          "x": 42,
+          "y": 88
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "TIGHT",
+        "speed": "STOP"
+      },
+      {
+        "id": "parmenion",
+        "name": "파르메니온",
+        "troopType": "infantry",
+        "troops": 10000,
+        "power": 82,
+        "leadership": 92,
+        "charm": 78,
+        "skillType": "guard",
+        "combatOverrides": {
+          "meleeDefenseMult": 1.5,
+          "rangedDefenseMult": 1.25
+        },
+        "portrait": "assets/portraits/alexander.png",
+        "position": {
+          "x": 42,
+          "y": 112
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
+        "density": "TIGHT",
+        "speed": "STOP"
+      }
+    ]
+  },
+  "enemy": {
+    "name": "페르시아 제국군",
+    "formations": [
+      {
+        "id": "bessus",
+        "name": "베수스",
+        "troopType": "cavalry",
+        "troops": 18000,
+        "power": 82,
+        "leadership": 80,
+        "charm": 70,
+        "skillType": "kihap",
+        "portrait": "assets/portraits/attila.png",
+        "position": {
+          "x": 178,
+          "y": 42
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      },
+      {
+        "id": "royal_guard",
+        "name": "왕실 근위대",
+        "troopType": "infantry",
+        "troops": 22000,
+        "power": 86,
+        "leadership": 84,
+        "charm": 75,
+        "skillType": "guard",
+        "combatOverrides": {
+          "meleeAttackMult": 1.15
+        },
+        "portrait": "assets/portraits/caesar.png",
+        "position": {
+          "x": 176,
+          "y": 72
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "TIGHT",
+        "speed": "STOP"
+      },
+      {
+        "id": "persian_host",
+        "name": "페르시아 대군",
+        "troopType": "infantry",
+        "troops": 30000,
+        "power": 74,
+        "leadership": 70,
+        "charm": 60,
+        "skillType": "kihap",
+        "combatOverrides": {
+          "meleeAttackMult": 1.15
+        },
+        "portrait": "assets/portraits/caesar.png",
+        "position": {
+          "x": 182,
+          "y": 88
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "TIGHT",
+        "speed": "STOP"
+      },
+      {
+        "id": "mazaeus",
+        "name": "마자이오스",
+        "troopType": "cavalry",
+        "troops": 18000,
+        "power": 84,
+        "leadership": 82,
+        "charm": 72,
+        "skillType": "kihap",
+        "portrait": "assets/portraits/attila.png",
+        "position": {
+          "x": 178,
+          "y": 116
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      },
+      {
+        "id": "darius",
+        "name": "다리우스 3세",
+        "troopType": "infantry",
+        "troops": 12000,
+        "power": 65,
+        "leadership": 78,
+        "charm": 88,
+        "skillType": "kihap",
+        "portrait": "assets/portraits/caesar.png",
+        "position": {
+          "x": 204,
+          "y": 82
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
+        "density": "NORMAL",
+        "speed": "STOP"
+      }
+    ]
+  },
+  "phases": [
+    {
+      "id": "deployment",
+      "title": "평원의 끝에서",
+      "dialogue": [
+        {
+          "speaker": "파르메니온",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "폐하, 페르시아군이 평원을 가득 메웠습니다. 저 숫자는 병사라기보다 하나의 벽입니다."
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "벽이라면, 어딘가에는 반드시 균열이 있다."
+        },
+        {
+          "speaker": "크라테로스",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "팔랑크스는 중앙에 서겠습니다. 우리가 버티는 동안 폐하께서 길을 여십시오."
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "좋다. 중앙은 움직이지 않는 산이 되어라. 기병은 내 오른편에 모여라."
+        },
+        {
+          "speaker": "다리우스",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "camera": {
+            "x": 190,
+            "y": 82
+          },
+          "text": "마케도니아의 젊은 왕이 여기까지 왔군. 오늘 저 평원에서 그의 야망을 묻어라."
+        },
+        {
+          "speaker": "마자이오스",
+          "side": "enemy",
+          "portrait": "assets/portraits/attila.png",
+          "text": "기병을 양익으로 펼치겠습니다. 저들의 작은 대열을 감싸 눌러버리겠습니다."
+        }
+      ],
+      "briefing": {
+        "text": "팔랑크스 3부대는 중앙 집결선에 세우고, 알렉산더와 필로타스 기병은 우익 집결지로 이동시키십시오.",
+        "camera": {
+          "x": 64,
+          "y": 80
+        },
+        "markers": [
+          {
+            "id": "macedon_line",
+            "type": "rect",
+            "label": "팔랑크스 집결선",
+            "x": 48,
+            "y": 54,
+            "w": 18,
+            "h": 52
+          },
+          {
+            "id": "alexander_rally",
+            "label": "기병 집결지",
+            "x": 54,
+            "y": 42,
+            "radius": 8
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "id": "phalanx_ready",
+          "type": "formationsInRectStopped",
+          "formationIds": [
+            "craterus",
+            "coenus",
+            "parmenion"
+          ],
+          "x": 48,
+          "y": 54,
+          "w": 18,
+          "h": 52,
+          "holdSeconds": 2,
+          "label": "팔랑크스 3부대를 중앙 집결선에 정지시키십시오."
+        },
+        {
+          "id": "cavalry_ready",
+          "type": "formationsAtArea",
+          "formationIds": [
+            "alexander",
+            "philotus"
+          ],
+          "x": 54,
+          "y": 42,
+          "radius": 8,
+          "label": "알렉산더와 필로타스 기병을 우익 집결지에 모으십시오."
+        }
+      ],
+      "ai": {
+        "aggroOnEnemyLoss": true,
+        "aggroActions": [
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "bessus",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "royal_guard",
+            "targetMode": "forwardPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "persian_host",
+            "targetMode": "forwardPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "mazaeus",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          }
+        ],
+        "actions": [
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "bessus",
+            "target": {
+              "x": 150,
+              "y": 34
+            },
+            "speed": "SLOW",
+            "density": "NORMAL"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "royal_guard",
+            "target": {
+              "x": 150,
+              "y": 70
+            },
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "persian_host",
+            "target": {
+              "x": 152,
+              "y": 90
+            },
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "mazaeus",
+            "target": {
+              "x": 150,
+              "y": 124
+            },
+            "speed": "SLOW",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "darius",
+            "density": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "id": "anvil",
+      "title": "모루가 버티는 시간",
+      "dialogue": [
+        {
+          "speaker": "다리우스",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "camera": {
+            "x": 150,
+            "y": 82
+          },
+          "text": "중앙을 밀어붙여라! 저들의 창이 아무리 길어도 숫자를 이길 수는 없다!"
+        },
+        {
+          "speaker": "파르메니온",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "방패를 맞대라! 창끝을 낮추고 한 걸음도 물러서지 마라!"
+        },
+        {
+          "speaker": "크라테로스",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "적이 몰려옵니다. 중앙이 흔들리면 모든 것이 끝입니다."
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "바로 그래서 중앙은 무너지지 않을 것이다. 그들이 우리를 누르는 동안, 그들의 옆구리는 비게 된다."
+        },
+        {
+          "speaker": "필로타스",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "폐하, 페르시아 기병이 양쪽으로 퍼지고 있습니다."
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "좋다. 아직은 기다린다. 틈이 열릴 때까지."
+        }
+      ],
+      "briefing": {
+        "text": "팔랑크스가 중앙에서 페르시아 대군의 압박을 버텨야 합니다. 기병은 무리하게 돌파하지 말고 열린 틈을 기다리십시오.",
+        "camera": {
+          "x": 86,
+          "y": 80
+        },
+        "markers": [
+          {
+            "id": "hold_line",
+            "type": "rect",
+            "label": "방어선",
+            "x": 72,
+            "y": 56,
+            "w": 18,
+            "h": 48
+          },
+          {
+            "id": "gap_hint",
+            "label": "곧 열릴 틈",
+            "x": 138,
+            "y": 76,
+            "radius": 10
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "id": "hold_time",
+          "type": "surviveSeconds",
+          "formationIds": [
+            "craterus",
+            "coenus",
+            "parmenion"
+          ],
+          "seconds": 75,
+          "minRatio": 0.35,
+          "label": "팔랑크스가 75초 동안 버티게 하십시오."
+        },
+        {
+          "id": "phalanx_alive",
+          "type": "formationsTroopsAbove",
+          "formationIds": [
+            "craterus",
+            "coenus",
+            "parmenion"
+          ],
+          "ratio": 0.5,
+          "requiredCount": 2,
+          "label": "팔랑크스 3부대 중 2부대 이상을 50% 이상 유지하십시오."
+        }
+      ],
+      "ai": {
+        "actions": [
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "bessus",
+            "target": {
+              "x": 116,
+              "y": 24
+            },
+            "speed": "NORMAL",
+            "density": "NORMAL",
+            "holdRadius": 5
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "royal_guard",
+            "targetFormationId": "craterus",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "persian_host",
+            "targetFormationId": "coenus",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "mazaeus",
+            "target": {
+              "x": 116,
+              "y": 132
+            },
+            "speed": "NORMAL",
+            "density": "NORMAL",
+            "holdRadius": 5
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "darius",
+            "density": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gap",
+      "title": "열린 틈",
+      "dialogue": [
+        {
+          "speaker": "필로타스",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "camera": {
+            "x": 132,
+            "y": 76
+          },
+          "text": "폐하, 중앙과 좌익 사이가 벌어졌습니다!"
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "지금이다. 헤타이로이, 나를 따르라!"
+        },
+        {
+          "speaker": "파르메니온",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "우리는 더 버티겠습니다. 폐하께서는 왕을 노리십시오!"
+        },
+        {
+          "speaker": "다리우스",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "text": "저 기병은 어디로 가는 것이냐? 중앙을 막아라! 왕실 근위대, 돌아서라!"
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "늦었다, 다리우스. 전장은 숫자가 아니라 순간을 붙잡는 자의 것이다."
+        }
+      ],
+      "briefing": {
+        "text": "알렉산더 기병을 페르시아 대열의 열린 틈으로 돌파시키십시오.",
+        "camera": {
+          "x": 136,
+          "y": 76
+        },
+        "markers": [
+          {
+            "id": "persian_gap",
+            "label": "돌파 지점",
+            "x": 138,
+            "y": 76,
+            "radius": 10
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "id": "alexander_gap",
+          "type": "formationAtArea",
+          "formationId": "alexander",
+          "x": 138,
+          "y": 76,
+          "radius": 10,
+          "label": "알렉산더를 페르시아 대열의 틈으로 진입시키십시오."
+        }
+      ],
+      "ai": {
+        "actions": [
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "royal_guard",
+            "targetFormationId": "alexander",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "persian_host",
+            "targetMode": "forwardPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "darius",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "bessus",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "mazaeus",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hammer",
+      "title": "왕을 겨누는 망치",
+      "dialogue": [
+        {
+          "speaker": "다리우스",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "camera": {
+            "x": 190,
+            "y": 82
+          },
+          "text": "저자가 여기까지 왔다고? 근위대는 무엇을 하고 있느냐!"
+        },
+        {
+          "speaker": "베수스",
+          "side": "enemy",
+          "portrait": "assets/portraits/attila.png",
+          "text": "폐하, 마케도니아 기병이 본진을 향하고 있습니다. 후퇴로를 열어야 합니다!"
+        },
+        {
+          "speaker": "다리우스",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "text": "아직 아니다. 아직 군대는 많다!"
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "왕이 흔들리면 제국도 흔들린다. 곧 저 많은 병사들이 서로의 발을 밟게 될 것이다."
+        },
+        {
+          "speaker": "필로타스",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "돌격 준비 완료!"
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "다리우스를 향해 곧장 간다!"
+        }
+      ],
+      "briefing": {
+        "text": "알렉산더로 다리우스 본진을 위협하십시오. 가까이 접근하거나 다리우스 부대를 50% 이하로 낮추면 페르시아군이 흔들립니다.",
+        "camera": {
+          "x": 184,
+          "y": 80
+        },
+        "markers": [
+          {
+            "id": "darius_camp",
+            "label": "다리우스 본진",
+            "x": 188,
+            "y": 80,
+            "radius": 12
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "id": "threaten_darius",
+          "type": "any",
+          "label": "알렉산더가 다리우스를 위협하거나 다리우스 병력을 50% 이하로 낮추십시오.",
+          "objectives": [
+            {
+              "id": "near",
+              "type": "formationNearEnemy",
+              "formationId": "alexander",
+              "enemyFormationId": "darius",
+              "radius": 8
+            },
+            {
+              "id": "damage",
+              "type": "enemyCommanderBelow",
+              "formationId": "darius",
+              "ratio": 0.5
+            }
+          ]
+        }
+      ],
+      "onComplete": {
+        "effects": [
+          {
+            "type": "setDisorder",
+            "team": "enemy",
+            "value": 0.65
+          },
+          {
+            "type": "combatOverrides",
+            "team": "enemy",
+            "formationIds": [
+              "royal_guard",
+              "persian_host"
+            ],
+            "values": {
+              "meleeAttackMult": 0.5,
+              "meleeDefenseMult": 0.65,
+              "rangedAttackMult": 0.5,
+              "rangedDefenseMult": 0.65
+            }
+          },
+          {
+            "type": "route",
+            "team": "enemy",
+            "formationIds": [
+              "darius"
+            ],
+            "target": {
+              "x": 232,
+              "y": 82
+            },
+            "speed": "FAST"
+          }
+        ]
+      },
+      "ai": {
+        "actions": [
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "darius",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "royal_guard",
+            "targetFormationId": "alexander",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "persian_host",
+            "targetMode": "forwardPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "bessus",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "mazaeus",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "id": "collapse",
+      "title": "제국의 균열",
+      "dialogue": [
+        {
+          "speaker": "파르메니온",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "camera": {
+            "x": 112,
+            "y": 88
+          },
+          "text": "적의 압박이 약해졌습니다! 중앙이 무너지고 있습니다!"
+        },
+        {
+          "speaker": "크라테로스",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "팔랑크스, 전진하라!"
+        },
+        {
+          "speaker": "다리우스",
+          "side": "enemy",
+          "portrait": "assets/portraits/caesar.png",
+          "text": "후퇴하라! 왕을 지켜라!"
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "저들이 등을 보였다. 이제 전투가 아니라 추격이다."
+        },
+        {
+          "speaker": "필로타스",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "마케도니아가 승리했습니다!"
+        },
+        {
+          "speaker": "알렉산더",
+          "side": "player",
+          "portrait": "assets/portraits/alexander.png",
+          "text": "아직이다. 승리는 마지막 적이 무기를 놓을 때 완성된다."
+        }
+      ],
+      "briefing": {
+        "text": "붕괴한 페르시아군을 추격해 전장을 장악하십시오.",
+        "camera": {
+          "x": 150,
+          "y": 84
+        },
+        "markers": [
+          {
+            "id": "darius_retreat",
+            "label": "다리우스 후퇴로",
+            "x": 232,
+            "y": 82,
+            "radius": 8
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "id": "break_persia",
+          "type": "any",
+          "label": "페르시아 전체 병력을 35% 이하로 낮추거나, 다리우스를 패주시킨 뒤 근위대를 40% 이하로 낮추십시오.",
+          "objectives": [
+            {
+              "id": "total",
+              "type": "enemyTotalBelow",
+              "ratio": 0.35
+            },
+            {
+              "id": "guard",
+              "type": "enemyTroopsBelow",
+              "formationIds": [
+                "darius",
+                "royal_guard"
+              ],
+              "ratio": 0.4
+            }
+          ]
+        }
+      ],
+      "ai": {
+        "actions": [
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "darius",
+            "target": {
+              "x": 232,
+              "y": 82
+            },
+            "speed": "FAST",
+            "density": "NORMAL",
+            "holdOnReach": false
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "royal_guard",
+            "targetFormationId": "alexander",
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "persian_host",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "bessus",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "mazaeus",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "NORMAL"
+          }
+        ]
+      }
+    }
+  ],
+  "failure": [
+    {
+      "type": "playerTotalBelow",
+      "ratio": 0.25,
+      "label": "마케도니아군 총 병력이 25% 이하가 되면 실패합니다."
+    },
+    {
+      "type": "formationBelow",
+      "formationId": "alexander",
+      "ratio": 0.2,
+      "label": "알렉산더 부대가 20% 이하가 되면 실패합니다."
+    },
+    {
+      "type": "formationsBelowCount",
+      "formationIds": [
+        "craterus",
+        "coenus",
+        "parmenion"
+      ],
+      "ratio": 0.25,
+      "count": 2,
+      "label": "팔랑크스 2부대가 25% 이하가 되면 실패합니다."
+    }
+  ]
+}

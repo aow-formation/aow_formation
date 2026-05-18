@@ -332,7 +332,109 @@
           "holdSeconds": 2,
           "label": "모든 아군 진형을 집결 구역 안에서 정지 상태로 유지하십시오."
         }
-      ]
+      ],
+      "ai": {
+        "aggroOnEnemyLoss": true,
+        "aggroActions": [
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "scipio",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "paullus",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "servilius",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "minucius",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "varro",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          }
+        ],
+        "actions": [
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "scipio",
+            "target": {
+              "x": 128,
+              "y": 60
+            },
+            "speed": "FAST",
+            "density": "NORMAL"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "paullus",
+            "target": {
+              "x": 128,
+              "y": 70
+            },
+            "speed": "FAST",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "servilius",
+            "target": {
+              "x": 128,
+              "y": 80
+            },
+            "speed": "FAST",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "minucius",
+            "target": {
+              "x": 128,
+              "y": 90
+            },
+            "speed": "FAST",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "varro",
+            "target": {
+              "x": 128,
+              "y": 100
+            },
+            "speed": "FAST",
+            "density": "NORMAL"
+          }
+        ]
+      }
     },
     {
       "id": "lure",
@@ -451,7 +553,69 @@
           "ratio": 0.5,
           "label": "로마 기병 두 부대를 50% 이하로 약화시키십시오."
         }
-      ]
+      ],
+      "ai": {
+        "actions": [
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "paullus",
+            "targetMode": "forwardPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "servilius",
+            "targetMode": "forwardPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "minucius",
+            "targetMode": "forwardPlayer",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "scipio",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "varro",
+            "density": "NORMAL"
+          },
+          {
+            "type": "routeAtRatio",
+            "team": "enemy",
+            "formationId": "scipio",
+            "ratio": 0.5,
+            "target": {
+              "x": 240,
+              "y": 60
+            },
+            "speed": "FAST"
+          },
+          {
+            "type": "routeAtRatio",
+            "team": "enemy",
+            "formationId": "varro",
+            "ratio": 0.5,
+            "target": {
+              "x": 240,
+              "y": 100
+            },
+            "speed": "FAST"
+          }
+        ]
+      }
     },
     {
       "id": "encirclement",
@@ -495,7 +659,33 @@
         "markers": []
       },
       "onStart": {
-        "setEnemyDisorder": 0.7
+        "effects": [
+          {
+            "type": "setDisorder",
+            "team": "enemy",
+            "formationIds": [
+              "paullus",
+              "servilius",
+              "minucius"
+            ],
+            "value": 0.7
+          },
+          {
+            "type": "combatOverrides",
+            "team": "enemy",
+            "formationIds": [
+              "paullus",
+              "servilius",
+              "minucius"
+            ],
+            "values": {
+              "meleeAttackMult": 0.35,
+              "meleeDefenseMult": 0.45,
+              "rangedAttackMult": 0.35,
+              "rangedDefenseMult": 0.6
+            }
+          }
+        ]
       },
       "objectives": [
         {
@@ -504,7 +694,47 @@
           "ratio": 0.2,
           "label": "로마군 총 병력을 20% 이하로 줄이십시오."
         }
-      ]
+      ],
+      "ai": {
+        "actions": [
+          {
+            "type": "moveToDynamic",
+            "team": "enemy",
+            "formationId": "paullus",
+            "targetMode": "frontmostEnemyInfantry",
+            "speed": "FAST",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveToDynamic",
+            "team": "enemy",
+            "formationId": "servilius",
+            "targetMode": "frontmostEnemyInfantry",
+            "speed": "FAST",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveToDynamic",
+            "team": "enemy",
+            "formationId": "minucius",
+            "targetMode": "frontmostEnemyInfantry",
+            "speed": "FAST",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "scipio",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "varro",
+            "density": "NORMAL"
+          }
+        ]
+      }
     }
   ],
   "failure": {

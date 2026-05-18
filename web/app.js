@@ -306,7 +306,7 @@ import {
       title: "망치와 모루 - 가우가멜라 전투",
       year: "BC 331",
       icon: 1,
-      enabled: false
+      enabled: true
     },
     {
       id: "cannae",
@@ -322,7 +322,7 @@ import {
       title: "매복 - 박망파 전투",
       year: "202",
       icon: 2,
-      enabled: false
+      enabled: true
     },
     {
       id: "kalka",
@@ -338,7 +338,7 @@ import {
       title: "수공 - 흥화진/귀주 대첩",
       year: "1018",
       icon: 4,
-      enabled: false
+      enabled: true
     },
     {
       id: "jupil",
@@ -346,7 +346,7 @@ import {
       title: "복합 전술 - 주필산 전투",
       year: "645",
       icon: 5,
-      enabled: false
+      enabled: true
     },
     {
       id: "yiling",
@@ -362,22 +362,6 @@ import {
       title: "방진 - 투르 푸아티에 전투",
       year: "732",
       icon: 1,
-      enabled: false
-    },
-    {
-      id: "hastings",
-      no: "09",
-      title: "고지전 - 헤이스팅스 전투",
-      year: "1066",
-      icon: 5,
-      enabled: false
-    },
-    {
-      id: "agincourt",
-      no: "10",
-      title: "장궁 - 아쟁쿠르 전투",
-      year: "1415",
-      icon: 3,
       enabled: false
     }
   ];
@@ -4981,6 +4965,7 @@ import {
   function applyScenarioPhaseStartEffects(phase) {
     const start = phase?.onStart;
     if (!start) return;
+    applyScenarioEffects(start.effects);
     if (typeof start.setEnemyDisorder === "number") {
       game.enemyFormations.forEach((formation) => {
         formation.disorderAccum = Math.max(formation.disorderAccum, start.setEnemyDisorder);
@@ -4996,6 +4981,54 @@ import {
         }
       });
     }
+  }
+
+  function scenarioFormationsForEffect(effect) {
+    const team = effect.team || "enemy";
+    const formations = team === "player" ? game.playerFormations : game.enemyFormations;
+    if (effect.formationIds?.length) {
+      return effect.formationIds.map(id => scenarioFormation(id, team)).filter(Boolean);
+    }
+    return formations;
+  }
+
+  function applyScenarioEffects(effects) {
+    const list = Array.isArray(effects) ? effects : effects ? [effects] : [];
+    list.forEach((effect) => {
+      const formations = scenarioFormationsForEffect(effect);
+      if (effect.type === "setDisorder") {
+        formations.forEach((formation) => {
+          formation.disorderAccum = Math.max(formation.disorderAccum, effect.value ?? 0);
+          formation.disorder = Math.max(formation.disorder, effect.value ?? 0);
+        });
+      } else if (effect.type === "combatOverrides") {
+        formations.forEach((formation) => {
+          formation.combatOverrides = {
+            ...(formation.combatOverrides || {}),
+            ...(effect.values || {}),
+          };
+        });
+      } else if (effect.type === "route") {
+        formations.forEach((formation) => {
+          const target = scenarioTargetPoint(effect.target, {
+            x: formation.team === "enemy" ? MAP_WIDTH : 0,
+            y: formation.anchor.y
+          });
+          formation.retreating = true;
+          formation.followTarget = null;
+          formation.target = vec(target.x, target.y);
+          formation.speed = effect.speed || "FAST";
+        });
+      } else if (effect.type === "areaDamage") {
+        const rect = effect.rect || effect;
+        formations.forEach((formation) => {
+          formation.units.forEach((unit) => {
+            if (!isUnitAlive(unit) || !pointInRect(unit, rect)) return;
+            applyUnitDamage(formation, unit, effect.damage || 0, null, { trace: false });
+          });
+        });
+      }
+    });
   }
 
   function recordScenarioSkillUse(formation, skillType) {
@@ -5015,6 +5048,26 @@ import {
     return pointInRect(formationCenter(formation), rect);
   }
 
+  function formationRatio(formation) {
+    if (!formation) return 0;
+    return formationRemainingTroops(formation) / Math.max(1, formationInitialTroops(formation));
+  }
+
+  function scenarioFormation(id, side = "player") {
+    return formationByScenarioId(id, side);
+  }
+
+  function scenarioTargetPoint(target, fallback = null) {
+    if (!target) return fallback;
+    if (target.marker && game.terrain.markers?.[target.marker]) return game.terrain.markers[target.marker];
+    if (typeof target.x === "number" && typeof target.y === "number") return target;
+    return fallback;
+  }
+
+  function objectivePoint(objective) {
+    return scenarioTargetPoint(objective, objective);
+  }
+
   function objectiveProgress(objective, dt) {
     const state = game.scenarioObjectiveState[objective.id] || { elapsed: 0, complete: false };
     if (state.complete) return state;
@@ -5022,20 +5075,76 @@ import {
     if (objective.type === "timer") {
       state.elapsed += dt;
       state.complete = state.elapsed >= (objective.seconds || 0);
+    } else if (objective.type === "any") {
+      state.complete = (objective.objectives || []).some((child, index) =>
+        objectiveProgress({ ...child, id: `${objective.id}:${child.id || index}` }, dt).complete);
     } else if (objective.type === "formationsAtArea") {
       const radius = objective.radius || 8;
+      const point = objectivePoint(objective);
       state.complete = objective.formationIds.every((id) => {
         const formation = formationByScenarioId(id, "player");
         if (!formation || !formation.units.some(isUnitAlive)) return false;
         const center = formationCenter(formation);
-        return len(center.x - objective.x, center.y - objective.y) <= radius;
+        return len(center.x - point.x, center.y - point.y) <= radius;
       });
+    } else if (objective.type === "formationsAtAreaSequence") {
+      const points = objective.points || [];
+      const index = Math.min(state.index || 0, points.length);
+      if (index >= points.length) {
+        state.complete = true;
+      } else {
+        const point = points[index];
+        const radius = point.radius || objective.radius || 8;
+        const reached = (objective.formationIds || []).every((id) => {
+          const formation = formationByScenarioId(id, objective.team || "player");
+          if (!formation || !formation.units.some(isUnitAlive)) return false;
+          const center = formationCenter(formation);
+          return len(center.x - point.x, center.y - point.y) <= radius;
+        });
+        if (reached) state.index = index + 1;
+        state.complete = (state.index || 0) >= points.length;
+      }
+    } else if (objective.type === "formationAtArea") {
+      const radius = objective.radius || 8;
+      const point = objectivePoint(objective);
+      const formation = scenarioFormation(objective.formationId, objective.team || "player");
+      if (!formation || !formation.units.some(isUnitAlive)) state.complete = false;
+      else {
+        const center = formationCenter(formation);
+        state.complete = len(center.x - point.x, center.y - point.y) <= radius;
+      }
     } else if (objective.type === "formationsInRect") {
       state.complete = objective.formationIds.every((id) => {
         const formation = formationByScenarioId(id, "player");
         if (!formation || !formation.units.some(isUnitAlive)) return false;
         return pointInRect(formationCenter(formation), objective);
       });
+    } else if (objective.type === "formationsInRectStopped") {
+      const allStopped = objective.formationIds.every((id) =>
+        isFormationStoppedInRect(formationByScenarioId(id, objective.team || "player"), objective));
+      state.elapsed = allStopped ? state.elapsed + dt : 0;
+      state.complete = state.elapsed >= (objective.holdSeconds || 0);
+    } else if (objective.type === "captureArea") {
+      const team = objective.team || "player";
+      const rect = objective.rect || objective;
+      const formations = (objective.formationIds || []).map(id => scenarioFormation(id, team)).filter(Boolean);
+      const occupied = formations.some((formation) =>
+        formation.units.some(isUnitAlive) && pointInRect(formationCenter(formation), rect));
+      const enemyTeam = team === "player" ? "enemy" : "player";
+      const enemies = enemyTeam === "player" ? game.playerFormations : game.enemyFormations;
+      const contested = enemies.some((formation) =>
+        formation.units.some(isUnitAlive) && !formation.retreated && pointInRect(formationCenter(formation), rect));
+      state.elapsed = occupied && (!contested || objective.allowContested) ? state.elapsed + dt : 0;
+      state.complete = state.elapsed >= (objective.holdSeconds || 0);
+    } else if (objective.type === "enemyInAreaRatio") {
+      const rect = objective.rect || objective;
+      const formations = objective.formationIds?.length
+        ? objective.formationIds.map(id => scenarioFormation(id, "enemy")).filter(Boolean)
+        : game.enemyFormations;
+      const initial = formations.reduce((sum, formation) => sum + formationInitialTroops(formation), 0);
+      const inside = formations.reduce((sum, formation) => sum + formation.units.reduce((unitSum, unit) =>
+        unitSum + (isUnitAlive(unit) && pointInRect(unit, rect) ? unitRemainingTroops(unit) : 0), 0), 0);
+      state.complete = inside / Math.max(1, initial) >= objective.ratio;
     } else if (objective.type === "allPlayerFormationsInRectStopped") {
       const allStopped = game.playerFormations.every((formation) =>
         isFormationStoppedInRect(formation, objective));
@@ -5045,11 +5154,57 @@ import {
       const total = objective.formationIds.reduce((sum, id) =>
         sum + (game.scenarioSkillUseCounts[`${id}:${objective.skillType}`] || 0), 0);
       state.complete = total >= (objective.count || 1);
+    } else if (objective.type === "surviveSeconds") {
+      const formations = (objective.formationIds || []).map(id => scenarioFormation(id, objective.team || "player")).filter(Boolean);
+      const ratiosOk = formations.every(formation => formationRatio(formation) >= (objective.minRatio ?? 0));
+      state.elapsed = ratiosOk ? state.elapsed + dt : 0;
+      state.complete = state.elapsed >= (objective.seconds || 0);
+    } else if (objective.type === "formationsTroopsAbove") {
+      const team = objective.team || "player";
+      const required = objective.requiredCount || (objective.formationIds?.length ?? 0);
+      const count = (objective.formationIds || []).reduce((sum, id) => {
+        const formation = scenarioFormation(id, team);
+        return sum + (formation && formationRatio(formation) >= objective.ratio ? 1 : 0);
+      }, 0);
+      state.complete = count >= required;
+    } else if (objective.type === "formationNotInArea") {
+      const radius = objective.radius || 8;
+      const point = objectivePoint(objective);
+      const formation = scenarioFormation(objective.formationId, objective.team || "player");
+      if (!formation || !formation.units.some(isUnitAlive)) state.complete = false;
+      else {
+        const center = formationCenter(formation);
+        state.complete = len(center.x - point.x, center.y - point.y) > radius;
+      }
+    } else if (objective.type === "formationNearFormation") {
+      const a = scenarioFormation(objective.formationId, objective.team || "player");
+      const b = scenarioFormation(objective.targetFormationId, objective.targetTeam || objective.team || "player");
+      if (!a || !b || !a.units.some(isUnitAlive) || !b.units.some(isUnitAlive)) state.complete = false;
+      else {
+        const ac = formationCenter(a);
+        const bc = formationCenter(b);
+        state.complete = len(ac.x - bc.x, ac.y - bc.y) <= (objective.radius || 12);
+      }
+    } else if (objective.type === "formationNearEnemy") {
+      const formation = scenarioFormation(objective.formationId, objective.team || "player");
+      const enemy = scenarioFormation(objective.enemyFormationId, objective.enemyTeam || "enemy");
+      if (!formation || !enemy || !formation.units.some(isUnitAlive) || !enemy.units.some(isUnitAlive)) state.complete = false;
+      else {
+        const center = formationCenter(formation);
+        const enemyCenter = formationCenter(enemy);
+        state.complete = len(center.x - enemyCenter.x, center.y - enemyCenter.y) <= (objective.radius || 8);
+      }
+    } else if (objective.type === "enemyCommanderBelow") {
+      const formation = scenarioFormation(objective.formationId, objective.team || "enemy");
+      state.complete = !formation || formationRatio(formation) <= objective.ratio || formation.retreating || formation.retreated;
+    } else if (objective.type === "formationRetreated") {
+      const formation = scenarioFormation(objective.formationId, objective.team || "enemy");
+      state.complete = !formation || formation.retreating || formation.retreated;
     } else if (objective.type === "enemyTroopsBelow") {
       state.complete = objective.formationIds.every((id) => {
         const formation = formationByScenarioId(id, "enemy");
         if (!formation) return true;
-        const ratio = formationRemainingTroops(formation) / Math.max(1, formationInitialTroops(formation));
+        const ratio = formationRatio(formation);
         return ratio <= objective.ratio || formation.retreating || formation.retreated;
       });
     } else if (objective.type === "enemyTotalBelow") {
@@ -5098,7 +5253,10 @@ import {
       showBattleResult(false);
       return;
     }
-    if (complete) beginScenarioPhase(game.scenarioPhaseIndex + 1);
+    if (complete) {
+      applyScenarioEffects(phase.onComplete?.effects);
+      beginScenarioPhase(game.scenarioPhaseIndex + 1);
+    }
   }
 
   function revealScenarioMarkers() {
@@ -5112,10 +5270,26 @@ import {
 
   function checkHistoricalFailure() {
     const failure = game.scenarioData?.failure;
-    if (!failure || failure.type !== "playerTotalBelow") return false;
-    const initial = game.playerFormations.reduce((sum, f) => sum + formationInitialTroops(f), 0);
-    const remain = game.playerFormations.reduce((sum, f) => sum + formationRemainingTroops(f), 0);
-    return remain / Math.max(1, initial) <= failure.ratio;
+    const failures = Array.isArray(failure) ? failure : failure ? [failure] : [];
+    return failures.some((rule) => {
+      if (rule.type === "playerTotalBelow") {
+        const initial = game.playerFormations.reduce((sum, f) => sum + formationInitialTroops(f), 0);
+        const remain = game.playerFormations.reduce((sum, f) => sum + formationRemainingTroops(f), 0);
+        return remain / Math.max(1, initial) <= rule.ratio;
+      }
+      if (rule.type === "formationBelow") {
+        const formation = scenarioFormation(rule.formationId, rule.team || "player");
+        return !!formation && formationRatio(formation) <= rule.ratio;
+      }
+      if (rule.type === "formationsBelowCount") {
+        const count = (rule.formationIds || []).reduce((sum, id) => {
+          const formation = scenarioFormation(id, rule.team || "player");
+          return sum + (formation && formationRatio(formation) <= rule.ratio ? 1 : 0);
+        }, 0);
+        return count >= (rule.count || 1);
+      }
+      return false;
+    });
   }
 
   function updateHistoricalAI(dt) {
@@ -5196,7 +5370,7 @@ import {
     const routeAtHalf = (id) => {
       const formation = formationByScenarioId(id, "enemy");
       if (!formation || formation.retreating || formation.retreated) return;
-      const ratio = formationRemainingTroops(formation) / Math.max(1, formationInitialTroops(formation));
+      const ratio = formationRatio(formation);
       if (ratio <= 0.5) {
         formation.retreating = true;
         formation.followTarget = null;
@@ -5204,6 +5378,81 @@ import {
         formation.speed = "FAST";
       }
     };
+
+    const phase = scenarioCurrentPhase();
+    const phaseAi = phase?.ai;
+
+    const actionFormation = (action) =>
+      formationByScenarioId(action.formationId, action.team || "enemy");
+
+    const actionTarget = (action, formation = null) =>
+      action.targetMode === "frontmostEnemyInfantry" ? formationCenter(
+        game.enemyFormations
+          .filter((candidate) => candidate.troopType === "infantry" && candidate.units.some(isUnitAlive) && !candidate.retreated)
+          .sort((a, b) => formationCenter(a).x - formationCenter(b).x)[0] || formation
+      ) :
+      scenarioTargetPoint(action.target, action.marker ? game.terrain.markers?.[action.marker] : null) ||
+      (typeof action.x === "number" && typeof action.y === "number" ? action : null) ||
+      (formation ? formationCenter(formation) : null);
+
+    const targetFormationForAction = (action, formation = null) => {
+      if (action.targetFormationId) {
+        return formationByScenarioId(action.targetFormationId, action.targetTeam || "player");
+      }
+      if (action.targetMode === "nearestPlayer") return nearestPlayerTo(formation);
+      if (action.targetMode === "forwardPlayer") return forwardPlayerTo(formation);
+      return null;
+    };
+
+    const runScenarioAiAction = (action) => {
+      if (action.afterObjective && !game.scenarioObjectiveState[action.afterObjective]?.complete) return;
+      if (action.untilObjective && game.scenarioObjectiveState[action.untilObjective]?.complete) return;
+      if (action.type === "routeAtRatio") {
+        const formation = actionFormation(action);
+        if (!formation || formation.retreating || formation.retreated) return;
+        if (formationRatio(formation) <= (action.ratio ?? 0.5)) {
+          formation.retreating = true;
+          formation.followTarget = null;
+          const target = actionTarget(action, formation) || { x: MAP_WIDTH, y: formation.anchor.y };
+          formation.target = vec(target.x, target.y);
+          formation.speed = action.speed || "FAST";
+        }
+        return;
+      }
+
+      const formation = actionFormation(action);
+      if (!formation || formation.retreating || formation.retreated) return;
+      if (action.type === "moveTo" || action.type === "moveToDynamic") {
+        const target = actionTarget(action, formation);
+        if (!target) return;
+        const center = formationCenter(formation);
+        const reached = len(center.x - target.x, center.y - target.y) <= (action.holdRadius || 2.5);
+        if (reached && action.holdOnReach !== false) {
+          holdAt(formation, null, action.density || null);
+        } else {
+          setMove(formation, target, action.speed || "NORMAL", action.density || null);
+        }
+      } else if (action.type === "hold") {
+        holdAt(formation, actionTarget(action, formation), action.density || null);
+      } else if (action.type === "pursue") {
+        pursue(formation, targetFormationForAction(action, formation), action.speed || "NORMAL", action.density || null);
+      } else if (action.type === "setDisorder") {
+        formation.disorderAccum = Math.max(formation.disorderAccum, action.value ?? 0);
+        formation.disorder = Math.max(formation.disorder, action.value ?? 0);
+      }
+    };
+
+    if (phaseAi?.actions?.length) {
+      if (phaseAi.aggroOnEnemyLoss && !game.scenarioAggro && game.enemyFormations.some(f => (f.general.losses || 0) > 0)) {
+        game.scenarioAggro = true;
+      }
+      if (game.scenarioAggro && phaseAi.aggroActions?.length) {
+        phaseAi.aggroActions.forEach(runScenarioAiAction);
+      } else {
+        phaseAi.actions.forEach(runScenarioAiAction);
+      }
+      return;
+    }
 
     if (phaseId === "deployment") {
       if (!game.scenarioAggro && game.enemyFormations.some(f => (f.general.losses || 0) > 0)) {

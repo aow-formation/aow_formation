@@ -26,7 +26,7 @@ npm run server
 ## 역사 시나리오 모드
 
 - 홈 화면의 `역사 시나리오` 메뉴는 바로 전투를 시작하지 않고 시나리오 선택 화면으로 이동한다.
-- 시나리오 선택 화면은 5x2 카드 배열을 사용한다.
+- 시나리오 선택 화면은 8개 카드 배열을 사용한다.
 - 카드는 타이틀과 연도만 표시하며, 별도 시작 버튼 없이 카드를 선택하면 실행된다.
 - 현재 활성 시나리오는 `포위 - 칸나에 전투` 하나다.
 - 나머지 시나리오는 준비 중 카드로 표시한다.
@@ -39,7 +39,6 @@ npm run server
 - 수공 - 흥화진/귀주 대첩
 - 복합 전술 - 주필산 전투
 - 화공 - 이릉 대첩
-- 추가 준비 중 카드 3종
 
 ## 시나리오 선택 자산
 
@@ -179,3 +178,60 @@ npm run scenario:terrain:cannae
 - 우측 컨트롤 버튼은 포커스를 받지 않도록 해 단축키 입력 방해를 줄였다.
 - 게임 화면 진입 시 로딩 마스크를 표시하고, 주요 요소 로딩 후 서서히 사라지게 했다.
 - 장수 프로필 영역에는 더 뚜렷한 석재 질감의 inner bevel 효과를 적용했다.
+
+## 2026-05-17 가우가멜라 구현
+
+- `망치와 모루 - 가우가멜라 전투` 카드를 활성화했다.
+- 시나리오 데이터는 `web/data/scenarios/gaugamela.json`에 추가했다.
+- 고정 지형 데이터는 `web/data/scenarios/gaugamela_terrain.json`에 추가했다.
+- 지형 생성 스크립트는 `scripts/generate-gaugamela-terrain.mjs`이며, `npm run scenario:terrain:gaugamela`로 재생성한다.
+- 가우가멜라 지형은 넓은 평원, 상하단 초지 경계, 중앙 왕도, 돌파 지점, 다리우스 본진 마커를 가진다.
+- 가우가멜라 흐름은 `진형 정비 -> 팔랑크스 방어 -> 돌파 -> 다리우스 위협 -> 페르시아 붕괴` 5단계로 구성했다.
+- 공통 시나리오 목표 타입을 확장했다: `any`, `formationAtArea`, `formationsInRectStopped`, `surviveSeconds`, `formationsTroopsAbove`, `formationNearEnemy`, `enemyCommanderBelow`, `formationRetreated`.
+- 공통 시나리오 이벤트를 추가했다: `setDisorder`, `combatOverrides`, `route`.
+- 공통 시나리오 AI 액션을 추가했다: `moveTo`, `hold`, `pursue`, `routeAtRatio`, `setDisorder`.
+- 칸나에 전용 AI 분기는 유지하되, `phase.ai.actions`가 있는 시나리오는 데이터 기반 공통 AI 경로를 우선 사용한다.
+
+## 2026-05-17 칸나에 공통 AI 이전
+
+- 칸나에 전투의 3개 phase 모두 `phase.ai.actions`를 갖도록 이전했다.
+- 1단계 로마군 집결, 피해 시 즉시 공격 전환을 `aggroOnEnemyLoss`와 `aggroActions`로 표현했다.
+- 2단계 로마 보병 추적, 로마 기병 위치 사수, 50% 이하 패주를 공통 AI 액션으로 표현했다.
+- 3단계 로마 보병 집결을 위해 `moveToDynamic` 액션과 `frontmostEnemyInfantry` 타깃 모드를 추가했다.
+- 3단계 혼란도 상승과 전투력 저하는 `onStart.effects`의 `setDisorder`, `combatOverrides`로 표현했다.
+- 현재 칸나에와 가우가멜라는 모두 데이터 기반 공통 AI 경로를 우선 사용한다.
+
+## 2026-05-17 주필산 구현
+
+- `복합 전술 - 주필산 전투` 카드를 활성화했다.
+- 시나리오 데이터는 `web/data/scenarios/jupil.json`에 추가했다.
+- 고정 지형 데이터는 `web/data/scenarios/jupil_terrain.json`에 추가했다.
+- 지형 생성 스크립트는 `scripts/generate-jupil-terrain.mjs`이며, `npm run scenario:terrain:jupil`로 재생성한다.
+- 주필산 지형은 중앙 평원 전투선, 남쪽 산악 우회로, 고구려 후방 진지를 중심으로 구성했다.
+- 주필산 흐름은 `진형 정비 -> 정면 방어 -> 산악 우회 -> 후방 진지 점령 -> 고구려군 붕괴` 5단계로 구성했다.
+- 공통 시나리오 목표 타입을 확장했다: `formationsAtAreaSequence`, `captureArea`.
+- 주필산 병력은 당군 30,000명, 고구려군 150,000명으로 설정했다.
+
+## 2026-05-17 귀주대첩 구현
+
+- `수공 - 흥화진/귀주 대첩` 카드를 활성화했다.
+- 시나리오 데이터는 `web/data/scenarios/gwiju.json`에 추가했다.
+- 고정 지형 데이터는 `web/data/scenarios/gwiju_terrain.json`에 추가했다.
+- 지형 생성 스크립트는 `scripts/generate-gwiju-terrain.mjs`이며, `npm run scenario:terrain:gwiju`로 재생성한다.
+- 귀주 지형은 중앙 강/습지 도하 구역, 고려 매복지, 거란 진입로, 수공 피해 구역을 중심으로 구성했다.
+- 귀주대첩 흐름은 `강가의 매복 -> 강을 메운 적 -> 둑을 터뜨려라 -> 기병 돌격 -> 귀주의 추격` 5단계로 구성했다.
+- 공통 시나리오 목표 타입을 확장했다: `enemyInAreaRatio`.
+- 공통 시나리오 효과를 확장했다: `areaDamage`.
+- 귀주 병력은 고려군 12,000명, 거란군 50,000명으로 설정했다.
+- 수공 발동은 강감찬 부대의 `flood` 스킬 사용 목표와 연결했다.
+
+## 2026-05-17 박망파 구현
+
+- `매복 - 박망파 전투` 카드를 활성화했다.
+- 시나리오 데이터는 `web/data/scenarios/bomangpa.json`에 추가했다.
+- 고정 지형 데이터는 `web/data/scenarios/bomangpa_terrain.json`에 추가했다.
+- 지형 생성 스크립트는 `scripts/generate-bomangpa-terrain.mjs`이며, `npm run scenario:terrain:bomangpa`로 재생성한다.
+- 박망파 지형은 좁은 숲길, 양쪽 매복지, 중앙 화공 구역, 조운 후퇴 지점을 중심으로 구성했다.
+- 박망파 흐름은 `새 군사의 첫 계책 -> 조운의 거짓 후퇴 -> 불을 지르라 -> 숲속의 매복 -> 첫 승리` 5단계로 구성했다.
+- 1차 구현은 숨김 부대 시스템 없이 관우와 장비를 숲 매복지에 배치한 상태로 시작하며, 공통 목표/AI/효과 엔진만 사용한다.
+- 화공 단계는 제갈량의 `fire` 스킬 사용 목표와 `areaDamage`, `setDisorder`, `combatOverrides` 효과를 연결했다.

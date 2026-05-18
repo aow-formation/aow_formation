@@ -10,7 +10,11 @@
     "server": "node server/index.js",
     "start": "node server/index.js",
     "deploy": "node scripts/deploy.mjs",
-    "scenario:terrain:cannae": "node scripts/generate-cannae-terrain.mjs"
+    "scenario:terrain:cannae": "node scripts/generate-cannae-terrain.mjs",
+    "scenario:terrain:gaugamela": "node scripts/generate-gaugamela-terrain.mjs",
+    "scenario:terrain:jupil": "node scripts/generate-jupil-terrain.mjs",
+    "scenario:terrain:gwiju": "node scripts/generate-gwiju-terrain.mjs",
+    "scenario:terrain:bomangpa": "node scripts/generate-bomangpa-terrain.mjs"
   },
   "dependencies": {
     "express": "^4.19.2",
