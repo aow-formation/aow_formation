@@ -1,11 +1,12 @@
 import express from "express";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, "..");
 const distDir = join(projectRoot, "dist");
+const scenarioDir = join(projectRoot, "web", "data", "scenarios");
 const port = Number(process.env.PORT || 3000);
 
 const app = express();
@@ -23,6 +24,20 @@ app.get("/api/version", (_req, res) => {
     version: "0.1.0",
     renderer: "canvas",
   });
+});
+
+app.post("/api/editor/save-scenario-file", (req, res) => {
+  try {
+    const filename = String(req.body?.filename || "");
+    if (!/^[a-z0-9_-]+(?:_terrain)?\.json$/i.test(filename)) {
+      throw new Error("Invalid filename");
+    }
+    mkdirSync(scenarioDir, { recursive: true });
+    writeFileSync(join(scenarioDir, filename), `${JSON.stringify(req.body.data, null, 2)}\n`, "utf8");
+    res.json({ ok: true, filename });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
 });
 
 if (existsSync(distDir)) {

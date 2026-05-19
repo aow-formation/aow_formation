@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Terrain Editor</title>
+    <title>Scenario Map Editor</title>
     <style>
       :root {
         color-scheme: dark;
@@ -41,7 +41,7 @@
         background: #444;
       }
 
-      button, input {
+      button, input, select {
         font: inherit;
       }
 
@@ -56,6 +56,14 @@
       }
 
       button:hover { background: #363636; }
+
+      select {
+        padding: 6px 8px;
+        border: 1px solid #555;
+        border-radius: 4px;
+        color: #eee;
+        background: #242424;
+      }
 
       button.save-btn {
         border-color: #4a8a4a;
@@ -181,20 +189,76 @@
         pointer-events: none;
         display: none;
       }
+
+      .scenario-panel {
+        position: fixed;
+        top: 104px;
+        right: 14px;
+        width: 310px;
+        max-height: calc(100vh - 136px);
+        overflow: auto;
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid #464646;
+        border-radius: 4px;
+        background: rgba(18,18,18,0.93);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+        font-size: 12px;
+      }
+
+      .scenario-panel h2,
+      .scenario-panel h3 {
+        margin: 0;
+        font-size: 13px;
+      }
+
+      .scenario-panel p {
+        margin: 0;
+        color: #cfcfcf;
+        line-height: 1.45;
+      }
+
+      .scenario-panel ul {
+        margin: 0;
+        padding-left: 18px;
+        color: #ddd;
+      }
+
+      .scenario-panel li {
+        margin: 4px 0;
+      }
+
+      .layer-toggles {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex-wrap: wrap;
+        font-size: 12px;
+        color: #ccc;
+      }
+
+      .layer-toggles label {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
     </style>
   </head>
   <body>
     <header>
-      <h1>Terrain Editor</h1>
+      <h1>Scenario Map Editor</h1>
       <div class="sep"></div>
-      <button id="loadDefaultBtn" type="button">칸나에 맵 열기</button>
+      <select id="scenarioSelect" title="시나리오 선택"></select>
+      <select id="phaseSelect" title="단계 선택"></select>
       <input id="fileInput" type="file" accept=".json,application/json" />
       <div class="sep"></div>
       <button id="zoomOutBtn" type="button">－</button>
       <button id="zoomInBtn" type="button">＋</button>
       <div class="sep"></div>
       <button id="undoBtn" type="button">↩ 실행 취소</button>
-      <button id="saveBtn" class="save-btn" type="button">💾 JSON 저장</button>
+      <button id="saveTerrainBtn" class="save-btn" type="button">지형 저장</button>
+      <button id="saveScenarioBtn" class="save-btn" type="button">시나리오 저장</button>
       <span id="status">대기 중</span>
     </header>
 
@@ -206,6 +270,13 @@
       <button class="brush-btn active" data-brush="1" type="button">1×1</button>
       <button class="brush-btn"       data-brush="3" type="button">3×3</button>
       <button class="brush-btn"       data-brush="5" type="button">5×5</button>
+      <div class="sep" style="margin:0 4px;"></div>
+      <div class="layer-toggles">
+        <label><input id="showBriefingMarkers" type="checkbox" checked />브리핑</label>
+        <label><input id="showObjectiveMarkers" type="checkbox" checked />목표</label>
+        <label><input id="showFormations" type="checkbox" checked />부대</label>
+        <label><input id="showAiTargets" type="checkbox" checked />적 AI</label>
+      </div>
     </div>
 
     <main>
@@ -213,6 +284,14 @@
     </main>
 
     <div id="legend" class="legend"></div>
+    <aside id="scenarioPanel" class="scenario-panel" hidden>
+      <h2 id="scenarioPanelTitle">시나리오</h2>
+      <p id="scenarioPanelSummary"></p>
+      <h3 id="phasePanelTitle">단계</h3>
+      <p id="phaseBriefingText"></p>
+      <h3>목표</h3>
+      <ul id="objectiveList"></ul>
+    </aside>
     <div id="tooltip"></div>
 
     <script>
@@ -222,6 +301,26 @@
       const legendEl = document.getElementById("legend");
       const paletteEl = document.getElementById("palette");
       const tooltipEl = document.getElementById("tooltip");
+      const scenarioSelectEl = document.getElementById("scenarioSelect");
+      const phaseSelectEl = document.getElementById("phaseSelect");
+      const scenarioPanelEl = document.getElementById("scenarioPanel");
+      const scenarioPanelTitleEl = document.getElementById("scenarioPanelTitle");
+      const scenarioPanelSummaryEl = document.getElementById("scenarioPanelSummary");
+      const phasePanelTitleEl = document.getElementById("phasePanelTitle");
+      const phaseBriefingTextEl = document.getElementById("phaseBriefingText");
+      const objectiveListEl = document.getElementById("objectiveList");
+      const showBriefingMarkersEl = document.getElementById("showBriefingMarkers");
+      const showObjectiveMarkersEl = document.getElementById("showObjectiveMarkers");
+      const showFormationsEl = document.getElementById("showFormations");
+      const showAiTargetsEl = document.getElementById("showAiTargets");
+
+      const SCENARIOS = [
+        { id: "gaugamela", label: "가우가멜라 전투" },
+        { id: "cannae", label: "칸나에 전투" },
+        { id: "bomangpa", label: "박망파 전투" },
+        { id: "gwiju", label: "귀주대첩" },
+        { id: "jupil", label: "주필산 전투" },
+      ];
 
       const TERRAIN_TYPES = ["plain", "grassland", "road", "river", "wetland", "mountain"];
       const colors = {
@@ -235,6 +334,12 @@
       };
 
       let terrain    = null;
+      let scenario   = null;
+      let selectedPhaseIndex = -1;
+      let editingObjective = null;
+      let editingBriefingMarker = null;
+      let editingCircleMarker = null;
+      let editingFormation = null;
       let cellSize   = 4;
       let selected   = "plain";
       let brushSize  = 1;
@@ -243,6 +348,394 @@
 
       // ── 상태 표시 ─────────────────────────────────────────────────────────
       function setStatus(text) { statusEl.textContent = text; }
+
+      function currentPhase() {
+        return selectedPhaseIndex >= 0 ? scenario?.phases?.[selectedPhaseIndex] || null : null;
+      }
+
+      function updatePhaseSelect() {
+        phaseSelectEl.innerHTML = "";
+        const phases = scenario?.phases || [];
+        const none = document.createElement("option");
+        none.value = "";
+        none.textContent = "미션 선택 없음";
+        phaseSelectEl.appendChild(none);
+        phases.forEach((phase, index) => {
+          const option = document.createElement("option");
+          option.value = String(index);
+          option.textContent = `${index + 1}. ${phase.title || phase.id || "phase"}`;
+          phaseSelectEl.appendChild(option);
+        });
+        phaseSelectEl.disabled = !phases.length;
+        phaseSelectEl.value = selectedPhaseIndex >= 0 ? String(selectedPhaseIndex) : "";
+      }
+
+      function setScenarioLoaded(nextScenario) {
+        scenario = nextScenario;
+        selectedPhaseIndex = -1;
+        editingObjective = null;
+        editingBriefingMarker = null;
+        editingCircleMarker = null;
+        editingFormation = null;
+        showBriefingMarkersEl.disabled = !scenario;
+        showObjectiveMarkersEl.disabled = !scenario;
+        showFormationsEl.disabled = !scenario;
+        showAiTargetsEl.disabled = !scenario;
+        phaseSelectEl.disabled = !scenario;
+        updatePhaseSelect();
+      }
+
+      function updateScenarioPanel() {
+        if (!scenario) {
+          scenarioPanelEl.hidden = true;
+          return;
+        }
+        const phase = currentPhase();
+        scenarioPanelEl.hidden = !phase;
+        if (!phase) return;
+        scenarioPanelTitleEl.textContent = scenario.name || scenario.id || "시나리오";
+        scenarioPanelSummaryEl.textContent = scenario.summary || "";
+        phasePanelTitleEl.textContent = `${selectedPhaseIndex + 1}. ${phase.title || phase.id}`;
+        phaseBriefingTextEl.textContent = phase?.briefing?.text || "";
+        objectiveListEl.innerHTML = "";
+        flattenObjectives(phase?.objectives || []).forEach((objective) => {
+          const item = document.createElement("li");
+          const rect = rectOwner(objective);
+          const coords = rect ? ` (${rect.x}, ${rect.y}, ${rect.w}×${rect.h})` : "";
+          item.textContent = `[${objective.type || "objective"}] ${objective.label || objective.id || "목표"}${coords}`;
+          objectiveListEl.appendChild(item);
+        });
+      }
+
+      function populateScenarioSelect() {
+        scenarioSelectEl.innerHTML = "";
+        const none = document.createElement("option");
+        none.value = "";
+        none.textContent = "시나리오 선택 없음";
+        scenarioSelectEl.appendChild(none);
+        SCENARIOS.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = item.label;
+          scenarioSelectEl.appendChild(option);
+        });
+      }
+
+      function tileToPx(value) {
+        return value * cellSize;
+      }
+
+      function markerRect(source) {
+        const rect = source.rect || source;
+        if (typeof rect.x === "number" && typeof rect.y === "number" &&
+            typeof rect.w === "number" && typeof rect.h === "number") {
+          return rect;
+        }
+        return null;
+      }
+
+      function rectOwner(source) {
+        if (source?.rect && markerRect(source.rect)) return source.rect;
+        return markerRect(source) ? source : null;
+      }
+
+      function circleOwner(source) {
+        const point = source?.target || source;
+        if (typeof point?.x === "number" && typeof point?.y === "number" &&
+            typeof point?.w !== "number" && typeof point?.h !== "number") {
+          if (typeof point.radius !== "number") point.radius = source.radius || 5;
+          return point;
+        }
+        return null;
+      }
+
+      function markerCircle(source) {
+        const point = circleOwner(source);
+        if (point) {
+          return {
+            x: point.x,
+            y: point.y,
+            radius: point.radius || 5
+          };
+        }
+        return null;
+      }
+
+      function drawLabel(text, x, y, color = "#fff") {
+        if (!text) return;
+        ctx.save();
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.textBaseline = "top";
+        const width = ctx.measureText(text).width + 8;
+        ctx.fillStyle = "rgba(0,0,0,0.72)";
+        ctx.fillRect(x, y, width, 17);
+        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.strokeRect(x, y, width, 17);
+        ctx.fillStyle = color;
+        ctx.fillText(text, x + 4, y + 3);
+        ctx.restore();
+      }
+
+      function drawRectMarker(rect, label, color) {
+        ctx.save();
+        ctx.fillStyle = color.fill;
+        ctx.strokeStyle = color.stroke;
+        ctx.lineWidth = Math.max(1, cellSize * 0.35);
+        ctx.fillRect(tileToPx(rect.x), tileToPx(rect.y), tileToPx(rect.w), tileToPx(rect.h));
+        ctx.strokeRect(tileToPx(rect.x), tileToPx(rect.y), tileToPx(rect.w), tileToPx(rect.h));
+        drawLabel(label, tileToPx(rect.x) + 4, tileToPx(rect.y) + 4, color.text);
+        ctx.restore();
+      }
+
+      function drawResizeHandle(rect) {
+        const size = Math.max(8, cellSize * 2);
+        const x = tileToPx(rect.x + rect.w) - size / 2;
+        const y = tileToPx(rect.y + rect.h) - size / 2;
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.strokeStyle = "rgba(0,0,0,0.85)";
+        ctx.lineWidth = 2;
+        ctx.fillRect(x, y, size, size);
+        ctx.strokeRect(x, y, size, size);
+        ctx.restore();
+      }
+
+      function drawCircleResizeHandle(circle) {
+        const size = Math.max(8, cellSize * 2);
+        const x = tileToPx(circle.x + circle.radius) - size / 2;
+        const y = tileToPx(circle.y) - size / 2;
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.strokeStyle = "rgba(0,0,0,0.85)";
+        ctx.lineWidth = 2;
+        ctx.fillRect(x, y, size, size);
+        ctx.strokeRect(x, y, size, size);
+        ctx.restore();
+      }
+
+      function drawObjectiveEditState() {
+        const active = editingObjective || editingBriefingMarker;
+        if (!active?.rect) return;
+        const rect = active.rect;
+        ctx.save();
+        ctx.strokeStyle = editingBriefingMarker ? "#ffe285" : "#ffffff";
+        ctx.lineWidth = Math.max(2, cellSize * 0.55);
+        ctx.setLineDash([8, 5]);
+        ctx.strokeRect(tileToPx(rect.x), tileToPx(rect.y), tileToPx(rect.w), tileToPx(rect.h));
+        ctx.restore();
+        drawResizeHandle(rect);
+      }
+
+      function drawCircleEditState() {
+        if (!editingCircleMarker?.circle) return;
+        const circle = editingCircleMarker.circle;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(tileToPx(circle.x), tileToPx(circle.y), tileToPx(circle.radius || 5), 0, Math.PI * 2);
+        ctx.strokeStyle = editingCircleMarker.kind === "briefing" ? "#ffe285" : "#ffffff";
+        ctx.lineWidth = Math.max(2, cellSize * 0.55);
+        ctx.setLineDash([8, 5]);
+        ctx.stroke();
+        ctx.restore();
+        drawCircleResizeHandle(circle);
+      }
+
+      function drawFormationEditState() {
+        if (!editingFormation?.formation?.position) return;
+        const p = editingFormation.formation.position;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(tileToPx(p.x), tileToPx(p.y), tileToPx(5), 0, Math.PI * 2);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = Math.max(2, cellSize * 0.55);
+        ctx.setLineDash([7, 5]);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawCircleMarker(circle, label, color) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(tileToPx(circle.x), tileToPx(circle.y), tileToPx(circle.radius), 0, Math.PI * 2);
+        ctx.fillStyle = color.fill;
+        ctx.strokeStyle = color.stroke;
+        ctx.lineWidth = Math.max(1, cellSize * 0.35);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(tileToPx(circle.x), tileToPx(circle.y), Math.max(2, cellSize), 0, Math.PI * 2);
+        ctx.fillStyle = color.stroke;
+        ctx.fill();
+        drawLabel(label, tileToPx(circle.x) + 6, tileToPx(circle.y) + 6, color.text);
+        ctx.restore();
+      }
+
+      function drawLine(from, to, color) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(1, cellSize * 0.35);
+        ctx.setLineDash([8, 5]);
+        ctx.beginPath();
+        ctx.moveTo(tileToPx(from.x), tileToPx(from.y));
+        ctx.lineTo(tileToPx(to.x), tileToPx(to.y));
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function markerCenter(marker) {
+        if (!marker) return null;
+        if (typeof marker.x !== "number" || typeof marker.y !== "number") return null;
+        if (typeof marker.w === "number" && typeof marker.h === "number") {
+          return { x: marker.x + marker.w / 2, y: marker.y + marker.h / 2 };
+        }
+        return { x: marker.x, y: marker.y };
+      }
+
+      function drawMarkerShape(source, label, color) {
+        const rect = markerRect(source);
+        if (rect) {
+          drawRectMarker(rect, label, color);
+          return true;
+        }
+        const circle = markerCircle(source);
+        if (circle) {
+          drawCircleMarker(circle, label, color);
+          return true;
+        }
+        return false;
+      }
+
+      function flattenObjectives(objectives) {
+        const out = [];
+        (objectives || []).forEach((objective) => {
+          if (objective.type === "any" && Array.isArray(objective.objectives)) {
+            out.push(...flattenObjectives(objective.objectives));
+          } else {
+            out.push(objective);
+          }
+        });
+        return out;
+      }
+
+      function editableObjectiveRects() {
+        return flattenObjectives(currentPhase()?.objectives || [])
+          .map((objective) => ({ kind: "objective", objective, rect: rectOwner(objective) }))
+          .filter((item) => item.rect);
+      }
+
+      function editableBriefingRects() {
+        return (currentPhase()?.briefing?.markers || [])
+          .map((marker) => ({ kind: "briefing", marker, rect: rectOwner(marker) }))
+          .filter((item) => item.rect);
+      }
+
+      function editableObjectiveCircles() {
+        return flattenObjectives(currentPhase()?.objectives || [])
+          .map((objective) => ({ kind: "objective", objective, circle: circleOwner(objective) }))
+          .filter((item) => item.circle);
+      }
+
+      function editableBriefingCircles() {
+        return (currentPhase()?.briefing?.markers || [])
+          .map((marker) => ({ kind: "briefing", marker, circle: circleOwner(marker) }))
+          .filter((item) => item.circle);
+      }
+
+      function drawFormations() {
+        if (!scenario || !showFormationsEl.checked) return;
+        const drawSide = (formations, color) => {
+          (formations || []).forEach((formation) => {
+            const p = formation.position;
+            if (!p) return;
+            drawCircleMarker({ x: p.x, y: p.y, radius: 3 }, formation.name, color);
+          });
+        };
+        drawSide(scenario.player?.formations, {
+          fill: "rgba(44, 180, 255, 0.22)",
+          stroke: "rgba(80, 210, 255, 0.95)",
+          text: "#9ee8ff"
+        });
+        drawSide(scenario.enemy?.formations, {
+          fill: "rgba(255, 80, 80, 0.22)",
+          stroke: "rgba(255, 110, 95, 0.95)",
+          text: "#ffb2a8"
+        });
+        drawFormationEditState();
+      }
+
+      function scenarioFormationById(id, side = "enemy") {
+        const formations = side === "player" ? scenario?.player?.formations : scenario?.enemy?.formations;
+        return (formations || []).find((formation) => formation.id === id || formation.name === id) || null;
+      }
+
+      function aiActionTarget(action) {
+        if (!action || action.targetMode || action.targetFormationId) return null;
+        if (action.target?.marker && terrain?.markers?.[action.target.marker]) {
+          return markerCenter(terrain.markers[action.target.marker]);
+        }
+        if (action.marker && terrain?.markers?.[action.marker]) {
+          return markerCenter(terrain.markers[action.marker]);
+        }
+        if (action.target) {
+          const target = markerCenter(action.target);
+          if (target) return target;
+        }
+        return markerCenter(action);
+      }
+
+      function drawAiTargets() {
+        if (!scenario || !showAiTargetsEl.checked) return;
+        const phase = currentPhase();
+        if (!phase?.ai) return;
+        const actions = [
+          ...(phase.ai.actions || []),
+          ...(phase.ai.aggroActions || []).map((action) => ({ ...action, aggro: true }))
+        ];
+        actions.forEach((action) => {
+          if ((action.team || "enemy") !== "enemy") return;
+          const target = aiActionTarget(action);
+          if (!target) return;
+          const formation = scenarioFormationById(action.formationId, "enemy");
+          const label = `${action.aggro ? "AGGRO " : ""}${formation?.name || action.formationId || "AI"} ${action.type || ""}`;
+          if (formation?.position) drawLine(formation.position, target, "rgba(255, 150, 70, 0.85)");
+          drawCircleMarker({ x: target.x, y: target.y, radius: 4 }, label, {
+            fill: "rgba(255, 126, 43, 0.24)",
+            stroke: "rgba(255, 146, 64, 0.98)",
+            text: "#ffc199"
+          });
+        });
+      }
+
+      function drawScenarioOverlay() {
+        if (!scenario || !terrain?.tiles?.length) return;
+        const phase = currentPhase();
+        if (!phase) return;
+
+        if (showBriefingMarkersEl.checked) {
+          (phase.briefing?.markers || []).forEach((marker) => {
+            drawMarkerShape(marker, marker.label || marker.id || "marker", {
+              fill: "rgba(255, 215, 96, 0.20)",
+              stroke: "rgba(255, 222, 105, 0.95)",
+              text: "#ffe285"
+            });
+          });
+        }
+
+        if (showObjectiveMarkersEl.checked) {
+          flattenObjectives(phase.objectives || []).forEach((objective) => {
+            drawMarkerShape(objective, objective.label || objective.id || "objective", {
+              fill: "rgba(168, 105, 255, 0.20)",
+              stroke: "rgba(185, 130, 255, 0.95)",
+              text: "#d9c2ff"
+            });
+          });
+          drawObjectiveEditState();
+          drawCircleEditState();
+        }
+
+        drawFormations();
+        drawAiTargets();
+      }
 
       // ── 팔레트 생성 ───────────────────────────────────────────────────────
       function buildPalette() {
@@ -286,6 +779,8 @@
         canvas.height = h * cellSize;
         ctx.imageSmoothingEnabled = false;
         for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) drawTile(x, y);
+        drawScenarioOverlay();
+        updateScenarioPanel();
         setStatus(`${terrain.name || terrain.id || "map"} · ${w}×${h} · zoom ${cellSize}px`);
       }
 
@@ -305,6 +800,162 @@
 
       // ── 페인트 (실행취소 지원) ────────────────────────────────────────────
       let strokePatch = null; // 현재 드래그 스트로크의 변경 목록
+      let objectiveDrag = null;
+
+      function editableFormations() {
+        if (!scenario || !showFormationsEl.checked) return [];
+        return [
+          ...(scenario.player?.formations || []).map((formation) => ({ side: "player", formation })),
+          ...(scenario.enemy?.formations || []).map((formation) => ({ side: "enemy", formation }))
+        ].filter((item) => item.formation.position);
+      }
+
+      function formationHitAt(pos) {
+        if (!pos) return null;
+        const radius = Math.max(4, 12 / cellSize);
+        const formations = editableFormations();
+        for (let i = formations.length - 1; i >= 0; i -= 1) {
+          const item = formations[i];
+          const p = item.formation.position;
+          if (Math.hypot(pos.x - p.x, pos.y - p.y) <= radius) {
+            return { ...item, mode: "formation" };
+          }
+        }
+        return null;
+      }
+
+      function objectiveHitAt(pos) {
+        if (!scenario || !pos) return null;
+        const rects = [
+          ...editableObjectiveRects(),
+          ...editableBriefingRects()
+        ];
+        for (let i = rects.length - 1; i >= 0; i -= 1) {
+          const item = rects[i];
+          const rect = item.rect;
+          const handleSize = Math.max(2, 8 / cellSize);
+          const onResize =
+            Math.abs(pos.x - (rect.x + rect.w)) <= handleSize &&
+            Math.abs(pos.y - (rect.y + rect.h)) <= handleSize;
+          if (onResize) return { ...item, mode: "resize" };
+          const inside = pos.x >= rect.x && pos.x <= rect.x + rect.w &&
+            pos.y >= rect.y && pos.y <= rect.y + rect.h;
+          if (inside) return { ...item, mode: "move" };
+        }
+
+        const circles = [
+          ...editableObjectiveCircles(),
+          ...editableBriefingCircles()
+        ];
+        for (let i = circles.length - 1; i >= 0; i -= 1) {
+          const item = circles[i];
+          const circle = item.circle;
+          const handleSize = Math.max(2, 8 / cellSize);
+          const onResize =
+            Math.abs(pos.x - (circle.x + circle.radius)) <= handleSize &&
+            Math.abs(pos.y - circle.y) <= handleSize;
+          if (onResize) return { ...item, mode: "resizeCircle" };
+          const inside = Math.hypot(pos.x - circle.x, pos.y - circle.y) <= (circle.radius || 5);
+          if (inside) return { ...item, mode: "moveCircle" };
+        }
+        return null;
+      }
+
+      function beginObjectiveEdit(event) {
+        const pos = tileAt(event);
+        const formationHit = formationHitAt(pos);
+        if (formationHit) {
+          editingObjective = null;
+          editingBriefingMarker = null;
+          editingCircleMarker = null;
+          editingFormation = formationHit;
+          objectiveDrag = {
+            mode: "formation",
+            formation: formationHit.formation,
+            start: pos,
+            initial: {
+              x: formationHit.formation.position.x,
+              y: formationHit.formation.position.y
+            }
+          };
+          drawTerrain();
+          return;
+        }
+
+        const hit = objectiveHitAt(pos);
+        if (!hit) {
+          editingObjective = null;
+          editingBriefingMarker = null;
+          editingCircleMarker = null;
+          editingFormation = null;
+          objectiveDrag = null;
+          drawTerrain();
+          return;
+        }
+        const isCircle = hit.mode === "moveCircle" || hit.mode === "resizeCircle";
+        editingObjective = !isCircle && hit.kind === "objective" ? hit : null;
+        editingBriefingMarker = !isCircle && hit.kind === "briefing" ? hit : null;
+        editingCircleMarker = isCircle ? hit : null;
+        editingFormation = null;
+        objectiveDrag = isCircle
+          ? {
+              mode: hit.mode,
+              kind: hit.kind,
+              circle: hit.circle,
+              start: pos,
+              initial: { x: hit.circle.x, y: hit.circle.y, radius: hit.circle.radius || 5 }
+            }
+          : {
+              mode: hit.mode,
+              kind: hit.kind,
+              rect: hit.rect,
+              start: pos,
+              initial: { x: hit.rect.x, y: hit.rect.y, w: hit.rect.w, h: hit.rect.h }
+            };
+        drawTerrain();
+      }
+
+      function updateObjectiveEdit(event) {
+        if (!objectiveDrag) return;
+        const pos = tileAt(event);
+        if (!pos) return;
+        const dx = pos.x - objectiveDrag.start.x;
+        const dy = pos.y - objectiveDrag.start.y;
+        const mapH = terrain.tiles.length;
+        const mapW = terrain.tiles[0].length;
+        if (objectiveDrag.mode === "formation") {
+          const p = objectiveDrag.formation.position;
+          p.x = Math.max(0, Math.min(mapW - 1, Math.round(objectiveDrag.initial.x + dx)));
+          p.y = Math.max(0, Math.min(mapH - 1, Math.round(objectiveDrag.initial.y + dy)));
+          drawTerrain();
+          setStatus(`${objectiveDrag.formation.name} 위치: (${p.x}, ${p.y})`);
+          return;
+        }
+        if (objectiveDrag.mode === "moveCircle" || objectiveDrag.mode === "resizeCircle") {
+          const circle = objectiveDrag.circle;
+          if (objectiveDrag.mode === "resizeCircle") {
+            circle.radius = Math.max(1, Math.round(objectiveDrag.initial.radius + dx));
+          } else {
+            circle.x = Math.max(0, Math.min(mapW - 1, Math.round(objectiveDrag.initial.x + dx)));
+            circle.y = Math.max(0, Math.min(mapH - 1, Math.round(objectiveDrag.initial.y + dy)));
+          }
+          drawTerrain();
+          const label = objectiveDrag.kind === "briefing" ? "BRIEFING" : "OBJECTIVE";
+          setStatus(`${label} 원형 ${objectiveDrag.mode === "resizeCircle" ? "반지름" : "위치"}: (${circle.x}, ${circle.y}, r=${circle.radius})`);
+          return;
+        }
+        const rect = objectiveDrag.rect;
+        if (objectiveDrag.mode === "resize") {
+          rect.w = Math.max(1, Math.min(mapW - objectiveDrag.initial.x, Math.round(objectiveDrag.initial.w + dx)));
+          rect.h = Math.max(1, Math.min(mapH - objectiveDrag.initial.y, Math.round(objectiveDrag.initial.h + dy)));
+        } else {
+          rect.x = Math.max(0, Math.min(mapW - rect.w, Math.round(objectiveDrag.initial.x + dx)));
+          rect.y = Math.max(0, Math.min(mapH - rect.h, Math.round(objectiveDrag.initial.y + dy)));
+        }
+        drawTerrain();
+        const label = objectiveDrag.kind === "briefing" ? "BRIEFING" : "OBJECTIVE";
+        setStatus(`${label} ${objectiveDrag.mode === "resize" ? "크기" : "위치"}: (${rect.x}, ${rect.y}, ${rect.w}×${rect.h})`);
+      }
 
       function paintAt(event) {
         const pos = tileAt(event);
@@ -324,10 +975,15 @@
             drawTile(tx, ty);
           }
         }
+        drawScenarioOverlay();
       }
 
       canvas.addEventListener("mousedown", (e) => {
         if (!terrain) return;
+        if (scenario && currentPhase()) {
+          beginObjectiveEdit(e);
+          return;
+        }
         isPainting = true;
         strokePatch = [];
         paintAt(e);
@@ -344,12 +1000,16 @@
         } else {
           tooltipEl.style.display = "none";
         }
-        // 페인팅
-        if (isPainting) paintAt(e);
+        // 편집
+        if (objectiveDrag) {
+          updateObjectiveEdit(e);
+        } else if (isPainting) {
+          paintAt(e);
+        }
       });
 
-      canvas.addEventListener("mouseup",    () => { if (isPainting && strokePatch?.length) { undoStack.push(strokePatch); } isPainting = false; strokePatch = null; });
-      canvas.addEventListener("mouseleave", () => { tooltipEl.style.display = "none"; if (isPainting && strokePatch?.length) { undoStack.push(strokePatch); } isPainting = false; strokePatch = null; });
+      canvas.addEventListener("mouseup",    () => { if (isPainting && strokePatch?.length) { undoStack.push(strokePatch); } isPainting = false; strokePatch = null; objectiveDrag = null; });
+      canvas.addEventListener("mouseleave", () => { tooltipEl.style.display = "none"; if (isPainting && strokePatch?.length) { undoStack.push(strokePatch); } isPainting = false; strokePatch = null; objectiveDrag = null; });
 
       // ── 실행 취소 ─────────────────────────────────────────────────────────
       function undo() {
@@ -359,6 +1019,7 @@
           terrain.tiles[y][x] = prev;
           drawTile(x, y);
         });
+        drawScenarioOverlay();
       }
 
       document.getElementById("undoBtn").addEventListener("click", undo);
@@ -368,48 +1029,108 @@
       });
 
       // ── JSON 저장 ─────────────────────────────────────────────────────────
-      document.getElementById("saveBtn").addEventListener("click", () => {
+      function activeScenarioId() {
+        return scenario?.id || terrain?.id || scenarioSelectEl.value || "terrain";
+      }
+
+      async function saveScenarioFile(filename, data) {
+        const res = await fetch("/api/editor/save-scenario-file", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ filename, data })
+        });
+        const result = await res.json().catch(() => null);
+        if (!res.ok || !result?.ok) throw new Error(result?.error || `HTTP ${res.status}`);
+        return result;
+      }
+
+      document.getElementById("saveTerrainBtn").addEventListener("click", async () => {
         if (!terrain) return;
-        const json = JSON.stringify(terrain, null, 2);
-        const blob = new Blob([json], { type: "application/json" });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement("a");
-        a.href     = url;
-        a.download = `${terrain.id || "terrain"}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        setStatus("저장 완료");
+        const filename = `${activeScenarioId()}_terrain.json`;
+        try {
+          await saveScenarioFile(filename, terrain);
+          setStatus(`지형 저장 완료: web/data/scenarios/${filename}`);
+        } catch (error) {
+          setStatus(`지형 저장 실패: ${error.message}`);
+        }
+      });
+
+      document.getElementById("saveScenarioBtn").addEventListener("click", async () => {
+        if (!scenario) {
+          setStatus("시나리오가 로드되지 않았습니다.");
+          return;
+        }
+        const filename = `${scenario.id}.json`;
+        try {
+          await saveScenarioFile(filename, scenario);
+          setStatus(`시나리오 저장 완료: web/data/scenarios/${filename}`);
+        } catch (error) {
+          setStatus(`시나리오 저장 실패: ${error.message}`);
+        }
       });
 
       // ── 로드 ──────────────────────────────────────────────────────────────
-      async function loadDefault() {
-        if (location.protocol === "file:") {
-          throw new Error("file://에서는 자동 로드가 막힙니다. 파일 선택으로 열어주세요.");
+      async function loadScenario(id) {
+        if (!id) {
+          setScenarioLoaded(null);
+          drawTerrain();
+          return;
         }
-        const res = await fetch("./data/scenarios/cannae_terrain.json");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        terrain = await res.json();
+        if (location.protocol === "file:") {
+          throw new Error("file://에서는 자동 로드가 막힙니다. 개발 서버에서 열어주세요.");
+        }
+        const scenarioRes = await fetch(`./data/scenarios/${id}.json`);
+        if (!scenarioRes.ok) throw new Error(`scenario HTTP ${scenarioRes.status}`);
+        const loadedScenario = await scenarioRes.json();
+        const terrainRes = await fetch(loadedScenario.terrain);
+        if (!terrainRes.ok) throw new Error(`terrain HTTP ${terrainRes.status}`);
+        terrain = await terrainRes.json();
+        setScenarioLoaded(loadedScenario);
+        scenarioSelectEl.value = id;
         undoStack = [];
         drawTerrain();
       }
 
       function loadFile(file) {
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
           try {
-            terrain = JSON.parse(reader.result);
+            const parsed = JSON.parse(reader.result);
+            if (parsed?.terrain && Array.isArray(parsed?.phases)) {
+              setScenarioLoaded(parsed);
+              const terrainRes = await fetch(scenario.terrain);
+              if (!terrainRes.ok) throw new Error(`terrain HTTP ${terrainRes.status}`);
+              terrain = await terrainRes.json();
+            } else {
+              setScenarioLoaded(null);
+              terrain = parsed;
+            }
             undoStack = [];
             drawTerrain();
-          } catch {
-            setStatus("JSON 파싱 실패");
+          } catch (error) {
+            setStatus(`JSON 로드 실패: ${error.message}`);
           }
         };
         reader.onerror = () => setStatus("파일을 읽지 못했습니다.");
         reader.readAsText(file, "utf-8");
       }
 
-      document.getElementById("loadDefaultBtn").addEventListener("click", () => {
-        loadDefault().catch((e) => setStatus(`로드 실패: ${e.message}`));
+      scenarioSelectEl.addEventListener("change", () => {
+        loadScenario(scenarioSelectEl.value).catch((e) => setStatus(`로드 실패: ${e.message}`));
+      });
+
+      phaseSelectEl.addEventListener("change", () => {
+        selectedPhaseIndex = phaseSelectEl.value === "" ? -1 : Number(phaseSelectEl.value);
+        editingObjective = null;
+        editingBriefingMarker = null;
+        editingCircleMarker = null;
+        editingFormation = null;
+        objectiveDrag = null;
+        drawTerrain();
+      });
+
+      [showBriefingMarkersEl, showObjectiveMarkersEl, showFormationsEl, showAiTargetsEl].forEach((input) => {
+        input.addEventListener("change", drawTerrain);
       });
 
       document.getElementById("fileInput").addEventListener("change", (e) => {
@@ -429,9 +1150,11 @@
       });
 
       // ── 초기화 ────────────────────────────────────────────────────────────
+      populateScenarioSelect();
+      setScenarioLoaded(null);
       buildPalette();
       drawLegend();
-      loadDefault().catch((e) => setStatus(e.message));
+      setStatus("시나리오를 선택하거나 지형 파일을 여세요.");
     </script>
   </body>
 </html>

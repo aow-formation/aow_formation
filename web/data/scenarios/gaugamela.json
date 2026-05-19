@@ -33,7 +33,7 @@
         "speed": "STOP"
       },
       {
-        "id": "philotus",
+        "id": "philotas",
         "name": "필로타스",
         "troopType": "cavalry",
         "troops": 8000,
@@ -41,7 +41,7 @@
         "leadership": 84,
         "charm": 70,
         "skillType": "kihap",
-        "portrait": "assets/portraits/alexander.png",
+        "portrait": "assets/portraits/philotas.png",
         "position": {
           "x": 46,
           "y": 52
@@ -224,7 +224,7 @@
         "speed": "STOP"
       },
       {
-        "id": "darius",
+        "id": "darius_iii",
         "name": "다리우스 3세",
         "troopType": "infantry",
         "troops": 12000,
@@ -232,7 +232,7 @@
         "leadership": 78,
         "charm": 88,
         "skillType": "kihap",
-        "portrait": "assets/portraits/caesar.png",
+        "portrait": "assets/portraits/darius_iii.png",
         "position": {
           "x": 204,
           "y": 82
@@ -278,7 +278,7 @@
         {
           "speaker": "다리우스",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/darius_iii.png",
           "camera": {
             "x": 190,
             "y": 82
@@ -338,7 +338,7 @@
           "type": "formationsAtArea",
           "formationIds": [
             "alexander",
-            "philotus"
+            "philotas"
           ],
           "x": 54,
           "y": 42,
@@ -430,7 +430,7 @@
           {
             "type": "hold",
             "team": "enemy",
-            "formationId": "darius",
+            "formationId": "darius_iii",
             "density": "NORMAL"
           }
         ]
@@ -443,7 +443,7 @@
         {
           "speaker": "다리우스",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/darius_iii.png",
           "camera": {
             "x": 150,
             "y": 82
@@ -471,7 +471,7 @@
         {
           "speaker": "필로타스",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/philotas.png",
           "text": "폐하, 페르시아 기병이 양쪽으로 퍼지고 있습니다."
         },
         {
@@ -577,7 +577,7 @@
           {
             "type": "hold",
             "team": "enemy",
-            "formationId": "darius",
+            "formationId": "darius_iii",
             "density": "NORMAL"
           }
         ]
@@ -590,7 +590,7 @@
         {
           "speaker": "필로타스",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/philotas.png",
           "camera": {
             "x": 132,
             "y": 76
@@ -612,7 +612,7 @@
         {
           "speaker": "다리우스",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/darius_iii.png",
           "text": "저 기병은 어디로 가는 것이냐? 중앙을 막아라! 왕실 근위대, 돌아서라!"
         },
         {
@@ -670,7 +670,7 @@
           {
             "type": "hold",
             "team": "enemy",
-            "formationId": "darius",
+            "formationId": "darius_iii",
             "density": "NORMAL"
           },
           {
@@ -699,7 +699,7 @@
         {
           "speaker": "다리우스",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/darius_iii.png",
           "camera": {
             "x": 190,
             "y": 82
@@ -715,7 +715,7 @@
         {
           "speaker": "다리우스",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/darius_iii.png",
           "text": "아직 아니다. 아직 군대는 많다!"
         },
         {
@@ -727,7 +727,7 @@
         {
           "speaker": "필로타스",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/philotas.png",
           "text": "돌격 준비 완료!"
         },
         {
@@ -763,13 +763,13 @@
               "id": "near",
               "type": "formationNearEnemy",
               "formationId": "alexander",
-              "enemyFormationId": "darius",
+              "enemyFormationId": "darius_iii",
               "radius": 8
             },
             {
               "id": "damage",
               "type": "enemyCommanderBelow",
-              "formationId": "darius",
+              "formationId": "darius_iii",
               "ratio": 0.5
             }
           ]
@@ -800,7 +800,7 @@
             "type": "route",
             "team": "enemy",
             "formationIds": [
-              "darius"
+              "darius_iii"
             ],
             "target": {
               "x": 232,
@@ -815,7 +815,7 @@
           {
             "type": "hold",
             "team": "enemy",
-            "formationId": "darius",
+            "formationId": "darius_iii",
             "density": "NORMAL"
           },
           {
@@ -876,7 +876,7 @@
         {
           "speaker": "다리우스",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/darius_iii.png",
           "text": "후퇴하라! 왕을 지켜라!"
         },
         {
@@ -888,7 +888,7 @@
         {
           "speaker": "필로타스",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/philotas.png",
           "text": "마케도니아가 승리했습니다!"
         },
         {
@@ -929,7 +929,7 @@
               "id": "guard",
               "type": "enemyTroopsBelow",
               "formationIds": [
-                "darius",
+                "darius_iii",
                 "royal_guard"
               ],
               "ratio": 0.4
@@ -942,7 +942,7 @@
           {
             "type": "moveTo",
             "team": "enemy",
-            "formationId": "darius",
+            "formationId": "darius_iii",
             "target": {
               "x": 232,
               "y": 82

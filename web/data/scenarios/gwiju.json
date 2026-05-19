@@ -92,7 +92,7 @@
     "name": "거란군",
     "formations": [
       {
-        "id": "so_baeap",
+        "id": "so_bae_ap",
         "name": "소배압",
         "troopType": "cavalry",
         "troops": 8000,
@@ -100,7 +100,7 @@
         "leadership": 84,
         "charm": 70,
         "skillType": "kihap",
-        "portrait": "assets/portraits/attila.png",
+        "portrait": "assets/portraits/so_bae_ap.png",
         "position": { "x": 204, "y": 82 },
         "facing": { "x": -1, "y": 0 },
         "density": "NORMAL",
@@ -179,7 +179,7 @@
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "아니다. 강을 끼고 싸우는 것이 아니라, 강으로 싸우는 것이다." },
         { "speaker": "고려 궁병대장", "side": "player", "portrait": "assets/portraits/huang_zhong.png", "text": "적 선봉이 도하 지점으로 접근하고 있습니다." },
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "아직 움직이지 마라. 적이 강 한가운데 들어올 때까지 기다린다." },
-        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/attila.png", "camera": { "x": 190, "y": 82 }, "text": "고려군은 물러섰다. 강을 건너 곧장 밀어붙여라!" }
+        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/so_bae_ap.png", "camera": { "x": 190, "y": 82 }, "text": "고려군은 물러섰다. 강을 건너 곧장 밀어붙여라!" }
       ],
       "briefing": {
         "text": "강감찬과 방어대는 강가 방어선에, 양쪽 기병은 매복 위치에 배치하십시오.",
@@ -200,7 +200,7 @@
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_center", "target": { "x": 142, "y": 86 }, "speed": "NORMAL", "density": "TIGHT" },
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_rear", "target": { "x": 156, "y": 96 }, "speed": "SLOW", "density": "TIGHT" },
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_horse_archers", "target": { "x": 146, "y": 54 }, "speed": "NORMAL", "density": "WIDE" },
-          { "type": "hold", "team": "enemy", "formationId": "so_baeap", "density": "NORMAL" }
+          { "type": "hold", "team": "enemy", "formationId": "so_bae_ap", "density": "NORMAL" }
         ]
       }
     },
@@ -212,7 +212,7 @@
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "아직이다. 선봉만 치면 뒤의 적은 물러난다." },
         { "speaker": "김종현", "side": "player", "portrait": "assets/portraits/kim_yusin.png", "text": "중군까지 강에 들어와야 합니까?" },
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "그래야 물길이 군대를 삼킨다." },
-        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/attila.png", "text": "속도를 늦추지 마라! 고려군이 겁을 먹고 물러난 것이다." },
+        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/so_bae_ap.png", "text": "속도를 늦추지 마라! 고려군이 겁을 먹고 물러난 것이다." },
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "좋다. 더 깊이 들어와라." }
       ],
       "briefing": {
@@ -232,7 +232,7 @@
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_center", "target": { "x": 126, "y": 86 }, "speed": "NORMAL", "density": "TIGHT" },
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_rear", "target": { "x": 138, "y": 96 }, "speed": "NORMAL", "density": "TIGHT" },
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_horse_archers", "target": { "x": 118, "y": 54 }, "speed": "NORMAL", "density": "WIDE" },
-          { "type": "moveTo", "team": "enemy", "formationId": "so_baeap", "target": { "x": 158, "y": 82 }, "speed": "SLOW", "density": "NORMAL" }
+          { "type": "moveTo", "team": "enemy", "formationId": "so_bae_ap", "target": { "x": 158, "y": 82 }, "speed": "SLOW", "density": "NORMAL" }
         ]
       }
     },
@@ -243,7 +243,7 @@
         { "speaker": "고려 궁병대장", "side": "player", "portrait": "assets/portraits/huang_zhong.png", "camera": { "x": 116, "y": 82 }, "text": "장군, 적 중군까지 강 안에 들어왔습니다!" },
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "지금이다. 둑을 터뜨려라." },
         { "speaker": "거란 선봉", "side": "enemy", "portrait": "assets/portraits/lu_bu.png", "text": "물이 불어난다! 말이 움직이지 않는다!" },
-        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/attila.png", "text": "무슨 일이냐! 대열을 유지하라!" },
+        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/so_bae_ap.png", "text": "무슨 일이냐! 대열을 유지하라!" },
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "강은 이미 우리의 군대가 되었다. 이제 기병을 준비시켜라." }
       ],
       "briefing": {
@@ -271,7 +271,7 @@
           { "type": "hold", "team": "enemy", "formationId": "khitan_center", "density": "TIGHT" },
           { "type": "hold", "team": "enemy", "formationId": "khitan_rear", "density": "TIGHT" },
           { "type": "hold", "team": "enemy", "formationId": "khitan_horse_archers", "density": "WIDE" },
-          { "type": "hold", "team": "enemy", "formationId": "so_baeap", "density": "NORMAL" }
+          { "type": "hold", "team": "enemy", "formationId": "so_bae_ap", "density": "NORMAL" }
         ]
       }
     },
@@ -282,7 +282,7 @@
         { "speaker": "김종현", "side": "player", "portrait": "assets/portraits/kim_yusin.png", "text": "적의 말이 진흙 속에 묶였습니다. 지금 돌격하면 무너집니다!" },
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "북쪽과 남쪽에서 동시에 쳐라. 적이 물에서 나오기 전에 끝낸다." },
         { "speaker": "조원", "side": "player", "portrait": "assets/portraits/gyebaek.png", "text": "고려의 말발굽이 저들을 강 밖으로 몰아낼 것입니다!" },
-        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/attila.png", "text": "후퇴로를 열어라! 강을 벗어나야 한다!" },
+        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/so_bae_ap.png", "text": "후퇴로를 열어라! 강을 벗어나야 한다!" },
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "후퇴가 아니라 붕괴다. 몰아쳐라!" }
       ],
       "briefing": {
@@ -303,7 +303,7 @@
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_center", "target": { "x": 168, "y": 88 }, "speed": "SLOW", "density": "TIGHT" },
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_rear", "target": { "x": 176, "y": 100 }, "speed": "SLOW", "density": "TIGHT" },
           { "type": "pursue", "team": "enemy", "formationId": "khitan_horse_archers", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "WIDE" },
-          { "type": "moveTo", "team": "enemy", "formationId": "so_baeap", "target": { "x": 198, "y": 82 }, "speed": "SLOW", "density": "NORMAL" }
+          { "type": "moveTo", "team": "enemy", "formationId": "so_bae_ap", "target": { "x": 198, "y": 82 }, "speed": "SLOW", "density": "NORMAL" }
         ]
       }
     },
@@ -311,7 +311,7 @@
       "id": "pursuit",
       "title": "귀주의 추격",
       "dialogue": [
-        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/attila.png", "camera": { "x": 180, "y": 84 }, "text": "대열을 버려라! 살아남은 자는 동쪽으로 빠져나가라!" },
+        { "speaker": "소배압", "side": "enemy", "portrait": "assets/portraits/so_bae_ap.png", "camera": { "x": 180, "y": 84 }, "text": "대열을 버려라! 살아남은 자는 동쪽으로 빠져나가라!" },
         { "speaker": "고려 궁병대장", "side": "player", "portrait": "assets/portraits/huang_zhong.png", "text": "적의 깃발이 무너졌습니다!" },
         { "speaker": "강감찬", "side": "player", "portrait": "assets/portraits/gang_gamchan.png", "text": "끝까지 추격하라. 다시는 고려의 강을 넘보지 못하게 하라." },
         { "speaker": "김종현", "side": "player", "portrait": "assets/portraits/kim_yusin.png", "text": "선봉은 흩어졌고 중군도 무너졌습니다." },
@@ -330,14 +330,14 @@
           "label": "거란 전체 병력을 25% 이하로 낮추거나 소배압과 주력 부대를 무너뜨리십시오.",
           "objectives": [
             { "id": "total", "type": "enemyTotalBelow", "ratio": 0.25 },
-            { "id": "command", "type": "enemyTroopsBelow", "formationIds": [ "so_baeap", "khitan_vanguard", "khitan_center" ], "ratio": 0.3 }
+            { "id": "command", "type": "enemyTroopsBelow", "formationIds": [ "so_bae_ap", "khitan_vanguard", "khitan_center" ], "ratio": 0.3 }
           ]
         },
         { "id": "gang_alive", "type": "formationsTroopsAbove", "formationIds": [ "gang_gamchan" ], "ratio": 0.2, "requiredCount": 1, "label": "강감찬 부대가 생존해야 합니다." }
       ],
       "ai": {
         "actions": [
-          { "type": "moveTo", "team": "enemy", "formationId": "so_baeap", "target": { "x": 238, "y": 82 }, "speed": "FAST", "density": "NORMAL", "holdOnReach": false },
+          { "type": "moveTo", "team": "enemy", "formationId": "so_bae_ap", "target": { "x": 238, "y": 82 }, "speed": "FAST", "density": "NORMAL", "holdOnReach": false },
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_vanguard", "target": { "x": 232, "y": 72 }, "speed": "FAST", "density": "NORMAL", "holdOnReach": false },
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_center", "target": { "x": 232, "y": 88 }, "speed": "FAST", "density": "TIGHT", "holdOnReach": false },
           { "type": "moveTo", "team": "enemy", "formationId": "khitan_rear", "target": { "x": 232, "y": 102 }, "speed": "FAST", "density": "TIGHT", "holdOnReach": false },
