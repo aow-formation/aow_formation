@@ -286,6 +286,23 @@ import {
     updateBattleLoadingMask();
   }
 
+  // LQIP: 20px 너비 썸네일 base64 (홈 배경)
+  const LQIP_BG = {
+    'main.jpg':  'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAALABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIDBAX/xAAdEAACAgIDAQAAAAAAAAAAAAABAgARIUEDEjFR/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAL/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwDhAr2ycVqVReMmyxA+1M2xH8Vq1JUozKrULIhEUWATkwgf/9k=',
+    'main1.jpg': 'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAALABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIDBAX/xAAcEAEAAwACAwAAAAAAAAAAAAABAAIRAyESMUH/xAAVAQEBAAAAAAAAAAAAAAAAAAACAf/EABYRAQEBAAAAAAAAAAAAAAAAAAABEf/aAAwDAQACEQMRAD8A4fHaq4uy6cJRe9mKr3GvZ9b1DYUpldfEE+QkthLg6//Z',
+  };
+
+  // LQIP: 16px 썸네일 base64 (시나리오 아이콘, 파일명 01~07 순)
+  const LQIP_SCENARIO = [
+    'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAQABADASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAQMEBf/EABsQAQACAwEBAAAAAAAAAAAAAAECEQASITEi/8QAFQEBAQAAAAAAAAAAAAAAAAAAAgP/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwDP3qQHLavHsyFm5PuuxkhIv6JJdjH0wsmTzartX1cCr//Z',
+    'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAQABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAQME/8QAHxABAAIBAwUAAAAAAAAAAAAAAQIRABIhQQMTIjFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAgP/xAAVEQEBAAAAAAAAAAAAAAAAAAAAEf/aAAwDAQACEQMRAD8Ay9HT3IDPSSaWrrCMiWqpPi+3nIEir3seMVCJXO/zJw3/2Q==',
+    'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAQABADASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAQIDBP/EAB8QAAICAQQDAAAAAAAAAAAAAAECABEDEiExURNxof/EABQBAQAAAAAAAAAAAAAAAAAAAAP/xAAVEQEBAAAAAAAAAAAAAAAAAAAAEv/aAAwDAQACEQMRAD8Ay4/GMZY7m+47ujKSqleK3Mlj0qqMXUkHi6IhyMjqTrF/SfXUKiy//9k=',
+    'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAQABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABAID/8QAHBABAAEFAQEAAAAAAAAAAAAAAQIAESExQQMS/8QAFAEBAAAAAAAAAAAAAAAAAAAAAv/EABURAQEAAAAAAAAAAAAAAAAAAAAR/9oADAMBAAIRAxEAPwAIhbataRmPm7HcX6zR4ryVqqfVkLbCdoQ6/9k=',
+    'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAQABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAQME/8QAIBABAQACAQMFAAAAAAAAAAAAAQIAAzEREjJBUXGB0f/EABUBAQEAAAAAAAAAAAAAAAAAAAAB/8QAFhEBAQEAAAAAAAAAAAAAAAAAAQAh/9oADAMBAAIRAxEAPwDNEBJXkp15xq4RJ1sJxTfl9fmR03EpVV8jjs2R20SC+le+QIu5f//Z',
+    'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAQABADASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAIDBP/EACEQAAICAQMFAQAAAAAAAAAAAAECAxEAEiExEyJBUWFx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AIxsiqCVLH9xiy9Mmu73fGZopwq6ZFLLd7cj5hJMGTQgKrd7+cD/2Q==',
+    'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAQABADASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAIDBP/EAB0QAAIDAAIDAAAAAAAAAAAAAAECABEhMUESEyL/xAAUAQEAAAAAAAAAAAAAAAAAAAAC/8QAFREBAQAAAAAAAAAAAAAAAAAAADH/2gAMAwEAAhEDEQA/AMSYLIbTh6MGY+XwSa526kVcgZzfex2dPUFCkPlm4Dr/2Q==',
+  ];
+
   function applyRandomHomeBackground() {
     if (!homeBg) return;
     const backgrounds = [
@@ -293,8 +310,29 @@ import {
       "./assets/background/main1.jpg",
     ];
     const selected = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-    homeBg.style.backgroundImage =
-      `linear-gradient(90deg, rgba(0,0,0,0.45), rgba(0,0,0,0.08)), url('${selected}')`;
+    const key = selected.split('/').pop();
+    const grad = 'linear-gradient(90deg, rgba(0,0,0,0.45), rgba(0,0,0,0.08))';
+    const lqip = LQIP_BG[key];
+
+    if (lqip) {
+      // 즉시 LQIP 표시 (transition 없이 블러 적용)
+      homeBg.style.transition = 'none';
+      homeBg.style.backgroundImage = `${grad}, url('${lqip}')`;
+      homeBg.style.filter = 'blur(8px)';
+      homeBg.style.transform = 'scale(1.05)';
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      homeBg.style.backgroundImage = `${grad}, url('${selected}')`;
+      // 다음 페인트 사이클부터 부드럽게 블러 해제
+      requestAnimationFrame(() => {
+        homeBg.style.transition = 'filter 0.8s ease, transform 0.8s ease';
+        homeBg.style.filter = '';
+        homeBg.style.transform = '';
+      });
+    };
+    img.src = selected;
   }
 
   applyRandomHomeBackground();
@@ -398,6 +436,26 @@ import {
 
       const icon = document.createElement("div");
       icon.className = "scenario-card-icon";
+      // LQIP 블러업: 즉시 저해상도 썸네일 표시 후 풀 이미지로 전환
+      const lqipSrc = LQIP_SCENARIO[scenario.icon];
+      const fullSrc = `./assets/ui/${String(scenario.icon + 1).padStart(2, '0')}.jpg`;
+      if (lqipSrc) {
+        const isDisabled = !scenario.enabled;
+        icon.style.transition = 'none';
+        icon.style.backgroundImage = `url('${lqipSrc}')`;
+        icon.style.filter = (isDisabled ? 'grayscale(0.45) ' : '') + 'blur(4px)';
+        icon.style.transform = 'scale(1.05)';
+        const imgLoader = new Image();
+        imgLoader.onload = () => {
+          icon.style.backgroundImage = `url('${fullSrc}')`;
+          requestAnimationFrame(() => {
+            icon.style.transition = 'filter 0.5s ease, transform 0.5s ease';
+            icon.style.filter = '';
+            icon.style.transform = '';
+          });
+        };
+        imgLoader.src = fullSrc;
+      }
 
       const title = document.createElement("h3");
       title.className = "scenario-card-title";
