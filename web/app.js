@@ -370,7 +370,7 @@ import {
     {
       id: "jupil",
       no: "06",
-      title: "복합 전술 - 주필산 전투",
+      title: "우회 - 주필산 전투",
       year: "645",
       icon: 5,
       enabled: true
