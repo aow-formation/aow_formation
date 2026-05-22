@@ -1082,7 +1082,7 @@ kbd {
     align-items: flex-start;
     gap: 2px;
     flex-shrink: 0;
-    width: 68px;
+    width: 96px;
   }
   .general-name {
     display: block;
@@ -1092,6 +1092,19 @@ kbd {
     text-overflow: ellipsis;
     max-width: 100%;
     margin-bottom: 1px;
+  }
+  /* 근접 / 원거리 를 각각 열로: 좌열=근접, 우열=원거리 */
+  .mobile-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    grid-auto-flow: column;
+    gap: 1px 4px;
+    width: 100%;
+  }
+  .ms-item {
+    justify-content: flex-start;
+    gap: 2px;
   }
 
   /* 병력·혼란도 바 섹션 */
