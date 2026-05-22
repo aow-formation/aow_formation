@@ -1828,7 +1828,8 @@ import {
     const base = Math.max(0, 2 + speedInfo[formation.speed].defense + densityInfo[formation.density].defense + tileDefense - formation.disorder * 2);
     const defense = base * troopTypeInfo(formation.troopType).meleeDefenseMult;
     const scenarioMult = formation.combatOverrides?.meleeDefenseMult ?? 1;
-    return (formation.troopType === 'cavalry' ? defense + 10 : defense) * scenarioMult;
+    const scenarioBonus = formation.combatOverrides?.meleeDefenseBonus ?? 0;
+    return (formation.troopType === 'cavalry' ? defense + 10 : defense) * scenarioMult + scenarioBonus;
   }
 
   function unitRemainingTroops(unit) {
@@ -2399,7 +2400,8 @@ import {
           // 원거리 공격 (쿨타임 1초)
           const rangedDamage = Math.max(0, rangedAttack(formation) * facingMult
             * rangedDefenseDamageMult(enemyTarget.formation)
-            - (enemyTarget.formation.troopType === 'cavalry' ? 2 : 0));
+            - (enemyTarget.formation.troopType === 'cavalry' ? 2 : 0)
+            - (enemyTarget.formation.combatOverrides?.rangedDefenseBonus ?? 0));
           applyUnitDamage(enemyTarget.formation, enemyTarget.unit, rangedDamage, formation);
           unit.rangedCooldown = 1.0;
           game.projectiles.push({
@@ -2426,7 +2428,8 @@ import {
             const rFacingMult = rDot >= Math.SQRT2 / 2 ? 1.25 : rDot >= 0 ? 1.0 : 0.75;
             const rdmg = Math.max(0, rangedAttack(formation) * rFacingMult
               * rangedDefenseDamageMult(rangedOnly.formation)
-              - (rangedOnly.formation.troopType === 'cavalry' ? 2 : 0));
+              - (rangedOnly.formation.troopType === 'cavalry' ? 2 : 0)
+              - (rangedOnly.formation.combatOverrides?.rangedDefenseBonus ?? 0));
             applyUnitDamage(rangedOnly.formation, rangedOnly.unit, rdmg, formation);
             unit.rangedCooldown = 1.0;
             game.projectiles.push({
