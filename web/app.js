@@ -4647,7 +4647,26 @@ import {
     if (touchState?.type === 'single' && !touchState.moved && e.changedTouches.length === 1) {
       const rect = canvas.getBoundingClientRect();
       const t = e.changedTouches[0];
-      issueMoveCommand(t.clientX - rect.left, t.clientY - rect.top);
+      const offsetX = t.clientX - rect.left;
+      const offsetY = t.clientY - rect.top;
+      // 마우스(5.0타일)보다 보수적인 반경(2.5타일)으로 아군 진형 선택 우선 판정
+      const tile = toTile(offsetX, offsetY);
+      let touchClosest = null;
+      let touchMinDist = 2.5;
+      for (const f of game.playerFormations) {
+        if (!f.units.some(isUnitAlive)) continue;
+        const center = formationCenter(f);
+        const d = len(center.x - tile.x, center.y - tile.y);
+        if (d < touchMinDist) { touchMinDist = d; touchClosest = f; }
+      }
+      if (touchClosest) {
+        autoSelectDeadline = -1;
+        game.selectedId = touchClosest.id;
+        game.hudDirty = true;
+        refreshButtons();
+      } else {
+        issueMoveCommand(offsetX, offsetY);
+      }
     }
     if (e.touches.length === 0) touchState = null;
     else if (e.touches.length === 1) {

@@ -1040,6 +1040,103 @@ kbd {
   }
 }
 
+/* ── 초소형 모바일 (< 450px): 패널 하단 배치 ── */
+@media (max-width: 449px) {
+  /* 캔버스 위 / 패널 아래 수직 배치 */
+  .board {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  /* 패널을 가로 줄로 */
+  .panel {
+    flex-direction: row;
+    align-items: stretch;
+    overflow: hidden;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--border-mid);
+  }
+
+  /* 섹션 간 구분: 하단 구분선 → 우측 구분선으로 전환 */
+  .panel > section,
+  .panel-section,
+  .panel-general,
+  .panel-status {
+    border-bottom: none;
+    border-right: 1px solid var(--border-dark);
+    padding: 4px 5px;
+    min-width: 0;
+  }
+  .panel > section::after,
+  .panel-section::after,
+  .panel-general::after,
+  .panel-status::after {
+    display: none;
+  }
+
+  /* 장수 정보: 초상화 숨기고 이름 + 아이콘 능력치 */
+  .panel-portrait-frame { display: none; }
+  .panel-general {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    flex-shrink: 0;
+    width: 68px;
+  }
+  .general-name {
+    display: block;
+    font-size: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    margin-bottom: 1px;
+  }
+
+  /* 병력·혼란도 바 섹션 */
+  .panel-status {
+    flex-shrink: 0;
+    width: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .status-bar-wrap { margin-bottom: 3px; }
+
+  /* 이동 속도: 수평 배치 */
+  .panel-speed-section {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 5px;
+    border-right: none;
+  }
+  .stop-row {
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+  .panel-speed-section .button-row {
+    flex-direction: row;
+    flex: 1;
+    gap: 3px;
+  }
+  .panel-speed-section .button-row .btn-stone {
+    flex: 1;
+    width: auto;
+    padding: 4px 2px;
+    font-size: 10px;
+  }
+  .btn-stop {
+    padding: 4px 6px;
+    font-size: 10px;
+    width: auto;
+    white-space: nowrap;
+  }
+}
+
 /* ════════════════════════════════════════════════════════════
    화면 오버레이 공통
 ════════════════════════════════════════════════════════════ */
