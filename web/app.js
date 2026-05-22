@@ -125,6 +125,7 @@ import {
   const ctx = canvas.getContext("2d");
   const hudEl = document.getElementById("hud");
   const phaseButton = document.getElementById("phaseButton");
+  const endBattleBtn = document.getElementById("endBattleBtn");
   const speedToggleButton = document.getElementById("speedToggleButton");
   const troopAdjustBtn = document.getElementById("troopAdjustBtn");
   const battleLoadingMask = document.getElementById("battleLoadingMask");
@@ -2118,12 +2119,13 @@ import {
       game.flood.timer -= dt;
       if (game.flood.timer <= 0 && !game.flood.damageDealt) {
         game.flood.damageDealt = true;
+        game.floodDamageDealt = true;
         allF.forEach(f => {
           let hit = false;
           f.units.forEach(u => {
             if (!isUnitAlive(u)) return;
             if (!isOnWater(u)) return;
-            const dmg = applyUnitDamage(f, u, 20, null, { trace: false });
+            const dmg = applyUnitDamage(f, u, 40, null, { trace: false });
             if (dmg > 0) {
               hit = true;
               const angle = Math.random() * Math.PI * 2;
@@ -4307,6 +4309,7 @@ import {
     speedToggleButton.textContent = game.speedMultiplier === 2 ? "기본속도" : "2배속";
     troopAdjustBtn.hidden = isHistoricalMode();
     troopAdjustBtn.disabled = game.battlePhase !== "planning" || isHistoricalMode();
+    endBattleBtn.hidden = isHistoricalMode();
     if (isScenarioSceneActive()) {
       phaseButton.disabled = true;
       speedToggleButton.disabled = true;
@@ -4494,6 +4497,10 @@ import {
   phaseButton.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
     startLiveBattle();
+  });
+
+  endBattleBtn.addEventListener("click", () => {
+    setScreen("home");
   });
 
   speedToggleButton.addEventListener("click", () => {
@@ -4868,6 +4875,7 @@ import {
     game.traces              = [];
     game.fires               = [];
     game.flood               = null;
+    game.floodDamageDealt    = false;
     game.hudRefreshAccumulator = 0;
     game.hudDirty            = true;
     game.speechEnemySighted  = new Set();
@@ -5244,6 +5252,8 @@ import {
       const total = objective.formationIds.reduce((sum, id) =>
         sum + (game.scenarioSkillUseCounts[`${id}:${objective.skillType}`] || 0), 0);
       state.complete = total >= (objective.count || 1);
+    } else if (objective.type === "floodDamageDealt") {
+      state.complete = !!game.floodDamageDealt;
     } else if (objective.type === "surviveSeconds") {
       const formations = (objective.formationIds || []).map(id => scenarioFormation(id, objective.team || "player")).filter(Boolean);
       const ratiosOk = formations.every(formation => formationRatio(formation) >= (objective.minRatio ?? 0));
