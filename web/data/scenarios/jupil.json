@@ -21,7 +21,8 @@
           "rangedDefenseMult": 1.25,
           "kihapAttackBonusMult": 1.35,
           "meleeDefenseBonus": 5,
-          "rangedDefenseBonus": 5
+          "rangedDefenseBonus": 5,
+          "skillDurationMult": 2
         },
         "portrait": "assets/portraits/tang_taizong.png",
         "position": {
@@ -48,7 +49,8 @@
           "meleeDefenseMult": 1.5,
           "rangedDefenseMult": 1.3,
           "meleeDefenseBonus": 5,
-          "rangedDefenseBonus": 5
+          "rangedDefenseBonus": 5,
+          "skillDurationMult": 2
         },
         "portrait": "assets/portraits/wei_qing.png",
         "position": {
@@ -75,7 +77,8 @@
           "meleeDefenseMult": 1.5,
           "rangedDefenseMult": 1.3,
           "meleeDefenseBonus": 5,
-          "rangedDefenseBonus": 5
+          "rangedDefenseBonus": 5,
+          "skillDurationMult": 2
         },
         "portrait": "assets/portraits/sun_bin.png",
         "position": {
@@ -101,7 +104,8 @@
         "combatOverrides": {
           "meleeAttackMult": 1.15,
           "meleeDefenseMult": 1.2,
-          "rangedDefenseMult": 1.2
+          "rangedDefenseMult": 1.2,
+          "skillDurationMult": 2
         },
         "portrait": "assets/portraits/huo_qubing.png",
         "position": {
@@ -127,7 +131,8 @@
         "combatOverrides": {
           "meleeAttackMult": 1.1,
           "meleeDefenseMult": 1.2,
-          "rangedDefenseMult": 1.2
+          "rangedDefenseMult": 1.2,
+          "skillDurationMult": 2
         },
         "portrait": "assets/portraits/ma_chao.png",
         "position": {
