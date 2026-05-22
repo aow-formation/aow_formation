@@ -1828,13 +1828,16 @@ input[type="range"].adjust-slider {
     0 3px 9px rgba(0,0,0,0.55);
 }
 
-.scenario-card[data-icon="0"] .scenario-card-icon { background-image: url('./assets/ui/01.jpg'); }
-.scenario-card[data-icon="1"] .scenario-card-icon { background-image: url('./assets/ui/02.jpg'); }
-.scenario-card[data-icon="2"] .scenario-card-icon { background-image: url('./assets/ui/03.jpg'); }
-.scenario-card[data-icon="3"] .scenario-card-icon { background-image: url('./assets/ui/04.jpg'); }
-.scenario-card[data-icon="4"] .scenario-card-icon { background-image: url('./assets/ui/05.jpg'); }
-.scenario-card[data-icon="5"] .scenario-card-icon { background-image: url('./assets/ui/06.jpg'); }
-.scenario-card[data-icon="6"] .scenario-card-icon { background-image: url('./assets/ui/07.jpg'); }
+/* 아이콘 이미지는 JS에서 로드 후 인라인으로 설정 */
+
+@keyframes scenario-icon-pulse {
+  0%, 100% { background-color: #19140a; }
+  50%       { background-color: #2e2214; }
+}
+
+.scenario-icon-loading {
+  animation: scenario-icon-pulse 1.4s ease-in-out infinite;
+}
 
 .scenario-card[data-enabled="false"] .scenario-card-icon {
   filter: grayscale(0.45);
