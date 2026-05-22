@@ -19,7 +19,8 @@
         "combatOverrides": {
           "meleeDefenseMult": 4.5,
           "rangedDefenseMult": 4.5,
-          "kihapAttackBonusMult": 1.5
+          "kihapAttackBonusMult": 1.5,
+          "skillDurationMult": 2
         },
         "portrait": "assets/portraits/hannibal.png",
         "position": {
@@ -44,7 +45,8 @@
         "skillType": "guard",
         "combatOverrides": {
           "meleeDefenseMult": 3,
-          "rangedDefenseMult": 3
+          "rangedDefenseMult": 3,
+          "skillDurationMult": 2
         },
         "portrait": "assets/portraits/hannibal.png",
         "position": {
@@ -69,7 +71,8 @@
         "skillType": "guard",
         "combatOverrides": {
           "meleeDefenseMult": 3,
-          "rangedDefenseMult": 3
+          "rangedDefenseMult": 3,
+          "skillDurationMult": 2
         },
         "portrait": "assets/portraits/hannibal.png",
         "position": {
@@ -485,16 +488,6 @@
           "side": "player",
           "portrait": "assets/portraits/hannibal.png",
           "text": "중앙 보병은 천천히 물러서며 놈들을 깊숙이 끌어들여라. 양익은 로마 기병을 묶어두고, 때가 오면 포위망을 닫는다."
-        },
-        {
-          "speaker": "파울루스",
-          "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
-          "camera": {
-            "x": 130,
-            "y": 82
-          },
-          "text": "적의 중앙이 물러난다! 전방 부대를 따라 밀고 들어가라. 대열을 흩트리지 말고 압박하라!"
         }
       ],
       "briefing": {

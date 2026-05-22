@@ -1945,8 +1945,9 @@ import {
 
   function activateKihap(formation) {
     if (formation.kihapCooldown > 0) return;
+    const durMult = formation.combatOverrides?.skillDurationMult ?? 1;
     formation.units.forEach((u) => {
-      if (isUnitAlive(u)) u.kihapTimer = 4 + Math.random() * 2;
+      if (isUnitAlive(u)) u.kihapTimer = (4 + Math.random() * 2) * durMult;
     });
     formation.disorderAccum = Math.max(0, formation.disorderAccum - 0.1);
     formation.disorder = Math.max(0, formation.disorder - 0.1);
@@ -1974,25 +1975,26 @@ import {
     formation.disorder      = Math.max(0, formation.disorder - 0.1);
     formation.skillCooldown = skillMaxCooldown(formation);
 
+    const durMult = formation.combatOverrides?.skillDurationMult ?? 1;
     switch (formation.skillType) {
       case "kihap": {
-        formation.units.forEach(u => { if (isUnitAlive(u)) u.kihapTimer = 4 + Math.random() * 2; });
+        formation.units.forEach(u => { if (isUnitAlive(u)) u.kihapTimer = (4 + Math.random() * 2) * durMult; });
         formation.kihapCooldown = kihapMaxCooldown(formation);
         if (speechData) tryShowSpeech(formation, randFrom(speechData.kihap), "high");
         break;
       }
       case "swift": {
-        formation.swiftTimer = 12.0;
+        formation.swiftTimer = 12.0 * durMult;
         if (speechData) tryShowSpeech(formation, "전속력으로 돌격한다!", "high");
         break;
       }
       case "guard": {
-        formation.guardTimer = 7.0 + (formation.general.leadership / 100) * 3.0;
+        formation.guardTimer = (7.0 + (formation.general.leadership / 100) * 3.0) * durMult;
         if (speechData) tryShowSpeech(formation, "방패를 굳게 세워라!", "high");
         break;
       }
       case "archery": {
-        formation.archeryTimer = 10.0;
+        formation.archeryTimer = 10.0 * durMult;
         if (speechData) tryShowSpeech(formation, "화살이 하늘을 덮는다!", "high");
         break;
       }
