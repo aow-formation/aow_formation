@@ -245,6 +245,8 @@ import {
   const battleResultScreen = document.getElementById("battleResultScreen");
   const appShell           = document.getElementById("appShell");
   const homeBg             = document.querySelector(".home-bg");
+  const gameLoadingScreen  = document.getElementById("gameLoadingScreen");
+  const gameLoadingBg      = document.getElementById("gameLoadingBg");
   const menuHistoricalScenario = document.getElementById("menuHistoricalScenario");
   const scenarioHud = document.getElementById("scenarioHud");
   const scenarioTitle = document.getElementById("scenarioTitle");
@@ -466,11 +468,34 @@ import {
   function updateBattleLoadingMask() {
     if (appState === "battle" && !areGameAssetsReady()) {
       showBattleLoadingMask();
-      return;
-    }
-    if (appState === "battle" && areGameAssetsReady()) {
+    } else if (appState === "battle" && areGameAssetsReady()) {
       hideBattleLoadingMask();
     }
+    tryHideGameLoadingScreen();
+  }
+
+  let _gameLoadingHideTimer = null;
+  let _gameLoadingMinElapsed = false;
+
+  function showGameLoadingScreen() {
+    _gameLoadingMinElapsed = false;
+    if (_gameLoadingHideTimer) { clearTimeout(_gameLoadingHideTimer); _gameLoadingHideTimer = null; }
+    const bgKeys = Object.keys(LQIP_BG);
+    const bgKey = bgKeys[Math.floor(Math.random() * bgKeys.length)];
+    gameLoadingBg.style.backgroundImage = `url('./assets/background/${bgKey}')`;
+    gameLoadingScreen.style.display = "flex";
+    _gameLoadingHideTimer = setTimeout(() => {
+      _gameLoadingHideTimer = null;
+      _gameLoadingMinElapsed = true;
+      tryHideGameLoadingScreen();
+    }, 2000);
+  }
+
+  function tryHideGameLoadingScreen() {
+    if (gameLoadingScreen.style.display === "none") return;
+    if (!_gameLoadingMinElapsed) return;
+    if (!areGameAssetsReady()) return;
+    gameLoadingScreen.style.display = "none";
   }
 
   function preventPanelButtonFocus() {
@@ -4936,6 +4961,7 @@ import {
 
   async function enterHistoricalScenario(id = "cannae") {
     try {
+      showGameLoadingScreen();
       showBattleLoadingMask();
       const { scenario, terrain } = await loadScenarioBundle(id);
       applyHistoricalScenario(scenario, terrain);
@@ -4946,6 +4972,7 @@ import {
       beginScenarioPhase(0);
     } catch (error) {
       console.error(error);
+      gameLoadingScreen.style.display = "none";
       setScreen("home");
       const toast = document.getElementById("homeToast");
       toast.textContent = "역사 시나리오를 불러오지 못했습니다.";
@@ -5773,6 +5800,7 @@ import {
     });
     savedPlayerGenerals = game.playerFormations.map(f => ({ ...f.general }));
     savedEnemyGenerals  = game.enemyFormations.map(f => ({ ...f.general }));
+    showGameLoadingScreen();
     setScreen("battle");
     game.hudDirty = true;
     refreshHud();
