@@ -243,6 +243,93 @@
         align-items: center;
         gap: 4px;
       }
+
+      /* ── 대화 편집기 ── */
+      .dlg-section { display: grid; gap: 8px; }
+      .dlg-header { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+      .dlg-header h3 { margin: 0; font-size: 13px; }
+      .dlg-items { display: grid; gap: 6px; }
+      .dlg-item {
+        display: grid;
+        gap: 5px;
+        padding: 8px;
+        border: 1px solid #353535;
+        border-radius: 4px;
+        background: #181818;
+      }
+      .dlg-item.dlg-enemy { border-color: #5a2525; background: #1a1212; }
+      .dlg-row { display: flex; gap: 5px; align-items: center; }
+      .dlg-index { font-size: 10px; color: #555; min-width: 18px; text-align: right; flex-shrink: 0; }
+      .dlg-side {
+        padding: 3px 5px;
+        border: 1px solid #555;
+        border-radius: 3px;
+        background: #242424;
+        color: #eee;
+        font: inherit;
+        font-size: 11px;
+        flex-shrink: 0;
+      }
+      .dlg-speaker {
+        flex: 1;
+        padding: 3px 6px;
+        border: 1px solid #555;
+        border-radius: 3px;
+        background: #1e1e1e;
+        color: #eee;
+        font: inherit;
+        font-size: 12px;
+        min-width: 0;
+      }
+      .dlg-portrait {
+        width: 100%;
+        padding: 3px 5px;
+        border: 1px solid #555;
+        border-radius: 3px;
+        background: #242424;
+        color: #eee;
+        font: inherit;
+        font-size: 11px;
+        box-sizing: border-box;
+      }
+      .dlg-text {
+        width: 100%;
+        padding: 4px 6px;
+        border: 1px solid #555;
+        border-radius: 3px;
+        background: #1e1e1e;
+        color: #eee;
+        font: inherit;
+        font-size: 11px;
+        resize: vertical;
+        box-sizing: border-box;
+        line-height: 1.4;
+      }
+      .dlg-delete {
+        padding: 2px 7px;
+        border: 1px solid #5a2020;
+        border-radius: 3px;
+        background: #280e0e;
+        color: #e08080;
+        cursor: pointer;
+        font-size: 15px;
+        flex-shrink: 0;
+        line-height: 1;
+      }
+      .dlg-delete:hover { background: #3a1515; color: #ff9898; }
+      .dlg-add-btn {
+        padding: 6px 10px;
+        border: 1px dashed #445;
+        border-radius: 3px;
+        background: transparent;
+        color: #778;
+        cursor: pointer;
+        font-size: 12px;
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+      }
+      .dlg-add-btn:hover { border-color: #667; color: #99b; background: #15151e; }
     </style>
   </head>
   <body>
@@ -291,6 +378,13 @@
       <p id="phaseBriefingText"></p>
       <h3>목표</h3>
       <ul id="objectiveList"></ul>
+      <div class="dlg-section">
+        <div class="dlg-header">
+          <h3>대화</h3>
+          <button id="addDialogueBtn" class="save-btn" type="button" style="font-size:11px;padding:3px 9px">＋ 추가</button>
+        </div>
+        <div id="dialogueItems" class="dlg-items"></div>
+      </div>
     </aside>
     <div id="tooltip"></div>
 
@@ -313,6 +407,68 @@
       const showObjectiveMarkersEl = document.getElementById("showObjectiveMarkers");
       const showFormationsEl = document.getElementById("showFormations");
       const showAiTargetsEl = document.getElementById("showAiTargets");
+      const dialogueItemsEl = document.getElementById("dialogueItems");
+      const addDialogueBtnEl = document.getElementById("addDialogueBtn");
+
+      const PORTRAIT_OPTIONS = [
+        { value: "", label: "— 없음 —" },
+        { value: "assets/portraits/aemilius_paullus.png", label: "Aemilius Paullus" },
+        { value: "assets/portraits/alexander.png", label: "Alexander" },
+        { value: "assets/portraits/attila.png", label: "Attila" },
+        { value: "assets/portraits/bai_qi.png", label: "Bai Qi (백기)" },
+        { value: "assets/portraits/caesar.png", label: "Caesar" },
+        { value: "assets/portraits/cao_cao.png", label: "Cao Cao (조조)" },
+        { value: "assets/portraits/darius_iii.png", label: "Darius III" },
+        { value: "assets/portraits/deng_ai.png", label: "Deng Ai (등애)" },
+        { value: "assets/portraits/dian_wei.png", label: "Dian Wei (전위)" },
+        { value: "assets/portraits/eulji_mundeok.png", label: "을지문덕" },
+        { value: "assets/portraits/gang_gamchan.png", label: "강감찬" },
+        { value: "assets/portraits/gisco.png", label: "기스코" },
+        { value: "assets/portraits/go_hye_jin.png", label: "고혜진" },
+        { value: "assets/portraits/go_yeon_su.png", label: "고연수" },
+        { value: "assets/portraits/guan_yu.png", label: "Guan Yu (관우)" },
+        { value: "assets/portraits/gyebaek.png", label: "계백" },
+        { value: "assets/portraits/han_xin.png", label: "Han Xin (한신)" },
+        { value: "assets/portraits/hannibal.png", label: "한니발" },
+        { value: "assets/portraits/hasdrubal.png", label: "하스드루발" },
+        { value: "assets/portraits/huang_zhong.png", label: "Huang Zhong (황충)" },
+        { value: "assets/portraits/huo_qubing.png", label: "Huo Qubing (곽거병)" },
+        { value: "assets/portraits/jiang_wei.png", label: "Jiang Wei (강유)" },
+        { value: "assets/portraits/kim_yusin.png", label: "김유신" },
+        { value: "assets/portraits/li_mu.png", label: "Li Mu (이목)" },
+        { value: "assets/portraits/lian_po.png", label: "Lian Po (염파)" },
+        { value: "assets/portraits/liu_bei.png", label: "Liu Bei (유비)" },
+        { value: "assets/portraits/lu_bu.png", label: "Lu Bu (여포)" },
+        { value: "assets/portraits/lu_xun.png", label: "Lu Xun (육손)" },
+        { value: "assets/portraits/ma_chao.png", label: "Ma Chao (마초)" },
+        { value: "assets/portraits/mago.png", label: "마고" },
+        { value: "assets/portraits/maharbal.png", label: "마하르발" },
+        { value: "assets/portraits/meng_tian.png", label: "Meng Tian (몽염)" },
+        { value: "assets/portraits/minucius.png", label: "Minucius" },
+        { value: "assets/portraits/philotas.png", label: "Philotas" },
+        { value: "assets/portraits/saladin.png", label: "Saladin" },
+        { value: "assets/portraits/servilius.png", label: "Servilius" },
+        { value: "assets/portraits/sima_yi.png", label: "Sima Yi (사마의)" },
+        { value: "assets/portraits/so_bae_ap.png", label: "소배압" },
+        { value: "assets/portraits/sun_bin.png", label: "Sun Bin (손빈)" },
+        { value: "assets/portraits/sun_quan.png", label: "Sun Quan (손권)" },
+        { value: "assets/portraits/tang_taizong.png", label: "당 태종" },
+        { value: "assets/portraits/varro.png", label: "바로 (Varro)" },
+        { value: "assets/portraits/wang_jian.png", label: "Wang Jian (왕전)" },
+        { value: "assets/portraits/wei_qing.png", label: "Wei Qing (위청)" },
+        { value: "assets/portraits/wu_zixu.png", label: "Wu Zixu (오자서)" },
+        { value: "assets/portraits/xiahou_dun.png", label: "Xiahou Dun (하후돈)" },
+        { value: "assets/portraits/xiang_yu.png", label: "Xiang Yu (항우)" },
+        { value: "assets/portraits/xu_chu.png", label: "Xu Chu (허저)" },
+        { value: "assets/portraits/yeon_gaesomun.png", label: "연개소문" },
+        { value: "assets/portraits/young_scipio.png", label: "Scipio" },
+        { value: "assets/portraits/zhang_fei.png", label: "Zhang Fei (장비)" },
+        { value: "assets/portraits/zhang_liao.png", label: "Zhang Liao (장료)" },
+        { value: "assets/portraits/zhao_yun.png", label: "Zhao Yun (조운)" },
+        { value: "assets/portraits/zhong_hui.png", label: "Zhong Hui (종회)" },
+        { value: "assets/portraits/zhou_yu.png", label: "Zhou Yu (주유)" },
+        { value: "assets/portraits/zhuge_liang.png", label: "Zhuge Liang (제갈량)" },
+      ];
 
       const SCENARIOS = [
         { id: "gaugamela", label: "가우가멜라 전투" },
@@ -392,7 +548,7 @@
         }
         const phase = currentPhase();
         scenarioPanelEl.hidden = !phase;
-        if (!phase) return;
+        if (!phase) { dialogueItemsEl.innerHTML = ""; return; }
         scenarioPanelTitleEl.textContent = scenario.name || scenario.id || "시나리오";
         scenarioPanelSummaryEl.textContent = scenario.summary || "";
         phasePanelTitleEl.textContent = `${selectedPhaseIndex + 1}. ${phase.title || phase.id}`;
@@ -405,7 +561,112 @@
           item.textContent = `[${objective.type || "objective"}] ${objective.label || objective.id || "목표"}${coords}`;
           objectiveListEl.appendChild(item);
         });
+        renderDialogueEditor();
       }
+
+      function renderDialogueEditor() {
+        const phase = currentPhase();
+        dialogueItemsEl.innerHTML = "";
+        if (!phase) return;
+        if (!Array.isArray(phase.dialogue)) phase.dialogue = [];
+        const dialogues = phase.dialogue;
+
+        dialogues.forEach((dlg, index) => {
+          const item = document.createElement("div");
+          item.className = "dlg-item" + (dlg.side === "enemy" ? " dlg-enemy" : "");
+
+          // 행1: 번호 · 진영 · 장수명 · 삭제
+          const row1 = document.createElement("div");
+          row1.className = "dlg-row";
+
+          const indexSpan = document.createElement("span");
+          indexSpan.className = "dlg-index";
+          indexSpan.textContent = index + 1;
+
+          const sideSelect = document.createElement("select");
+          sideSelect.className = "dlg-side";
+          [["player", "아군"], ["enemy", "적군"]].forEach(([val, label]) => {
+            const opt = document.createElement("option");
+            opt.value = val;
+            opt.textContent = label;
+            opt.selected = dlg.side === val;
+            sideSelect.appendChild(opt);
+          });
+          sideSelect.addEventListener("change", () => {
+            dlg.side = sideSelect.value;
+            item.className = "dlg-item" + (dlg.side === "enemy" ? " dlg-enemy" : "");
+          });
+
+          const speakerInput = document.createElement("input");
+          speakerInput.type = "text";
+          speakerInput.className = "dlg-speaker";
+          speakerInput.placeholder = "장수 이름";
+          speakerInput.value = dlg.speaker || "";
+          speakerInput.addEventListener("input", () => { dlg.speaker = speakerInput.value; });
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "dlg-delete";
+          deleteBtn.textContent = "×";
+          deleteBtn.title = "삭제";
+          deleteBtn.addEventListener("click", () => {
+            dialogues.splice(index, 1);
+            renderDialogueEditor();
+          });
+
+          row1.appendChild(indexSpan);
+          row1.appendChild(sideSelect);
+          row1.appendChild(speakerInput);
+          row1.appendChild(deleteBtn);
+
+          // 행2: 초상화 선택
+          const portraitSelect = document.createElement("select");
+          portraitSelect.className = "dlg-portrait";
+          PORTRAIT_OPTIONS.forEach(({ value, label }) => {
+            const opt = document.createElement("option");
+            opt.value = value;
+            opt.textContent = label;
+            opt.selected = dlg.portrait === value;
+            portraitSelect.appendChild(opt);
+          });
+          portraitSelect.addEventListener("change", () => {
+            dlg.portrait = portraitSelect.value || "";
+          });
+
+          // 행3: 대화 텍스트
+          const textArea = document.createElement("textarea");
+          textArea.className = "dlg-text";
+          textArea.rows = 3;
+          textArea.value = dlg.text || "";
+          textArea.addEventListener("input", () => { dlg.text = textArea.value; });
+
+          item.appendChild(row1);
+          item.appendChild(portraitSelect);
+          item.appendChild(textArea);
+          dialogueItemsEl.appendChild(item);
+        });
+
+        // 추가 버튼 (목록 하단)
+        if (dialogues.length > 0) {
+          const addBtn = document.createElement("button");
+          addBtn.type = "button";
+          addBtn.className = "dlg-add-btn";
+          addBtn.textContent = "＋ 대화 추가";
+          addBtn.addEventListener("click", addDialogue);
+          dialogueItemsEl.appendChild(addBtn);
+        }
+      }
+
+      function addDialogue() {
+        const phase = currentPhase();
+        if (!phase) return;
+        if (!Array.isArray(phase.dialogue)) phase.dialogue = [];
+        phase.dialogue.push({ side: "player", speaker: "", portrait: "", text: "" });
+        renderDialogueEditor();
+        dialogueItemsEl.lastElementChild?.previousElementSibling?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+
+      addDialogueBtnEl.addEventListener("click", addDialogue);
 
       function populateScenarioSelect() {
         scenarioSelectEl.innerHTML = "";
