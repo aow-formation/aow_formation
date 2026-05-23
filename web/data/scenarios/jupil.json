@@ -161,7 +161,8 @@
         "charm": 75,
         "skillType": "guard",
         "combatOverrides": {
-          "meleeAttackMult": 1.15
+          "meleeAttackMult": 0.92,
+          "rangedAttackMult": 0.8
         },
         "portrait": "assets/portraits/go_yeon_su.png",
         "position": {
@@ -185,7 +186,8 @@
         "charm": 70,
         "skillType": "guard",
         "combatOverrides": {
-          "meleeAttackMult": 1.15
+          "meleeAttackMult": 0.92,
+          "rangedAttackMult": 0.8
         },
         "portrait": "assets/portraits/go_hye_jin.png",
         "position": {
@@ -209,7 +211,8 @@
         "charm": 55,
         "skillType": "kihap",
         "combatOverrides": {
-          "meleeAttackMult": 1.15
+          "meleeAttackMult": 0.92,
+          "rangedAttackMult": 0.8
         },
         "portrait": "assets/portraits/xiang_yu.png",
         "position": {
@@ -232,6 +235,7 @@
         "leadership": 78,
         "charm": 62,
         "skillType": "kihap",
+        "combatOverrides": { "meleeAttackMult": 0.8 },
         "portrait": "assets/portraits/lu_bu.png",
         "position": {
           "x": 225,
@@ -253,6 +257,7 @@
         "leadership": 75,
         "charm": 60,
         "skillType": "guard",
+        "combatOverrides": { "meleeAttackMult": 0.8, "rangedAttackMult": 0.8 },
         "portrait": "assets/portraits/gyebaek.png",
         "position": {
           "x": 200,
@@ -276,7 +281,7 @@
           "speaker": "장손무기",
           "side": "player",
           "portrait": "assets/portraits/sun_bin.png",
-          "text": "폐하, 고구려군의 대열이 산 아래를 가득 메웠습니다. 수가 너무 많습니다."
+          "text": "폐하, 안시성을 구원하기 위한 고구려의 병사가 이 산 아래를 가득 메웠습니다. 수가 너무 많습니다."
         },
         {
           "speaker": "이세적",
@@ -288,29 +293,29 @@
           "speaker": "당태종",
           "side": "player",
           "portrait": "assets/portraits/tang_taizong.png",
-          "text": "그러니 정면은 이기는 곳이 아니라 붙잡는 곳이다."
-        },
-        {
-          "speaker": "설인귀",
-          "side": "player",
-          "portrait": "assets/portraits/huo_qubing.png",
-          "text": "폐하, 산길을 돌아 적의 뒤를 칠 기회를 주십시오."
+          "text": "정면을 최대한 버텨야 한다. 주필산에서 적과 대치하겠다."
         },
         {
           "speaker": "당태종",
           "side": "player",
           "portrait": "assets/portraits/tang_taizong.png",
-          "text": "좋다. 정면은 고정하고, 별동대는 산길로 돌아 후방 진지를 노린다."
+          "text": "정면은 고정하고, 설인귀와 계필하력은 산길로 돌아 후방 진지를 노린다."
         },
         {
-          "speaker": "고연수",
+          "speaker": "고정의",
           "side": "enemy",
           "portrait": "assets/portraits/go_yeon_su.png",
           "camera": {
             "x": 146,
             "y": 82
           },
-          "text": "당군은 적다. 중앙을 눌러 황제를 사로잡아라!"
+          "text": "적은 수나라의 백만대군이 넘지 못한 요동성을 함락한 정예입니다. 섣불리 움직이지 말아야 합니다."
+        },
+        {
+          "side": "player",
+          "speaker": "고혜진",
+          "portrait": "assets/portraits/go_hye_jin.png",
+          "text": "지금 황제를 사로잡는다면 다시는 고구려를 넘보지 못할 것이오. 압도적인 병력으로 황제를 꺽어야합니다."
         }
       ],
       "briefing": {
@@ -429,19 +434,13 @@
             "x": 110,
             "y": 84
           },
-          "text": "밀어붙여라! 저들의 전열은 얇다!"
+          "text": "밀어붙여라! 황제를 공략하면 이 전쟁은 끝이 난다."
         },
         {
           "speaker": "이세적",
           "side": "player",
           "portrait": "assets/portraits/wei_qing.png",
-          "text": "방패를 붙여라! 여기서 물러서면 별동대가 돌아갈 시간도 없다!"
-        },
-        {
-          "speaker": "당태종",
-          "side": "player",
-          "portrait": "assets/portraits/tang_taizong.png",
-          "text": "버텨라. 이 전투의 승리는 정면이 아니라 적의 뒤에서 열린다."
+          "text": "버텨야 한다! 여기서 물러서면 별동대가 돌아갈 시간도 없다!"
         },
         {
           "speaker": "장손무기",
@@ -453,13 +452,7 @@
           "speaker": "설인귀",
           "side": "player",
           "portrait": "assets/portraits/huo_qubing.png",
-          "text": "폐하, 산길로 진입하겠습니다."
-        },
-        {
-          "speaker": "당태종",
-          "side": "player",
-          "portrait": "assets/portraits/tang_taizong.png",
-          "text": "가라. 적이 눈치채기 전에 후방을 찔러라."
+          "text": "서둘러야 한다. 방어선이 무너지기 전에 적의 뒤를 쳐야 한다."
         }
       ],
       "briefing": {
@@ -637,7 +630,7 @@
           "speaker": "고연수",
           "side": "enemy",
           "portrait": "assets/portraits/go_yeon_su.png",
-          "text": "후방이라고? 그럴 리 없다. 대열을 유지하라!"
+          "text": "동요하지 말아야 한다. 양쪽으로 모두 방어를 해야한다."
         },
         {
           "speaker": "당태종",

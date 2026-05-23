@@ -297,8 +297,8 @@ body {
 
 .battle-loading-mask.is-hiding {
   opacity: 0;
-  pointer-events: auto;
-  cursor: pointer;
+  pointer-events: none;
+  cursor: default;
   user-select: none;
 }
 

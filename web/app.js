@@ -1434,6 +1434,7 @@ import {
     tileW: window.innerWidth < 950 ? 16 : DEFAULT_TILE_W,
     battlePhase: "planning",
     battleTime: 0,
+    phaseStartTime: 0,
     selectedId: 0,
     camera: vec(0, 0),
     dragState: null,
@@ -2028,6 +2029,7 @@ import {
       case "fire": {
         const fwd   = normalize(formation.facing);
         const alive = formation.units.filter(isUnitAlive);
+        const fireDmgMult = formation.combatOverrides?.fireDamageMult ?? 1;
         // 최전방 유닛 위치 탐색 (facing 방향 투영 최대값)
         let maxProj = -Infinity, frontX = formation.anchor.x, frontY = formation.anchor.y;
         alive.forEach(u => {
@@ -2047,11 +2049,11 @@ import {
             if (ptile === "river" || ptile === "wetland") continue;
             particles.push({
               x: px, y: py,
-              duration:  10 + Math.random() * 10,   // 10~20초 개별 지속
+              duration:  (10 + Math.random() * 10) * durMult,
               moveTimer: 1.0 + Math.random() * 0.4,
             });
           }
-        game.fires.push({ particles, dmgTimer: 1.0 });
+        game.fires.push({ particles, dmgTimer: 1.0, dmgMult: fireDmgMult });
         // 화공 사용 후 진형 자동 정지
         if (formation.speed !== "STOP") formation.prevSpeed = formation.speed;
         formation.speed = "STOP";
@@ -2107,7 +2109,7 @@ import {
           f.units.forEach(u => {
             if (!isUnitAlive(u)) return;
             if (!fire.particles.some(p => len(u.x - p.x, u.y - p.y) < 0.55)) return;
-            applyUnitDamage(f, u, 20);
+            applyUnitDamage(f, u, 20 * (fire.dmgMult ?? 1));
           });
         });
       }
@@ -5003,6 +5005,7 @@ import {
     game.scenarioDialogueIndex = 0;
     game.scenarioObjectiveState = {};
     game.scenarioSkillUseCounts = {};
+    game.phaseStartTime = game.battleTime;
     game.scenarioStep = "dialogue";
     game.scenarioSceneLocked = true;
     game.scenarioMarkers = [];
@@ -5098,6 +5101,12 @@ import {
         formations.forEach((formation) => {
           formation.disorderAccum = Math.max(formation.disorderAccum, effect.value ?? 0);
           formation.disorder = Math.max(formation.disorder, effect.value ?? 0);
+        });
+      } else if (effect.type === "addDisorder") {
+        formations.forEach((formation) => {
+          const newVal = Math.min(1.0, formation.disorder + (effect.value ?? 0));
+          formation.disorderAccum = newVal;
+          formation.disorder = newVal;
         });
       } else if (effect.type === "combatOverrides") {
         formations.forEach((formation) => {
@@ -5507,6 +5516,7 @@ import {
     const runScenarioAiAction = (action) => {
       if (action.afterObjective && !game.scenarioObjectiveState[action.afterObjective]?.complete) return;
       if (action.untilObjective && game.scenarioObjectiveState[action.untilObjective]?.complete) return;
+      if (action.startAfterSeconds && (game.battleTime - game.phaseStartTime) < action.startAfterSeconds) return;
       if (action.type === "routeAtRatio") {
         const formation = actionFormation(action);
         if (!formation || formation.retreating || formation.retreated) return;

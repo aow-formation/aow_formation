@@ -151,6 +151,8 @@
         "charm": 85,
         "skillType": "guard",
         "combatOverrides": {
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.8,
           "meleeDefenseMult": 2,
           "rangedDefenseMult": 2
         },
@@ -176,6 +178,8 @@
         "charm": 70,
         "skillType": "guard",
         "combatOverrides": {
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.8,
           "meleeDefenseMult": 2,
           "rangedDefenseMult": 2
         },
@@ -201,6 +205,8 @@
         "charm": 65,
         "skillType": "guard",
         "combatOverrides": {
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.8,
           "meleeDefenseMult": 2,
           "rangedDefenseMult": 2
         },
@@ -225,6 +231,7 @@
         "leadership": 85,
         "charm": 90,
         "skillType": "kihap",
+        "combatOverrides": { "meleeAttackMult": 0.8 },
         "portrait": "assets/portraits/caesar.png",
         "position": {
           "x": 224,
@@ -246,6 +253,7 @@
         "leadership": 70,
         "charm": 60,
         "skillType": "kihap",
+        "combatOverrides": { "meleeAttackMult": 0.8 },
         "portrait": "assets/portraits/caesar.png",
         "position": {
           "x": 224,

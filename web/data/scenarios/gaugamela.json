@@ -142,6 +142,7 @@
         "leadership": 80,
         "charm": 70,
         "skillType": "kihap",
+        "combatOverrides": { "meleeAttackMult": 0.8 },
         "portrait": "assets/portraits/attila.png",
         "position": {
           "x": 178,
@@ -164,7 +165,8 @@
         "charm": 75,
         "skillType": "guard",
         "combatOverrides": {
-          "meleeAttackMult": 1.15
+          "meleeAttackMult": 0.92,
+          "rangedAttackMult": 0.8
         },
         "portrait": "assets/portraits/caesar.png",
         "position": {
@@ -188,7 +190,8 @@
         "charm": 60,
         "skillType": "kihap",
         "combatOverrides": {
-          "meleeAttackMult": 1.15
+          "meleeAttackMult": 0.92,
+          "rangedAttackMult": 0.8
         },
         "portrait": "assets/portraits/caesar.png",
         "position": {
@@ -211,6 +214,7 @@
         "leadership": 82,
         "charm": 72,
         "skillType": "kihap",
+        "combatOverrides": { "meleeAttackMult": 0.8 },
         "portrait": "assets/portraits/attila.png",
         "position": {
           "x": 178,
@@ -232,6 +236,7 @@
         "leadership": 78,
         "charm": 88,
         "skillType": "kihap",
+        "combatOverrides": { "meleeAttackMult": 0.8, "rangedAttackMult": 0.8 },
         "portrait": "assets/portraits/darius_iii.png",
         "position": {
           "x": 204,

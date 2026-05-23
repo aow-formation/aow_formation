@@ -139,6 +139,7 @@
         "leadership": 84,
         "charm": 70,
         "skillType": "kihap",
+        "combatOverrides": { "meleeAttackMult": 0.8 },
         "portrait": "assets/portraits/so_bae_ap.png",
         "position": {
           "x": 204,
@@ -160,6 +161,7 @@
         "leadership": 76,
         "charm": 62,
         "skillType": "kihap",
+        "combatOverrides": { "meleeAttackMult": 0.8 },
         "portrait": "assets/portraits/lu_bu.png",
         "position": {
           "x": 190,
@@ -181,6 +183,7 @@
         "leadership": 72,
         "charm": 58,
         "skillType": "guard",
+        "combatOverrides": { "meleeAttackMult": 0.8, "rangedAttackMult": 0.8 },
         "portrait": "assets/portraits/meng_tian.png",
         "position": {
           "x": 196,
@@ -202,6 +205,7 @@
         "leadership": 68,
         "charm": 55,
         "skillType": "guard",
+        "combatOverrides": { "meleeAttackMult": 0.8, "rangedAttackMult": 0.8 },
         "portrait": "assets/portraits/bai_qi.png",
         "position": {
           "x": 212,
@@ -225,7 +229,8 @@
         "skillType": "kihap",
         "combatOverrides": {
           "canRangedAttack": true,
-          "rangedAttackMult": 0.9
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.72
         },
         "portrait": "assets/portraits/ma_chao.png",
         "position": {
@@ -275,16 +280,6 @@
           "side": "player",
           "portrait": "assets/portraits/gang_gamchan.png",
           "text": "아직 움직이지 마라. 적이 강 한가운데 들어올 때까지 기다린다."
-        },
-        {
-          "speaker": "소배압",
-          "side": "enemy",
-          "portrait": "assets/portraits/so_bae_ap.png",
-          "camera": {
-            "x": 190,
-            "y": 82
-          },
-          "text": "고려군은 물러섰다. 강을 건너 곧장 밀어붙여라!"
         }
       ],
       "briefing": {
@@ -298,8 +293,8 @@
             "id": "goryeo_hold",
             "type": "rect",
             "label": "방어선",
-            "x": 42,
-            "y": 58,
+            "x": 64,
+            "y": 73,
             "w": 24,
             "h": 44
           },
@@ -313,8 +308,8 @@
           {
             "id": "south_ambush",
             "label": "남쪽 매복",
-            "x": 91,
-            "y": 140,
+            "x": 130,
+            "y": 150,
             "radius": 8
           }
         ]
@@ -328,8 +323,8 @@
             "remnant_guard",
             "goryeo_archers"
           ],
-          "x": 42,
-          "y": 58,
+          "x": 64,
+          "y": 73,
           "w": 24,
           "h": 44,
           "holdSeconds": 2,
@@ -352,8 +347,8 @@
           "formationIds": [
             "jo_won"
           ],
-          "x": 91,
-          "y": 140,
+          "x": 130,
+          "y": 150,
           "radius": 20,
           "label": "조원 기병을 남쪽 매복 구역에 배치하십시오."
         }
@@ -445,7 +440,7 @@
           "speaker": "소배압",
           "side": "enemy",
           "portrait": "assets/portraits/so_bae_ap.png",
-          "text": "속도를 늦추지 마라! 고려군이 겁을 먹고 물러난 것이다."
+          "text": "속도를 늦추지 마라! 강 건너의 적을 섬멸하는 것이 목표다."
         },
         {
           "speaker": "강감찬",
@@ -575,22 +570,10 @@
           "text": "지금이다. 둑을 터뜨려라."
         },
         {
-          "speaker": "거란 선봉",
-          "side": "enemy",
-          "portrait": "assets/portraits/lu_bu.png",
-          "text": "물이 불어난다! 말이 움직이지 않는다!"
-        },
-        {
           "speaker": "소배압",
           "side": "enemy",
           "portrait": "assets/portraits/so_bae_ap.png",
           "text": "무슨 일이냐! 대열을 유지하라!"
-        },
-        {
-          "speaker": "강감찬",
-          "side": "player",
-          "portrait": "assets/portraits/gang_gamchan.png",
-          "text": "강은 이미 우리의 군대가 되었다. 이제 기병을 준비시켜라."
         }
       ],
       "briefing": {
@@ -733,13 +716,13 @@
           "speaker": "김종현",
           "side": "player",
           "portrait": "assets/portraits/kim_yusin.png",
-          "text": "적의 말이 진흙 속에 묶였습니다. 지금 돌격하면 무너집니다!"
+          "text": "적의 말이 혼란에 빠졌습니다. 지금 돌격하면 무너집니다!"
         },
         {
           "speaker": "강감찬",
           "side": "player",
           "portrait": "assets/portraits/gang_gamchan.png",
-          "text": "북쪽과 남쪽에서 동시에 쳐라. 적이 물에서 나오기 전에 끝낸다."
+          "text": "북쪽과 남쪽에서 동시에 쳐라."
         },
         {
           "speaker": "조원",
