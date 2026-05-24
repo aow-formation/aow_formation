@@ -5326,27 +5326,6 @@ import {
     return state;
   }
 
-  function objectiveToMarker(objective) {
-    if (typeof objective.x !== "number" || typeof objective.y !== "number") return null;
-    if (typeof objective.w === "number" && typeof objective.h === "number") {
-      return { type: "rect", x: objective.x, y: objective.y, w: objective.w, h: objective.h, label: objective.label };
-    }
-    if (typeof objective.radius === "number") {
-      return { x: objective.x, y: objective.y, radius: objective.radius, label: objective.label };
-    }
-    return null;
-  }
-
-  function revealObjectiveMarker(objective) {
-    const marker = objectiveToMarker(objective);
-    if (!marker) return;
-    game.scenarioMarkers = [marker];
-    game.scenarioMarkerRevealUntil = game.battleTime + 5;
-    const cx = typeof marker.w === "number" ? marker.x + marker.w / 2 : marker.x;
-    const cy = typeof marker.h === "number" ? marker.y + marker.h / 2 : marker.y;
-    centerCameraOn(vec(cx, cy));
-  }
-
   function updateScenarioHud() {
     if (!isHistoricalMode() || !scenarioHud) {
       if (scenarioHud) scenarioHud.hidden = true;
@@ -5362,14 +5341,6 @@ import {
       item.className = "scenario-objective";
       item.dataset.complete = state.complete ? "true" : "false";
       item.textContent = `${state.complete ? "완료" : "진행"} · ${objective.label}`;
-      const marker = objectiveToMarker(objective);
-      if (marker) {
-        item.dataset.hasTarget = "true";
-        item.addEventListener("click", (e) => {
-          e.stopPropagation();
-          revealObjectiveMarker(objective);
-        });
-      }
       scenarioObjectives.appendChild(item);
     });
   }

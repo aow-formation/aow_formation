@@ -358,19 +358,6 @@ body {
   color: var(--text-dim);
 }
 
-.scenario-objective[data-has-target="true"] {
-  cursor: pointer;
-  padding: 3px 6px;
-  margin: -3px -6px;
-  border-radius: 3px;
-  transition: background 0.15s, color 0.15s;
-}
-
-.scenario-objective[data-has-target="true"]:hover {
-  background: rgba(255, 215, 80, 0.12);
-  color: #e8c85a;
-}
-
 .scenario-objective[data-complete="true"] {
   color: #b9e080;
 }
