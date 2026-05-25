@@ -231,7 +231,9 @@
         "leadership": 85,
         "charm": 90,
         "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
         "portrait": "assets/portraits/caesar.png",
         "position": {
           "x": 224,
@@ -253,7 +255,9 @@
         "leadership": 70,
         "charm": 60,
         "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
         "portrait": "assets/portraits/caesar.png",
         "position": {
           "x": 224,
@@ -326,9 +330,9 @@
             "type": "rect",
             "label": "아군 집결 구역",
             "x": 78,
-            "y": 42,
+            "y": 52,
             "w": 18,
-            "h": 78
+            "h": 61
           }
         ]
       },
@@ -337,9 +341,9 @@
           "id": "player_rally_hold",
           "type": "allPlayerFormationsInRectStopped",
           "x": 78,
-          "y": 42,
+          "y": 53,
           "w": 18,
-          "h": 78,
+          "h": 60,
           "holdSeconds": 2,
           "label": "모든 아군 진형을 집결 구역 안에서 정지 상태로 유지하십시오."
         }
@@ -509,7 +513,7 @@
             "id": "retreat_rect",
             "type": "rect",
             "label": "중앙 후퇴선",
-            "x": 40,
+            "x": 69,
             "y": 66,
             "w": 28,
             "h": 34
@@ -538,7 +542,7 @@
             "mago",
             "gisgo"
           ],
-          "x": 40,
+          "x": 69,
           "y": 66,
           "w": 28,
           "h": 34,

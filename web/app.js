@@ -1435,6 +1435,7 @@ import {
     battlePhase: "planning",
     battleTime: 0,
     phaseStartTime: 0,
+    scenarioAggroTime: 0,
     selectedId: 0,
     camera: vec(0, 0),
     dragState: null,
@@ -5517,6 +5518,7 @@ import {
       if (action.afterObjective && !game.scenarioObjectiveState[action.afterObjective]?.complete) return;
       if (action.untilObjective && game.scenarioObjectiveState[action.untilObjective]?.complete) return;
       if (action.startAfterSeconds && (game.battleTime - game.phaseStartTime) < action.startAfterSeconds) return;
+      if (action.delayAfterAggro != null && (!game.scenarioAggro || (game.battleTime - game.scenarioAggroTime) < action.delayAfterAggro)) return;
       if (action.type === "routeAtRatio") {
         const formation = actionFormation(action);
         if (!formation || formation.retreating || formation.retreated) return;
@@ -5555,6 +5557,7 @@ import {
     if (phaseAi?.actions?.length) {
       if (phaseAi.aggroOnEnemyLoss && !game.scenarioAggro && game.enemyFormations.some(f => (f.general.losses || 0) > 0)) {
         game.scenarioAggro = true;
+        game.scenarioAggroTime = game.battleTime;
       }
       if (game.scenarioAggro && phaseAi.aggroActions?.length) {
         phaseAi.aggroActions.forEach(runScenarioAiAction);

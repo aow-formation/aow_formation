@@ -139,7 +139,9 @@
         "leadership": 84,
         "charm": 70,
         "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
         "portrait": "assets/portraits/so_bae_ap.png",
         "position": {
           "x": 204,
@@ -161,7 +163,9 @@
         "leadership": 76,
         "charm": 62,
         "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
         "portrait": "assets/portraits/lu_bu.png",
         "position": {
           "x": 190,
@@ -183,7 +187,10 @@
         "leadership": 72,
         "charm": 58,
         "skillType": "guard",
-        "combatOverrides": { "meleeAttackMult": 0.8, "rangedAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.8
+        },
         "portrait": "assets/portraits/meng_tian.png",
         "position": {
           "x": 196,
@@ -205,7 +212,10 @@
         "leadership": 68,
         "charm": 55,
         "skillType": "guard",
-        "combatOverrides": { "meleeAttackMult": 0.8, "rangedAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.8
+        },
         "portrait": "assets/portraits/bai_qi.png",
         "position": {
           "x": 212,
@@ -301,8 +311,8 @@
           {
             "id": "north_ambush",
             "label": "북쪽 매복",
-            "x": 90,
-            "y": 8,
+            "x": 95,
+            "y": 7,
             "radius": 8
           },
           {
@@ -336,8 +346,8 @@
           "formationIds": [
             "kim_jonghyeon"
           ],
-          "x": 90,
-          "y": 8,
+          "x": 95,
+          "y": 7,
           "radius": 20,
           "label": "김종현 기병을 북쪽 매복 구역에 배치하십시오."
         },
@@ -754,7 +764,7 @@
             "id": "pursuit_line",
             "type": "rect",
             "label": "기병 돌격선",
-            "x": 158,
+            "x": 108,
             "y": 59,
             "w": 24,
             "h": 52
@@ -769,7 +779,7 @@
             "kim_jonghyeon",
             "jo_won"
           ],
-          "x": 158,
+          "x": 108,
           "y": 59,
           "w": 24,
           "h": 52,

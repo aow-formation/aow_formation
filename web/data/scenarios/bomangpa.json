@@ -386,47 +386,27 @@
       "ai": {
         "actions": [
           {
-            "type": "moveTo",
+            "type": "hold",
             "team": "enemy",
             "formationId": "xiahou_dun",
-            "target": {
-              "x": 176,
-              "y": 78
-            },
-            "speed": "NORMAL",
             "density": "NORMAL"
           },
           {
-            "type": "moveTo",
+            "type": "hold",
             "team": "enemy",
             "formationId": "cao_vanguard",
-            "target": {
-              "x": 182,
-              "y": 88
-            },
-            "speed": "NORMAL",
             "density": "NORMAL"
           },
           {
-            "type": "moveTo",
+            "type": "hold",
             "team": "enemy",
             "formationId": "yu_jin",
-            "target": {
-              "x": 192,
-              "y": 72
-            },
-            "speed": "SLOW",
             "density": "TIGHT"
           },
           {
-            "type": "moveTo",
+            "type": "hold",
             "team": "enemy",
             "formationId": "li_dian",
-            "target": {
-              "x": 192,
-              "y": 94
-            },
-            "speed": "SLOW",
             "density": "TIGHT"
           },
           {
@@ -516,14 +496,48 @@
         }
       ],
       "ai": {
+        "aggroOnEnemyLoss": true,
         "actions": [
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "xiahou_dun",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "cao_vanguard",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "yu_jin",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "li_dian",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "cao_rear",
+            "density": "TIGHT"
+          }
+        ],
+        "aggroActions": [
           {
             "type": "pursue",
             "team": "enemy",
             "formationId": "xiahou_dun",
             "targetFormationId": "zhao_yun",
             "speed": "FAST",
-            "density": "NORMAL"
+            "density": "NORMAL",
+            "delayAfterAggro": 0
           },
           {
             "type": "pursue",
@@ -532,7 +546,7 @@
             "targetFormationId": "zhao_yun",
             "speed": "FAST",
             "density": "NORMAL",
-            "startAfterSeconds": 10
+            "delayAfterAggro": 10
           },
           {
             "type": "pursue",
@@ -541,7 +555,7 @@
             "targetFormationId": "zhao_yun",
             "speed": "NORMAL",
             "density": "TIGHT",
-            "startAfterSeconds": 20
+            "delayAfterAggro": 20
           },
           {
             "type": "pursue",
@@ -550,7 +564,7 @@
             "targetFormationId": "zhao_yun",
             "speed": "NORMAL",
             "density": "TIGHT",
-            "startAfterSeconds": 30
+            "delayAfterAggro": 30
           },
           {
             "type": "pursue",
@@ -559,7 +573,7 @@
             "targetFormationId": "zhao_yun",
             "speed": "SLOW",
             "density": "TIGHT",
-            "startAfterSeconds": 40
+            "delayAfterAggro": 40
           }
         ]
       }
@@ -579,24 +593,6 @@
           "side": "player",
           "portrait": "assets/portraits/zhuge_liang.png",
           "text": "바람은 동쪽에서 불고, 마른 풀은 길을 따라 이어져 있다. 지금이다. 불을 지르라!"
-        },
-        {
-          "speaker": "하후돈",
-          "side": "enemy",
-          "portrait": "assets/portraits/dian_wei.png",
-          "text": "연기? 아니, 불길이다! 대열을 돌려라! 빨리 빠져나가라!"
-        },
-        {
-          "speaker": "관우",
-          "side": "player",
-          "portrait": "assets/portraits/guan_yu.png",
-          "text": "적의 옆구리가 드러났다. 북쪽 숲에서 내려친다!"
-        },
-        {
-          "speaker": "장비",
-          "side": "player",
-          "portrait": "assets/portraits/zhang_fei.png",
-          "text": "남쪽 길은 내게 맡겨라! 하후돈, 어디 한번 빠져나가 보아라!"
         }
       ],
       "briefing": {

@@ -22,8 +22,8 @@
         },
         "portrait": "assets/portraits/alexander.png",
         "position": {
-          "x": 42,
-          "y": 42
+          "x": 45,
+          "y": 41
         },
         "facing": {
           "x": 1,
@@ -36,15 +36,15 @@
         "id": "philotas",
         "name": "필로타스",
         "troopType": "cavalry",
-        "troops": 8000,
+        "troops": 5000,
         "power": 86,
         "leadership": 84,
         "charm": 70,
         "skillType": "kihap",
         "portrait": "assets/portraits/philotas.png",
         "position": {
-          "x": 46,
-          "y": 52
+          "x": 45,
+          "y": 57
         },
         "facing": {
           "x": 1,
@@ -57,7 +57,7 @@
         "id": "craterus",
         "name": "크라테로스",
         "troopType": "infantry",
-        "troops": 10000,
+        "troops": 13000,
         "power": 84,
         "leadership": 88,
         "charm": 75,
@@ -69,20 +69,20 @@
         "portrait": "assets/portraits/alexander.png",
         "position": {
           "x": 44,
-          "y": 76
+          "y": 75
         },
         "facing": {
           "x": 1,
           "y": 0
         },
-        "density": "TIGHT",
+        "density": "NORMAL",
         "speed": "STOP"
       },
       {
         "id": "coenus",
         "name": "코이노스",
         "troopType": "infantry",
-        "troops": 9000,
+        "troops": 11000,
         "power": 80,
         "leadership": 86,
         "charm": 72,
@@ -93,21 +93,21 @@
         },
         "portrait": "assets/portraits/alexander.png",
         "position": {
-          "x": 42,
-          "y": 88
+          "x": 44,
+          "y": 93
         },
         "facing": {
           "x": 1,
           "y": 0
         },
-        "density": "TIGHT",
+        "density": "NORMAL",
         "speed": "STOP"
       },
       {
         "id": "parmenion",
         "name": "파르메니온",
         "troopType": "infantry",
-        "troops": 10000,
+        "troops": 13000,
         "power": 82,
         "leadership": 92,
         "charm": 78,
@@ -118,14 +118,14 @@
         },
         "portrait": "assets/portraits/alexander.png",
         "position": {
-          "x": 42,
-          "y": 112
+          "x": 44,
+          "y": 111
         },
         "facing": {
           "x": 1,
           "y": 0
         },
-        "density": "TIGHT",
+        "density": "NORMAL",
         "speed": "STOP"
       }
     ]
@@ -137,16 +137,18 @@
         "id": "bessus",
         "name": "베수스",
         "troopType": "cavalry",
-        "troops": 18000,
+        "troops": 15000,
         "power": 82,
         "leadership": 80,
         "charm": 70,
         "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
         "portrait": "assets/portraits/attila.png",
         "position": {
-          "x": 178,
-          "y": 42
+          "x": 175,
+          "y": 40
         },
         "facing": {
           "x": -1,
@@ -159,7 +161,7 @@
         "id": "royal_guard",
         "name": "왕실 근위대",
         "troopType": "infantry",
-        "troops": 22000,
+        "troops": 18000,
         "power": 86,
         "leadership": 84,
         "charm": 75,
@@ -170,21 +172,21 @@
         },
         "portrait": "assets/portraits/caesar.png",
         "position": {
-          "x": 176,
-          "y": 72
+          "x": 175,
+          "y": 63
         },
         "facing": {
           "x": -1,
           "y": 0
         },
-        "density": "TIGHT",
+        "density": "NORMAL",
         "speed": "STOP"
       },
       {
         "id": "persian_host",
         "name": "페르시아 대군",
         "troopType": "infantry",
-        "troops": 30000,
+        "troops": 24000,
         "power": 74,
         "leadership": 70,
         "charm": 60,
@@ -195,30 +197,32 @@
         },
         "portrait": "assets/portraits/caesar.png",
         "position": {
-          "x": 182,
-          "y": 88
+          "x": 177,
+          "y": 93
         },
         "facing": {
           "x": -1,
           "y": 0
         },
-        "density": "TIGHT",
+        "density": "NORMAL",
         "speed": "STOP"
       },
       {
         "id": "mazaeus",
         "name": "마자이오스",
         "troopType": "cavalry",
-        "troops": 18000,
+        "troops": 15000,
         "power": 84,
         "leadership": 82,
         "charm": 72,
         "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
         "portrait": "assets/portraits/attila.png",
         "position": {
-          "x": 178,
-          "y": 116
+          "x": 177,
+          "y": 115
         },
         "facing": {
           "x": -1,
@@ -231,16 +235,19 @@
         "id": "darius_iii",
         "name": "다리우스 3세",
         "troopType": "infantry",
-        "troops": 12000,
+        "troops": 20000,
         "power": 65,
         "leadership": 78,
         "charm": 88,
         "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 0.8, "rangedAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.8
+        },
         "portrait": "assets/portraits/darius_iii.png",
         "position": {
-          "x": 204,
-          "y": 82
+          "x": 199,
+          "y": 80
         },
         "facing": {
           "x": -1,
@@ -298,7 +305,7 @@
         }
       ],
       "briefing": {
-        "text": "팔랑크스 3부대는 중앙 집결선에 세우고, 알렉산더와 필로타스 기병은 우익 집결지로 이동시키십시오.",
+        "text": "팔랑크스 3부대는 중앙 집결선에 세우고, 알렉산더 기병을 우익 집결지로 이동시키십시오.",
         "camera": {
           "x": 64,
           "y": 80
@@ -308,16 +315,16 @@
             "id": "macedon_line",
             "type": "rect",
             "label": "팔랑크스 집결선",
-            "x": 48,
-            "y": 54,
+            "x": 80,
+            "y": 59,
             "w": 18,
-            "h": 52
+            "h": 40
           },
           {
             "id": "alexander_rally",
             "label": "기병 집결지",
-            "x": 54,
-            "y": 42,
+            "x": 89,
+            "y": 45,
             "radius": 8
           }
         ]
@@ -331,24 +338,21 @@
             "coenus",
             "parmenion"
           ],
-          "x": 48,
-          "y": 54,
+          "x": 80,
+          "y": 59,
           "w": 18,
-          "h": 52,
+          "h": 40,
           "holdSeconds": 2,
           "label": "팔랑크스 3부대를 중앙 집결선에 정지시키십시오."
         },
         {
           "id": "cavalry_ready",
-          "type": "formationsAtArea",
-          "formationIds": [
-            "alexander",
-            "philotas"
-          ],
-          "x": 54,
-          "y": 42,
+          "type": "formationAtArea",
+          "formationId": "alexander",
+          "x": 89,
+          "y": 45,
           "radius": 8,
-          "label": "알렉산더와 필로타스 기병을 우익 집결지에 모으십시오."
+          "label": "알렉산더를 우익 집결지로 이동시키십시오."
         }
       ],
       "ai": {
@@ -359,7 +363,7 @@
             "team": "enemy",
             "formationId": "bessus",
             "targetMode": "nearestPlayer",
-            "speed": "NORMAL",
+            "speed": "FAST",
             "density": "NORMAL"
           },
           {
@@ -367,22 +371,33 @@
             "team": "enemy",
             "formationId": "royal_guard",
             "targetMode": "forwardPlayer",
-            "speed": "NORMAL",
-            "density": "TIGHT"
+            "speed": "FAST",
+            "density": "NORMAL"
           },
           {
             "type": "pursue",
             "team": "enemy",
             "formationId": "persian_host",
             "targetMode": "forwardPlayer",
-            "speed": "NORMAL",
-            "density": "TIGHT"
+            "speed": "FAST",
+            "density": "NORMAL"
           },
           {
             "type": "pursue",
             "team": "enemy",
             "formationId": "mazaeus",
             "targetMode": "nearestPlayer",
+            "speed": "FAST",
+            "density": "NORMAL"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "darius_iii",
+            "target": {
+              "x": 170,
+              "y": 80
+            },
             "speed": "NORMAL",
             "density": "NORMAL"
           }
@@ -393,8 +408,8 @@
             "team": "enemy",
             "formationId": "bessus",
             "target": {
-              "x": 150,
-              "y": 34
+              "x": 151,
+              "y": 39
             },
             "speed": "SLOW",
             "density": "NORMAL"
@@ -404,30 +419,30 @@
             "team": "enemy",
             "formationId": "royal_guard",
             "target": {
-              "x": 150,
-              "y": 70
+              "x": 124,
+              "y": 65
             },
             "speed": "SLOW",
-            "density": "TIGHT"
+            "density": "NORMAL"
           },
           {
             "type": "moveTo",
             "team": "enemy",
             "formationId": "persian_host",
             "target": {
-              "x": 152,
-              "y": 90
+              "x": 124,
+              "y": 88
             },
             "speed": "SLOW",
-            "density": "TIGHT"
+            "density": "NORMAL"
           },
           {
             "type": "moveTo",
             "team": "enemy",
             "formationId": "mazaeus",
             "target": {
-              "x": 150,
-              "y": 124
+              "x": 149,
+              "y": 116
             },
             "speed": "SLOW",
             "density": "NORMAL"
@@ -497,7 +512,7 @@
             "id": "hold_line",
             "type": "rect",
             "label": "방어선",
-            "x": 72,
+            "x": 81,
             "y": 56,
             "w": 18,
             "h": 48
@@ -520,9 +535,9 @@
             "coenus",
             "parmenion"
           ],
-          "seconds": 75,
+          "seconds": 40,
           "minRatio": 0.35,
-          "label": "팔랑크스가 75초 동안 버티게 하십시오."
+          "label": "팔랑크스가 40초 동안 버티게 하십시오."
         },
         {
           "id": "phalanx_alive",
@@ -544,10 +559,10 @@
             "team": "enemy",
             "formationId": "bessus",
             "target": {
-              "x": 116,
-              "y": 24
+              "x": 119,
+              "y": 36
             },
-            "speed": "NORMAL",
+            "speed": "FAST",
             "density": "NORMAL",
             "holdRadius": 5
           },
@@ -556,33 +571,38 @@
             "team": "enemy",
             "formationId": "royal_guard",
             "targetFormationId": "craterus",
-            "speed": "NORMAL",
-            "density": "TIGHT"
+            "speed": "FAST",
+            "density": "NORMAL"
           },
           {
             "type": "pursue",
             "team": "enemy",
             "formationId": "persian_host",
             "targetFormationId": "coenus",
-            "speed": "NORMAL",
-            "density": "TIGHT"
+            "speed": "FAST",
+            "density": "NORMAL"
           },
           {
             "type": "moveTo",
             "team": "enemy",
             "formationId": "mazaeus",
             "target": {
-              "x": 116,
-              "y": 132
+              "x": 121,
+              "y": 114
             },
-            "speed": "NORMAL",
+            "speed": "FAST",
             "density": "NORMAL",
             "holdRadius": 5
           },
           {
-            "type": "hold",
+            "type": "moveTo",
             "team": "enemy",
             "formationId": "darius_iii",
+            "target": {
+              "x": 175,
+              "y": 80
+            },
+            "speed": "NORMAL",
             "density": "NORMAL"
           }
         ]
@@ -661,21 +681,26 @@
             "team": "enemy",
             "formationId": "royal_guard",
             "targetFormationId": "alexander",
-            "speed": "NORMAL",
-            "density": "TIGHT"
+            "speed": "FAST",
+            "density": "NORMAL"
           },
           {
             "type": "pursue",
             "team": "enemy",
             "formationId": "persian_host",
             "targetMode": "forwardPlayer",
-            "speed": "NORMAL",
-            "density": "TIGHT"
+            "speed": "FAST",
+            "density": "NORMAL"
           },
           {
-            "type": "hold",
+            "type": "moveTo",
             "team": "enemy",
             "formationId": "darius_iii",
+            "target": {
+              "x": 175,
+              "y": 80
+            },
+            "speed": "NORMAL",
             "density": "NORMAL"
           },
           {
@@ -683,7 +708,7 @@
             "team": "enemy",
             "formationId": "bessus",
             "targetMode": "nearestPlayer",
-            "speed": "NORMAL",
+            "speed": "FAST",
             "density": "NORMAL"
           },
           {
@@ -691,7 +716,7 @@
             "team": "enemy",
             "formationId": "mazaeus",
             "targetMode": "nearestPlayer",
-            "speed": "NORMAL",
+            "speed": "FAST",
             "density": "NORMAL"
           }
         ]
@@ -752,7 +777,7 @@
           {
             "id": "darius_camp",
             "label": "다리우스 본진",
-            "x": 188,
+            "x": 173,
             "y": 80,
             "radius": 12
           }
@@ -828,23 +853,23 @@
             "team": "enemy",
             "formationId": "royal_guard",
             "targetFormationId": "alexander",
-            "speed": "NORMAL",
-            "density": "TIGHT"
+            "speed": "FAST",
+            "density": "NORMAL"
           },
           {
             "type": "pursue",
             "team": "enemy",
             "formationId": "persian_host",
             "targetMode": "forwardPlayer",
-            "speed": "NORMAL",
-            "density": "TIGHT"
+            "speed": "FAST",
+            "density": "NORMAL"
           },
           {
             "type": "pursue",
             "team": "enemy",
             "formationId": "bessus",
             "targetMode": "nearestPlayer",
-            "speed": "NORMAL",
+            "speed": "FAST",
             "density": "NORMAL"
           },
           {
@@ -852,7 +877,7 @@
             "team": "enemy",
             "formationId": "mazaeus",
             "targetMode": "nearestPlayer",
-            "speed": "NORMAL",
+            "speed": "FAST",
             "density": "NORMAL"
           }
         ]
@@ -962,7 +987,7 @@
             "formationId": "royal_guard",
             "targetFormationId": "alexander",
             "speed": "SLOW",
-            "density": "TIGHT"
+            "density": "NORMAL"
           },
           {
             "type": "pursue",
@@ -970,7 +995,7 @@
             "formationId": "persian_host",
             "targetMode": "nearestPlayer",
             "speed": "SLOW",
-            "density": "TIGHT"
+            "density": "NORMAL"
           },
           {
             "type": "pursue",

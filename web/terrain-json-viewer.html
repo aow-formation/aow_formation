@@ -496,6 +496,7 @@
       let editingBriefingMarker = null;
       let editingCircleMarker = null;
       let editingFormation = null;
+      let editingAiTarget = null;
       let cellSize   = 4;
       let selected   = "plain";
       let brushSize  = 1;
@@ -533,6 +534,7 @@
         editingBriefingMarker = null;
         editingCircleMarker = null;
         editingFormation = null;
+        editingAiTarget = null;
         showBriefingMarkersEl.disabled = !scenario;
         showObjectiveMarkersEl.disabled = !scenario;
         showFormationsEl.disabled = !scenario;
@@ -944,6 +946,52 @@
         return markerCenter(action);
       }
 
+      function editableAiTargets() {
+        if (!scenario || !showAiTargetsEl.checked) return [];
+        const phase = currentPhase();
+        if (!phase?.ai) return [];
+        const actions = [
+          ...(phase.ai.actions || []).map((action) => ({ action, aggro: false })),
+          ...(phase.ai.aggroActions || []).map((action) => ({ action, aggro: true }))
+        ];
+        return actions
+          .filter(({ action }) => (action.team || "enemy") === "enemy" && !action.targetMode && !action.targetFormationId)
+          .map(({ action, aggro }) => {
+            let targetObj = null;
+            if (action.target && typeof action.target.x === "number") targetObj = action.target;
+            else if (typeof action.x === "number" && typeof action.y === "number") targetObj = action;
+            if (!targetObj) return null;
+            return { action, aggro, targetObj };
+          })
+          .filter(Boolean);
+      }
+
+      function aiTargetHitAt(pos) {
+        if (!pos) return null;
+        const targets = editableAiTargets();
+        const radius = Math.max(4, 12 / cellSize);
+        for (let i = targets.length - 1; i >= 0; i--) {
+          const item = targets[i];
+          if (Math.hypot(pos.x - item.targetObj.x, pos.y - item.targetObj.y) <= radius) {
+            return item;
+          }
+        }
+        return null;
+      }
+
+      function drawAiTargetEditState() {
+        if (!editingAiTarget?.targetObj) return;
+        const { x, y } = editingAiTarget.targetObj;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(tileToPx(x), tileToPx(y), tileToPx(5), 0, Math.PI * 2);
+        ctx.strokeStyle = "#ff9044";
+        ctx.lineWidth = Math.max(2, cellSize * 0.55);
+        ctx.setLineDash([7, 5]);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       function drawAiTargets() {
         if (!scenario || !showAiTargetsEl.checked) return;
         const phase = currentPhase();
@@ -965,6 +1013,7 @@
             text: "#ffc199"
           });
         });
+        drawAiTargetEditState();
       }
 
       function drawScenarioOverlay() {
@@ -1124,6 +1173,24 @@
 
       function beginObjectiveEdit(event) {
         const pos = tileAt(event);
+
+        const aiHit = aiTargetHitAt(pos);
+        if (aiHit) {
+          editingObjective = null;
+          editingBriefingMarker = null;
+          editingCircleMarker = null;
+          editingFormation = null;
+          editingAiTarget = aiHit;
+          objectiveDrag = {
+            mode: "aiTarget",
+            targetObj: aiHit.targetObj,
+            start: pos,
+            initial: { x: aiHit.targetObj.x, y: aiHit.targetObj.y }
+          };
+          drawTerrain();
+          return;
+        }
+
         const formationHit = formationHitAt(pos);
         if (formationHit) {
           editingObjective = null;
@@ -1149,6 +1216,7 @@
           editingBriefingMarker = null;
           editingCircleMarker = null;
           editingFormation = null;
+          editingAiTarget = null;
           objectiveDrag = null;
           drawTerrain();
           return;
@@ -1184,6 +1252,15 @@
         const dy = pos.y - objectiveDrag.start.y;
         const mapH = terrain.tiles.length;
         const mapW = terrain.tiles[0].length;
+        if (objectiveDrag.mode === "aiTarget") {
+          const t = objectiveDrag.targetObj;
+          t.x = Math.max(0, Math.min(mapW - 1, Math.round(objectiveDrag.initial.x + dx)));
+          t.y = Math.max(0, Math.min(mapH - 1, Math.round(objectiveDrag.initial.y + dy)));
+          drawTerrain();
+          const name = editingAiTarget?.action?.formationId || "AI";
+          setStatus(`AI 목표: ${name} → (${t.x}, ${t.y})`);
+          return;
+        }
         if (objectiveDrag.mode === "formation") {
           const p = objectiveDrag.formation.position;
           p.x = Math.max(0, Math.min(mapW - 1, Math.round(objectiveDrag.initial.x + dx)));
@@ -1386,6 +1463,7 @@
         editingBriefingMarker = null;
         editingCircleMarker = null;
         editingFormation = null;
+        editingAiTarget = null;
         objectiveDrag = null;
         drawTerrain();
       });
