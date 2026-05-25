@@ -47,7 +47,7 @@
         "portrait": "assets/portraits/eulji_mundeok.png",
         "position": {
           "x": 31,
-          "y": 23
+          "y": 25
         },
         "facing": {
           "x": 1,
@@ -88,8 +88,8 @@
         "skillType": "kihap",
         "portrait": "assets/portraits/gyebaek.png",
         "position": {
-          "x": 51,
-          "y": 16
+          "x": 50,
+          "y": 21
         },
         "facing": {
           "x": 1,
@@ -303,23 +303,23 @@
             "id": "goryeo_hold",
             "type": "rect",
             "label": "방어선",
-            "x": 64,
-            "y": 73,
+            "x": 74,
+            "y": 70,
             "w": 24,
             "h": 44
           },
           {
             "id": "north_ambush",
             "label": "북쪽 매복",
-            "x": 95,
-            "y": 7,
+            "x": 101,
+            "y": 29,
             "radius": 8
           },
           {
             "id": "south_ambush",
             "label": "남쪽 매복",
-            "x": 130,
-            "y": 150,
+            "x": 124,
+            "y": 139,
             "radius": 8
           }
         ]
@@ -333,8 +333,8 @@
             "remnant_guard",
             "goryeo_archers"
           ],
-          "x": 64,
-          "y": 73,
+          "x": 74,
+          "y": 70,
           "w": 24,
           "h": 44,
           "holdSeconds": 2,
@@ -346,8 +346,8 @@
           "formationIds": [
             "kim_jonghyeon"
           ],
-          "x": 95,
-          "y": 7,
+          "x": 101,
+          "y": 29,
           "radius": 20,
           "label": "김종현 기병을 북쪽 매복 구역에 배치하십시오."
         },
@@ -357,8 +357,8 @@
           "formationIds": [
             "jo_won"
           ],
-          "x": 130,
-          "y": 150,
+          "x": 124,
+          "y": 139,
           "radius": 20,
           "label": "조원 기병을 남쪽 매복 구역에 배치하십시오."
         }
@@ -370,8 +370,8 @@
             "team": "enemy",
             "formationId": "khitan_vanguard",
             "target": {
-              "x": 134,
-              "y": 74
+              "x": 147,
+              "y": 70
             },
             "speed": "NORMAL",
             "density": "NORMAL"
@@ -381,8 +381,8 @@
             "team": "enemy",
             "formationId": "khitan_center",
             "target": {
-              "x": 142,
-              "y": 86
+              "x": 153,
+              "y": 83
             },
             "speed": "NORMAL",
             "density": "TIGHT"
@@ -392,8 +392,8 @@
             "team": "enemy",
             "formationId": "khitan_rear",
             "target": {
-              "x": 156,
-              "y": 96
+              "x": 158,
+              "y": 97
             },
             "speed": "SLOW",
             "density": "TIGHT"
@@ -403,8 +403,8 @@
             "team": "enemy",
             "formationId": "khitan_horse_archers",
             "target": {
-              "x": 146,
-              "y": 54
+              "x": 143,
+              "y": 56
             },
             "speed": "NORMAL",
             "density": "WIDE"
@@ -470,10 +470,10 @@
             "id": "flood_zone",
             "type": "rect",
             "label": "수공 피해 구역",
-            "x": 98,
-            "y": 41,
-            "w": 33,
-            "h": 88
+            "x": 114,
+            "y": 44,
+            "w": 20,
+            "h": 71
           }
         ]
       },
@@ -481,10 +481,10 @@
         {
           "id": "enemy_in_river",
           "type": "enemyInAreaRatio",
-          "x": 98,
-          "y": 41,
-          "w": 33,
-          "h": 88,
+          "x": 114,
+          "y": 44,
+          "w": 20,
+          "h": 71,
           "ratio": 0.5,
           "label": "거란군 50% 이상이 강과 습지 구역에 들어오게 기다리십시오."
         },
@@ -506,8 +506,8 @@
             "team": "enemy",
             "formationId": "khitan_vanguard",
             "target": {
-              "x": 116,
-              "y": 72
+              "x": 108,
+              "y": 76
             },
             "speed": "NORMAL",
             "density": "NORMAL"
@@ -517,8 +517,8 @@
             "team": "enemy",
             "formationId": "khitan_center",
             "target": {
-              "x": 126,
-              "y": 86
+              "x": 109,
+              "y": 94
             },
             "speed": "NORMAL",
             "density": "TIGHT"
@@ -528,8 +528,8 @@
             "team": "enemy",
             "formationId": "khitan_rear",
             "target": {
-              "x": 138,
-              "y": 96
+              "x": 118,
+              "y": 109
             },
             "speed": "NORMAL",
             "density": "TIGHT"
@@ -539,8 +539,8 @@
             "team": "enemy",
             "formationId": "khitan_horse_archers",
             "target": {
-              "x": 118,
-              "y": 54
+              "x": 107,
+              "y": 61
             },
             "speed": "NORMAL",
             "density": "WIDE"
@@ -550,8 +550,8 @@
             "team": "enemy",
             "formationId": "so_bae_ap",
             "target": {
-              "x": 158,
-              "y": 82
+              "x": 122,
+              "y": 81
             },
             "speed": "SLOW",
             "density": "NORMAL"
@@ -665,8 +665,8 @@
             "team": "enemy",
             "formationId": "khitan_vanguard",
             "target": {
-              "x": 96,
-              "y": 72
+              "x": 89,
+              "y": 77
             },
             "speed": "NORMAL",
             "density": "NORMAL"
@@ -676,8 +676,8 @@
             "team": "enemy",
             "formationId": "khitan_center",
             "target": {
-              "x": 104,
-              "y": 86
+              "x": 90,
+              "y": 90
             },
             "speed": "NORMAL",
             "density": "TIGHT"
@@ -687,8 +687,8 @@
             "team": "enemy",
             "formationId": "khitan_rear",
             "target": {
-              "x": 114,
-              "y": 96
+              "x": 100,
+              "y": 102
             },
             "speed": "NORMAL",
             "density": "TIGHT"
@@ -698,8 +698,8 @@
             "team": "enemy",
             "formationId": "khitan_horse_archers",
             "target": {
-              "x": 100,
-              "y": 54
+              "x": 86,
+              "y": 60
             },
             "speed": "NORMAL",
             "density": "WIDE"
@@ -709,8 +709,8 @@
             "team": "enemy",
             "formationId": "so_bae_ap",
             "target": {
-              "x": 140,
-              "y": 82
+              "x": 111,
+              "y": 84
             },
             "speed": "SLOW",
             "density": "NORMAL"
@@ -764,10 +764,10 @@
             "id": "pursuit_line",
             "type": "rect",
             "label": "기병 돌격선",
-            "x": 108,
-            "y": 59,
-            "w": 24,
-            "h": 52
+            "x": 103,
+            "y": 66,
+            "w": 20,
+            "h": 44
           }
         ]
       },
@@ -779,10 +779,10 @@
             "kim_jonghyeon",
             "jo_won"
           ],
-          "x": 108,
-          "y": 59,
-          "w": 24,
-          "h": 52,
+          "x": 103,
+          "y": 66,
+          "w": 20,
+          "h": 44,
           "label": "김종현과 조원 기병을 돌격선까지 진입시키십시오."
         },
         {
@@ -814,7 +814,7 @@
             "team": "enemy",
             "formationId": "khitan_vanguard",
             "target": {
-              "x": 166,
+              "x": 89,
               "y": 72
             },
             "speed": "SLOW",
@@ -825,7 +825,7 @@
             "team": "enemy",
             "formationId": "khitan_center",
             "target": {
-              "x": 168,
+              "x": 94,
               "y": 88
             },
             "speed": "SLOW",
@@ -836,8 +836,8 @@
             "team": "enemy",
             "formationId": "khitan_rear",
             "target": {
-              "x": 176,
-              "y": 100
+              "x": 110,
+              "y": 105
             },
             "speed": "SLOW",
             "density": "TIGHT"
@@ -855,8 +855,8 @@
             "team": "enemy",
             "formationId": "so_bae_ap",
             "target": {
-              "x": 198,
-              "y": 82
+              "x": 106,
+              "y": 84
             },
             "speed": "SLOW",
             "density": "NORMAL"

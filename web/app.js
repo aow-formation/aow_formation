@@ -365,7 +365,7 @@ import {
     {
       id: "gwiju",
       no: "05",
-      title: "수공 - 흥화진/귀주 대첩",
+      title: "수공 - 귀주 대첩",
       year: "1018",
       icon: 4,
       enabled: true
