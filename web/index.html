@@ -329,7 +329,21 @@
 
     <div id="gameLoadingScreen" class="game-loading-screen" style="display:none">
       <div class="game-loading-bg" id="gameLoadingBg"></div>
-      <span class="game-loading-text">로딩중</span>
+      <span class="game-loading-text">로딩중..</span>
+      <div id="gameLoadingScenarioMeta" class="game-loading-scenario-meta" hidden>
+        <div class="game-loading-side">
+          <span>아군</span>
+          <strong id="gameLoadingPlayerForce"></strong>
+        </div>
+        <div class="game-loading-battle">
+          <strong id="gameLoadingBattleTitle"></strong>
+          <span id="gameLoadingBattleEra"></span>
+        </div>
+        <div class="game-loading-side game-loading-side-enemy">
+          <span>적군</span>
+          <strong id="gameLoadingEnemyForce"></strong>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="./src/bootstrap.js"></script>

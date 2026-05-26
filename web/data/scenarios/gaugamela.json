@@ -305,7 +305,7 @@
         }
       ],
       "briefing": {
-        "text": "팔랑크스 3부대는 중앙 집결선에 세우고, 알렉산더 기병을 우익 집결지로 이동시키십시오.",
+        "text": "팔랑크스 3부대는 중앙 집결선에 세우고, 알렉산더는 우익 집결지로, 필로타스는 측면 집결지로 이동시키십시오.",
         "camera": {
           "x": 64,
           "y": 80
@@ -316,16 +316,23 @@
             "type": "rect",
             "label": "팔랑크스 집결선",
             "x": 80,
-            "y": 59,
+            "y": 61,
             "w": 18,
             "h": 40
           },
           {
             "id": "alexander_rally",
-            "label": "기병 집결지",
+            "label": "알렉산더 집결지",
             "x": 89,
-            "y": 45,
-            "radius": 8
+            "y": 41,
+            "radius": 7
+          },
+          {
+            "id": "philotas_rally",
+            "label": "필로타스 집결지",
+            "x": 89,
+            "y": 53,
+            "radius": 7
           }
         ]
       },
@@ -339,7 +346,7 @@
             "parmenion"
           ],
           "x": 80,
-          "y": 59,
+          "y": 61,
           "w": 18,
           "h": 40,
           "holdSeconds": 2,
@@ -350,9 +357,18 @@
           "type": "formationAtArea",
           "formationId": "alexander",
           "x": 89,
-          "y": 45,
-          "radius": 8,
+          "y": 41,
+          "radius": 7,
           "label": "알렉산더를 우익 집결지로 이동시키십시오."
+        },
+        {
+          "id": "philotas_ready",
+          "type": "formationAtArea",
+          "formationId": "philotas",
+          "x": 89,
+          "y": 53,
+          "radius": 7,
+          "label": "필로타스를 측면 집결지로 이동시키십시오."
         }
       ],
       "ai": {
@@ -395,7 +411,7 @@
             "team": "enemy",
             "formationId": "darius_iii",
             "target": {
-              "x": 170,
+              "x": 168,
               "y": 80
             },
             "speed": "NORMAL",
@@ -411,7 +427,7 @@
               "x": 151,
               "y": 39
             },
-            "speed": "SLOW",
+            "speed": "NORMAL",
             "density": "NORMAL"
           },
           {
@@ -419,10 +435,10 @@
             "team": "enemy",
             "formationId": "royal_guard",
             "target": {
-              "x": 124,
-              "y": 65
+              "x": 119,
+              "y": 70
             },
-            "speed": "SLOW",
+            "speed": "NORMAL",
             "density": "NORMAL"
           },
           {
@@ -430,10 +446,10 @@
             "team": "enemy",
             "formationId": "persian_host",
             "target": {
-              "x": 124,
-              "y": 88
+              "x": 119,
+              "y": 90
             },
-            "speed": "SLOW",
+            "speed": "NORMAL",
             "density": "NORMAL"
           },
           {
@@ -444,7 +460,7 @@
               "x": 149,
               "y": 116
             },
-            "speed": "SLOW",
+            "speed": "NORMAL",
             "density": "NORMAL"
           },
           {
@@ -502,7 +518,7 @@
         }
       ],
       "briefing": {
-        "text": "팔랑크스가 중앙에서 페르시아 대군의 압박을 버텨야 합니다. 기병은 무리하게 돌파하지 말고 열린 틈을 기다리십시오.",
+        "text": "팔랑크스가 중앙에서 페르시아 대군의 압박을 버텨야 합니다. 필로타스는 우익 측면에서 베수스 기병의 진격을 저지하십시오.",
         "camera": {
           "x": 86,
           "y": 80
@@ -523,6 +539,13 @@
             "x": 138,
             "y": 76,
             "radius": 10
+          },
+          {
+            "id": "bessus_advance",
+            "label": "베수스 기병 진격로",
+            "x": 119,
+            "y": 36,
+            "radius": 9
           }
         ]
       },
@@ -550,6 +573,14 @@
           "ratio": 0.5,
           "requiredCount": 2,
           "label": "팔랑크스 3부대 중 2부대 이상을 50% 이상 유지하십시오."
+        },
+        {
+          "id": "philotas_block",
+          "type": "formationNearEnemy",
+          "formationId": "philotas",
+          "enemyFormationId": "bessus",
+          "radius": 15,
+          "label": "필로타스로 베수스 기병의 진격을 저지하십시오."
         }
       ],
       "ai": {
@@ -559,7 +590,7 @@
             "team": "enemy",
             "formationId": "bessus",
             "target": {
-              "x": 119,
+              "x": 114,
               "y": 36
             },
             "speed": "FAST",
@@ -946,25 +977,20 @@
       },
       "objectives": [
         {
-          "id": "break_persia",
-          "type": "any",
-          "label": "페르시아 전체 병력을 35% 이하로 낮추거나, 다리우스를 패주시킨 뒤 근위대를 40% 이하로 낮추십시오.",
-          "objectives": [
-            {
-              "id": "total",
-              "type": "enemyTotalBelow",
-              "ratio": 0.35
-            },
-            {
-              "id": "guard",
-              "type": "enemyTroopsBelow",
-              "formationIds": [
-                "darius_iii",
-                "royal_guard"
-              ],
-              "ratio": 0.4
-            }
-          ]
+          "id": "total",
+          "type": "enemyTotalBelow",
+          "ratio": 0.35,
+          "label": "페르시아 전체 병력을 35% 이하로 낮추십시오."
+        },
+        {
+          "id": "guard",
+          "type": "enemyTroopsBelow",
+          "formationIds": [
+            "darius_iii",
+            "royal_guard"
+          ],
+          "ratio": 0.4,
+          "label": "다리우스와 왕실 근위대를 40% 이하로 낮추십시오."
         }
       ],
       "ai": {

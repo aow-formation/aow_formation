@@ -248,6 +248,11 @@ import {
   const homeBg             = document.querySelector(".home-bg");
   const gameLoadingScreen  = document.getElementById("gameLoadingScreen");
   const gameLoadingBg      = document.getElementById("gameLoadingBg");
+  const gameLoadingScenarioMeta = document.getElementById("gameLoadingScenarioMeta");
+  const gameLoadingBattleTitle = document.getElementById("gameLoadingBattleTitle");
+  const gameLoadingBattleEra = document.getElementById("gameLoadingBattleEra");
+  const gameLoadingPlayerForce = document.getElementById("gameLoadingPlayerForce");
+  const gameLoadingEnemyForce = document.getElementById("gameLoadingEnemyForce");
   const menuHistoricalScenario = document.getElementById("menuHistoricalScenario");
   const scenarioHud = document.getElementById("scenarioHud");
   const scenarioTitle = document.getElementById("scenarioTitle");
@@ -396,6 +401,44 @@ import {
     }
   ];
 
+  const SCENARIO_LOADING_META = {
+    gaugamela: {
+      title: "가우가멜라 전투",
+      era: "BC 331",
+      player: "마케도니아",
+      enemy: "페르시아",
+      background: "./assets/background/scenario_maps/gaugamela_map.png"
+    },
+    cannae: {
+      title: "칸나에 전투",
+      era: "BC 216",
+      player: "카르타고",
+      enemy: "로마",
+      background: "./assets/background/scenario_maps/cannae_map.png"
+    },
+    bomangpa: {
+      title: "박망파 전투",
+      era: "AD 202",
+      player: "유비군",
+      enemy: "조조군",
+      background: "./assets/background/scenario_maps/bomangpa_map.png"
+    },
+    gwiju: {
+      title: "귀주대첩",
+      era: "AD 1019",
+      player: "고려",
+      enemy: "거란",
+      background: "./assets/background/scenario_maps/gwiju_map.png"
+    },
+    jupil: {
+      title: "주필산 전투",
+      era: "AD 645",
+      player: "당군",
+      enemy: "고구려군",
+      background: "./assets/background/scenario_maps/jupil_map.png"
+    }
+  };
+
   function renderScenarioSelect() {
     if (!scenarioSelectGrid) return;
     scenarioSelectGrid.innerHTML = "";
@@ -478,12 +521,33 @@ import {
   let _gameLoadingHideTimer = null;
   let _gameLoadingMinElapsed = false;
 
-  function showGameLoadingScreen() {
+  function applyGameLoadingScenarioMeta(meta = null) {
+    if (!gameLoadingScreen || !gameLoadingBg || !gameLoadingScenarioMeta) return;
+    if (!meta) {
+      gameLoadingScreen.classList.remove("is-scenario");
+      gameLoadingScenarioMeta.hidden = true;
+      return;
+    }
+    gameLoadingScreen.classList.add("is-scenario");
+    gameLoadingScenarioMeta.hidden = false;
+    gameLoadingBg.style.backgroundImage = `url('${meta.background}')`;
+    if (gameLoadingBattleTitle) gameLoadingBattleTitle.textContent = meta.title;
+    if (gameLoadingBattleEra) gameLoadingBattleEra.textContent = meta.era;
+    if (gameLoadingPlayerForce) gameLoadingPlayerForce.textContent = meta.player;
+    if (gameLoadingEnemyForce) gameLoadingEnemyForce.textContent = meta.enemy;
+  }
+
+  function showGameLoadingScreen(meta = null) {
     _gameLoadingMinElapsed = false;
     if (_gameLoadingHideTimer) { clearTimeout(_gameLoadingHideTimer); _gameLoadingHideTimer = null; }
-    const bgKeys = Object.keys(LQIP_BG);
-    const bgKey = bgKeys[Math.floor(Math.random() * bgKeys.length)];
-    gameLoadingBg.style.backgroundImage = `url('./assets/background/${bgKey}')`;
+    if (meta) {
+      applyGameLoadingScenarioMeta(meta);
+    } else {
+      applyGameLoadingScenarioMeta(null);
+      const bgKeys = Object.keys(LQIP_BG);
+      const bgKey = bgKeys[Math.floor(Math.random() * bgKeys.length)];
+      gameLoadingBg.style.backgroundImage = `url('./assets/background/${bgKey}')`;
+    }
     gameLoadingScreen.style.display = "flex";
     _gameLoadingHideTimer = setTimeout(() => {
       _gameLoadingHideTimer = null;
@@ -4972,7 +5036,7 @@ import {
 
   async function enterHistoricalScenario(id = "cannae") {
     try {
-      showGameLoadingScreen();
+      showGameLoadingScreen(SCENARIO_LOADING_META[id] || null);
       showBattleLoadingMask();
       const { scenario, terrain } = await loadScenarioBundle(id);
       applyHistoricalScenario(scenario, terrain);

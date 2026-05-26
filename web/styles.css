@@ -1196,16 +1196,148 @@ kbd {
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
+  transition: opacity 220ms ease, filter 220ms ease, transform 220ms ease;
+}
+
+.game-loading-screen.is-scenario .game-loading-bg {
+  opacity: 0.5;
+  filter: saturate(0.5) brightness(0.7);
+  transform: none;
 }
 
 .game-loading-text {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   color: #c8a96e;
   font-family: 'Noto Serif KR', serif;
   font-size: 1.6rem;
   letter-spacing: 0.15em;
   animation: loading-text-pulse 1.2s ease-in-out infinite;
+}
+
+.game-loading-screen.is-scenario .game-loading-text {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(36px, 4.5vh, 50px);
+  transform: translateX(-50%);
+  font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+  letter-spacing: 0.12em;
+}
+
+.game-loading-scenario-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 46px;
+  height: 112px;
+  z-index: 2;
+  display: block;
+  color: #ead8a8;
+  font-family: 'Noto Serif KR', serif;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.85);
+}
+
+.game-loading-scenario-meta[hidden] {
+  display: none;
+}
+
+.game-loading-side,
+.game-loading-battle {
+  padding: 0 18px;
+}
+
+.game-loading-side {
+  position: absolute;
+  top: 38px;
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  transform: none;
+}
+
+.game-loading-scenario-meta .game-loading-side:first-child {
+  left: 70px;
+  padding-right: 0;
+}
+
+.game-loading-scenario-meta .game-loading-side-enemy {
+  right: 70px;
+  padding-left: 0;
+}
+
+.game-loading-side span,
+.game-loading-battle span {
+  color: #b99a5b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.game-loading-screen.is-scenario .game-loading-side span {
+  display: none;
+}
+
+.game-loading-side strong {
+  color: #f0dfb0;
+  font-size: clamp(1.35rem, 2.4vw, 2.2rem);
+  line-height: 1.12;
+}
+
+.game-loading-side-enemy {
+  text-align: center;
+}
+
+.game-loading-battle {
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  width: 520px;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.game-loading-battle strong {
+  display: block;
+  color: #ffd37a;
+  font-size: clamp(1.55rem, 2.8vw, 2.55rem);
+  line-height: 1.1;
+}
+
+.game-loading-battle span {
+  display: block;
+  margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  .game-loading-scenario-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    height: auto;
+    left: 28px;
+    right: 28px;
+    bottom: 28px;
+    gap: 10px;
+  }
+
+  .game-loading-side,
+  .game-loading-battle,
+  .game-loading-scenario-meta .game-loading-side:first-child,
+  .game-loading-scenario-meta .game-loading-side-enemy {
+    position: static;
+    width: auto;
+    transform: none;
+  }
+
+  .game-loading-side,
+  .game-loading-side-enemy {
+    align-items: center;
+    padding-left: 0;
+    padding-right: 0;
+    text-align: center;
+  }
 }
 
 @keyframes loading-text-pulse {
