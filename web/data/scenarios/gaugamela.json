@@ -1066,5 +1066,49 @@
       "count": 2,
       "label": "팔랑크스 2부대가 25% 이하가 되면 실패합니다."
     }
+  ],
+  "victoryDialogue": [
+    {
+      "speaker": "파르메니온",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "폐하, 다리우스가 동쪽으로 도주했습니다. 페르시아 제국의 심장이 무너졌습니다."
+    },
+    {
+      "speaker": "알렉산더",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "다리우스는 달아났지만, 그의 제국은 이미 우리 것이다. 바빌론, 수사, 페르세폴리스... 모두 문을 열 것이다."
+    },
+    {
+      "speaker": "필로타스",
+      "side": "player",
+      "portrait": "assets/portraits/philotas.png",
+      "text": "폐하, 베수스가 다리우스를 배신하고 스스로 왕을 칭할지도 모릅니다. 추격해야 합니다."
+    },
+    {
+      "speaker": "크라테로스",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "배신자의 손에 왕이 죽는 일은 없어야 합니다. 동방으로 가야 합니까, 폐하?"
+    },
+    {
+      "speaker": "알렉산더",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "세상의 끝까지 간다. 인도의 강을 보기 전에는 멈추지 않겠다."
+    },
+    {
+      "speaker": "파르메니온",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "폐하, 그 끝이 얼마나 먼지는 아무도 모릅니다..."
+    },
+    {
+      "speaker": "알렉산더",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "그래서 가는 것이다."
+    }
   ]
 }

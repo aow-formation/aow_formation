@@ -5056,14 +5056,44 @@ import {
     }
   }
 
-  function beginScenarioPhase(index) {
-    const phases = game.scenarioData?.phases || [];
-    if (index >= phases.length) {
-      game.battlePhase = "ended";
+  function showVictoryDialogue() {
+    const lines = game.scenarioData?.victoryDialogue || [];
+    const line = lines[game.scenarioDialogueIndex];
+    if (!line) {
       game.scenarioStep = "complete";
       game.scenarioSceneLocked = false;
       hideScenarioOverlays();
       showBattleResult(true);
+      return;
+    }
+    if (line.camera) centerCameraOn(vec(line.camera.x, line.camera.y));
+    scenarioDialogue.hidden = false;
+    scenarioBriefing.hidden = true;
+    scenarioHud.hidden = false;
+    scenarioDialogueSpeaker.textContent = line.speaker || "";
+    scenarioDialogueText.textContent = line.text || "";
+    scenarioDialoguePortrait.src = line.portrait || "";
+    scenarioDialoguePortrait.hidden = !line.portrait;
+    scenarioTitle.textContent = game.scenarioData.name + " - 전투 종료";
+  }
+
+  function beginScenarioPhase(index) {
+    const phases = game.scenarioData?.phases || [];
+    if (index >= phases.length) {
+      game.battlePhase = "ended";
+      game.scenarioSceneLocked = true;
+      const vd = game.scenarioData?.victoryDialogue;
+      if (vd?.length) {
+        game.scenarioStep = "victoryDialogue";
+        game.scenarioDialogueIndex = 0;
+        showVictoryDialogue();
+        updateScenarioHud();
+      } else {
+        game.scenarioStep = "complete";
+        game.scenarioSceneLocked = false;
+        hideScenarioOverlays();
+        showBattleResult(true);
+      }
       return;
     }
     game.scenarioPhaseIndex = index;
@@ -5956,7 +5986,11 @@ import {
 
   scenarioNextBtn?.addEventListener("click", () => {
     game.scenarioDialogueIndex += 1;
-    showScenarioDialogue();
+    if (game.scenarioStep === "victoryDialogue") {
+      showVictoryDialogue();
+    } else {
+      showScenarioDialogue();
+    }
   });
 
   scenarioStartPhaseBtn?.addEventListener("click", () => {

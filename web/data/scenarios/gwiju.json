@@ -1035,5 +1035,43 @@
       "count": 2,
       "label": "고려 기병이 모두 30% 이하가 되면 실패합니다."
     }
+  ],
+  "victoryDialogue": [
+    {
+      "speaker": "강감찬",
+      "side": "player",
+      "portrait": "assets/portraits/gang_gamchan.png",
+      "text": "거란의 10만 대군이 이 강변에서 사라졌다."
+    },
+    {
+      "speaker": "김종현",
+      "side": "player",
+      "portrait": "assets/portraits/kim_yusin.png",
+      "text": "장군님, 소배압이 겨우 목숨만 건져 도주했습니다. 살아서 돌아간 자가 불과 수천에 불과합니다."
+    },
+    {
+      "speaker": "조원",
+      "side": "player",
+      "portrait": "assets/portraits/gyebaek.png",
+      "text": "이 한 번의 전투로 거란은 다시는 고려를 넘보지 못할 것입니다."
+    },
+    {
+      "speaker": "강감찬",
+      "side": "player",
+      "portrait": "assets/portraits/gang_gamchan.png",
+      "text": "싸움은 끝났지만, 진정한 평화는 전쟁이 아니라 협상으로 완성된다. 거란과 강화를 맺어야 한다."
+    },
+    {
+      "speaker": "김종현",
+      "side": "player",
+      "portrait": "assets/portraits/kim_yusin.png",
+      "text": "장군님, 오늘 이 귀주의 이름은 길이 기억될 것입니다."
+    },
+    {
+      "speaker": "강감찬",
+      "side": "player",
+      "portrait": "assets/portraits/gang_gamchan.png",
+      "text": "기억되어야 할 것은 이름이 아니라, 이 땅을 지킨 모든 병사들의 용기다."
+    }
   ]
 }

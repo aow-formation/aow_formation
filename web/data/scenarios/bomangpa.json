@@ -917,5 +917,43 @@
   ],
   "victory": {
     "type": "questComplete"
-  }
+  },
+  "victoryDialogue": [
+    {
+      "speaker": "제갈량",
+      "side": "player",
+      "portrait": "assets/portraits/zhuge_liang.png",
+      "text": "불길이 잦아들었습니다. 하후돈의 군은 이 좁은 골짜기에서 궤멸되었습니다."
+    },
+    {
+      "speaker": "유비",
+      "side": "player",
+      "portrait": "assets/portraits/zhuge_liang.png",
+      "text": "공명, 그대의 첫 번째 전술이 이렇게 빛날 줄은 몰랐소. 오늘의 승리는 그대 덕분이오."
+    },
+    {
+      "speaker": "조운",
+      "side": "player",
+      "portrait": "assets/portraits/zhuge_liang.png",
+      "text": "군사님의 계략은 완벽했습니다. 관우 장군과 장비 장군도 잘 싸워주었습니다."
+    },
+    {
+      "speaker": "제갈량",
+      "side": "player",
+      "portrait": "assets/portraits/zhuge_liang.png",
+      "text": "하지만 주공, 이것은 서막에 불과합니다. 조조의 대군은 여전히 남하하고 있으며 형주의 유표는 병중입니다."
+    },
+    {
+      "speaker": "유비",
+      "side": "player",
+      "portrait": "assets/portraits/zhuge_liang.png",
+      "text": "강동의 손권과 손을 잡아야 할 때가 올 것이오. 천하는 아직 우리를 기다리고 있소."
+    },
+    {
+      "speaker": "제갈량",
+      "side": "player",
+      "portrait": "assets/portraits/zhuge_liang.png",
+      "text": "천하삼분... 그 길이 보이기 시작합니다."
+    }
+  ]
 }

@@ -235,7 +235,9 @@
         "leadership": 78,
         "charm": 62,
         "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
         "portrait": "assets/portraits/lu_bu.png",
         "position": {
           "x": 225,
@@ -257,7 +259,10 @@
         "leadership": 75,
         "charm": 60,
         "skillType": "guard",
-        "combatOverrides": { "meleeAttackMult": 0.8, "rangedAttackMult": 0.8 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.8
+        },
         "portrait": "assets/portraits/gyebaek.png",
         "position": {
           "x": 200,
@@ -939,6 +944,38 @@
       "ratio": 0.3,
       "count": 2,
       "label": "별동대가 모두 30% 이하가 되면 실패합니다."
+    }
+  ],
+  "victoryDialogue": [
+    {
+      "speaker": "이세적",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "폐하, 고구려와 말갈의 연합군이 완전히 궤멸되었습니다. 주필산은 당의 것입니다."
+    },
+    {
+      "speaker": "당태종",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "설인귀, 오늘 네 용맹을 전군이 보았다. 흰 갑옷의 장수가 적진을 홀로 뚫는 것을."
+    },
+    {
+      "speaker": "설인귀",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "폐하의 지휘 덕분입니다. 신은 다만 선봉에 섰을 뿐입니다."
+    },
+    {
+      "speaker": "장손무기",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "그러나 폐하, 안시성은 아직 굳건합니다. 양만춘이 성벽을 굳게 지키고 있습니다."
+    },
+    {
+      "speaker": "당태종",
+      "side": "player",
+      "portrait": "assets/portraits/alexander.png",
+      "text": "안시성... 끝까지 버티는 자의 이름도 역사는 기억하는 법이지. 이 전쟁은 아직 끝나지 않았다."
     }
   ]
 }
