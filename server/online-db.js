@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync, readdirSync } from "node:fs";
 import { Pool } from "pg";
 
-export const COMMANDER_CATALOG = [
+const BASE_COMMANDER_CATALOG = [
   { id: "hannibal", name: "한니발", source: "cannae", troop_type: "infantry", power: 90, leadership: 100, charm: 98, skill_type: "kihap", allowed_skills: ["kihap", "guard", "swift"], portrait: "assets/portraits/hannibal.png" },
   { id: "alexander", name: "알렉산더", source: "gaugamela", troop_type: "cavalry", power: 96, leadership: 98, charm: 94, skill_type: "kihap", allowed_skills: ["kihap"], portrait: "assets/portraits/alexander.png" },
   { id: "gang_gamchan", name: "강감찬", source: "gwiju", troop_type: "infantry", power: 80, leadership: 98, charm: 92, skill_type: "flood", allowed_skills: ["kihap", "guard", "flood"], portrait: "assets/portraits/gang_gamchan.png" },
@@ -16,6 +17,145 @@ export const COMMANDER_CATALOG = [
   { id: "li_shiji", name: "이세적", source: "jupil", troop_type: "infantry", power: 86, leadership: 94, charm: 84, skill_type: "guard", allowed_skills: ["kihap", "guard", "swift"], portrait: "assets/portraits/li_mu.png" },
 ];
 
+const EXTRA_SKILLS = new Set(["fire", "flood", "archery"]);
+const SCENARIO_UNIT_IDS = new Set([
+  "cao_vanguard",
+  "cao_rear",
+  "royal_guard",
+  "persian_host",
+  "remnant_guard",
+  "goryeo_archers",
+  "khitan_vanguard",
+  "khitan_center",
+  "khitan_rear",
+  "khitan_horse_archers",
+  "malgal_vanguard",
+  "rear_guard",
+]);
+const SCENARIO_UNIT_NAME_PATTERNS = [
+  /군\b/,
+  /대군/,
+  /선봉/,
+  /중군/,
+  /후군/,
+  /궁병/,
+  /궁기병/,
+  /근위대/,
+  /수비대/,
+  /잔병/,
+  /후속대/,
+];
+
+function readJsonAsset(relativePath, fallback) {
+  try {
+    return JSON.parse(readFileSync(new URL(relativePath, import.meta.url), "utf8"));
+  } catch (_error) {
+    return fallback;
+  }
+}
+
+function portraitId(portrait, fallback) {
+  const filename = String(portrait || "")
+    .split("/")
+    .pop()
+    ?.replace(/\.[^.]+$/, "");
+  return filename || fallback;
+}
+
+function uniqueId(baseId, usedIds) {
+  let id = String(baseId || "commander").replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+  if (!id) id = "commander";
+  let candidate = id;
+  let suffix = 2;
+  while (usedIds.has(candidate)) {
+    candidate = `${id}_${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+function commanderSkills(skillType, troopType, optionalSkills = []) {
+  if (troopType === "cavalry") return ["kihap"];
+  const skills = new Set(["kihap", "guard", "swift"]);
+  [...optionalSkills, skillType].forEach((skill) => {
+    if (EXTRA_SKILLS.has(skill)) skills.add(skill);
+  });
+  return [...skills];
+}
+
+function normalizeCatalogCommander(raw, source, idHint, usedIds) {
+  const troopType = raw.troopType === "cavalry" || raw.troop_type === "cavalry" ? "cavalry" : "infantry";
+  const skillType = raw.skillType || raw.skill_type || "kihap";
+  const allowedSkills = Array.isArray(raw.allowedSkills)
+    ? raw.allowedSkills
+    : Array.isArray(raw.allowed_skills)
+      ? raw.allowed_skills
+      : commanderSkills(skillType, troopType, raw.optionalSkills);
+  return {
+    id: uniqueId(idHint || raw.id || portraitId(raw.portrait, raw.name), usedIds),
+    name: raw.name,
+    source,
+    troop_type: troopType,
+    power: Number(raw.power ?? 75),
+    leadership: Number(raw.leadership ?? 75),
+    charm: Number(raw.charm ?? 70),
+    skill_type: allowedSkills.includes(skillType) ? skillType : allowedSkills[0],
+    allowed_skills: troopType === "cavalry" ? ["kihap"] : allowedSkills,
+    portrait: raw.portrait || null,
+  };
+}
+
+function isScenarioUnitFormation(formation) {
+  const id = String(formation?.id || "");
+  const name = String(formation?.name || "");
+  return SCENARIO_UNIT_IDS.has(id) || SCENARIO_UNIT_NAME_PATTERNS.some(pattern => pattern.test(name));
+}
+
+function buildCommanderCatalog() {
+  const catalog = [];
+  const usedIds = new Set();
+  const usedNames = new Set();
+
+  const addCommander = (commander) => {
+    if (!commander?.name) return;
+    if (usedNames.has(commander.name)) return;
+    catalog.push(commander);
+    usedIds.add(commander.id);
+    usedNames.add(commander.name);
+  };
+
+  BASE_COMMANDER_CATALOG.forEach((commander) => {
+    addCommander({ ...commander, id: uniqueId(commander.id, usedIds) });
+  });
+
+  readJsonAsset("../web/assets/portraits/generals.json", []).forEach((general, index) => {
+    addCommander(normalizeCatalogCommander(general, "quick", portraitId(general.portrait, `quick_${index + 1}`), usedIds));
+  });
+
+  let scenarioFiles = [];
+  try {
+    scenarioFiles = readdirSync(new URL("../web/data/scenarios/", import.meta.url))
+      .filter(file => file.endsWith(".json") && !file.includes("_terrain"));
+  } catch (_error) {
+    scenarioFiles = [];
+  }
+
+  scenarioFiles.forEach((file) => {
+    const scenario = readJsonAsset(`../web/data/scenarios/${file}`, null);
+    if (!scenario) return;
+    const source = scenario.id || file.replace(/\.json$/, "");
+    ["player", "enemy"].forEach((side) => {
+      (scenario[side]?.formations || []).forEach((formation) => {
+        if (isScenarioUnitFormation(formation)) return;
+        addCommander(normalizeCatalogCommander(formation, source, formation.id || portraitId(formation.portrait, formation.name), usedIds));
+      });
+    });
+  });
+
+  return catalog;
+}
+
+export const COMMANDER_CATALOG = buildCommanderCatalog();
 export const DEFAULT_COMMANDERS = COMMANDER_CATALOG.slice(0, 5);
 
 export function createDb() {

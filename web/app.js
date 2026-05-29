@@ -273,6 +273,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   let onlineMatchPlayerInfo = null;
   let onlineOpponentPreview = null;
   let onlineAuthStatus = null;
+  let onlineCommanderPool = null;
   const onlineSyncNotice = document.getElementById("onlineSyncNotice");
   const troopAdjustScreen  = document.getElementById("troopAdjustScreen");
   const battleResultScreen = document.getElementById("battleResultScreen");
@@ -6565,9 +6566,20 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const recentCard = onlineCardFor(onlineRecentMatches);
     const leaderboardCard = onlineCardFor(onlineLeaderboard);
     const header = onlineScreen?.querySelector(".online-header");
+    let commanderPoolCard = document.getElementById("onlineCommanderPoolCard");
+    if (!commanderPoolCard && commanderCard?.parentElement) {
+      commanderPoolCard = document.createElement("section");
+      commanderPoolCard.id = "onlineCommanderPoolCard";
+      commanderPoolCard.className = "online-card";
+      commanderPoolCard.innerHTML = `<h3>전체 장수</h3><div id="onlineCommanderPool" class="online-commander-pool" data-online-commander-pool></div>`;
+      commanderCard.parentElement.insertBefore(commanderPoolCard, commanderCard.nextSibling);
+    }
+    onlineCommanderPool = document.getElementById("onlineCommanderPool");
 
     authCard?.classList.add("online-page-card", "online-auth-card");
-    commanderCard?.classList.add("online-page-card", "online-commanders-card", "online-card--wide");
+    commanderCard?.classList.add("online-page-card", "online-commanders-card");
+    commanderCard?.classList.remove("online-card--wide");
+    commanderPoolCard?.classList.add("online-page-card", "online-pool-card-page");
     matchCard?.classList.add("online-page-card", "online-match-card");
     recentCard?.classList.add("online-page-card", "online-records-card", "online-card--wide");
     leaderboardCard?.classList.add("online-page-card", "online-records-card");
@@ -6690,17 +6702,22 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (onlinePanel) onlinePanel.dataset.onlinePage = page;
     const authCard = onlineCardFor(onlineAuthForm);
     const commanderCard = onlineCardFor(onlineCommanders);
+    const commanderPoolCard = document.getElementById("onlineCommanderPoolCard");
     const matchCard = onlineCardFor(onlineMatchStatus);
     const recentCard = onlineCardFor(onlineRecentMatches);
     const leaderboardCard = onlineCardFor(onlineLeaderboard);
     const recordsActions = document.querySelector(".online-records-actions");
     if (authCard) authCard.hidden = page !== "auth";
     if (commanderCard) commanderCard.hidden = page !== "commanders";
+    if (commanderPoolCard) commanderPoolCard.hidden = page !== "commanders";
     if (matchCard) matchCard.hidden = page !== "match";
     if (recentCard) recentCard.hidden = page !== "records";
     if (leaderboardCard) leaderboardCard.hidden = page !== "records";
     if (recordsActions) recordsActions.hidden = page !== "records";
     syncOnlineHeaderActions();
+    if (page === "commanders" && onlineClient.player) {
+      renderOnlineLoadoutEditor();
+    }
   }
 
   function onlineSkillLabel(skill) {
@@ -6716,7 +6733,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function onlineCatalogItem(templateId) {
     return (onlineClient.catalog || []).find(item => item.id === templateId)
-      || onlineClient.catalog?.[0]
       || null;
   }
 
@@ -6742,9 +6758,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const rows = [...document.querySelectorAll("[data-online-loadout-slot]")];
     if (!rows.length) return onlineLoadoutDraft;
     return rows.map((row, index) => {
-      const templateId = row.querySelector("[data-field='templateId']")?.value || onlineLoadoutDraft[index]?.templateId;
+      const templateId = row.dataset.templateId || row.querySelector("[data-field='templateId']")?.value || onlineLoadoutDraft[index]?.templateId || null;
       const troopType = normalizeTroopType(row.dataset.troopType || row.querySelector("[data-field='troopType']")?.value || "infantry");
       const template = onlineCatalogItem(templateId);
+      if (!template) {
+        return {
+          slotIndex: index,
+          templateId: null,
+          troopType,
+          troops: 0,
+          skillType: "kihap",
+        };
+      }
       const allowedSkills = onlineAllowedSkills(template, troopType);
       const rawSkill = row.dataset.skillType || row.querySelector("[data-field='skillType']")?.value || onlineLoadoutDraft[index]?.skillType || "kihap";
       return {
@@ -6792,7 +6817,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function onlineLoadoutMaxTroops(slotIndex, troopType) {
     const otherMinPopulation = onlineLoadoutDraft.reduce((sum, item, index) =>
-      index === slotIndex ? sum : sum + onlineMinPopulationForType(item?.troopType || "infantry"), 0);
+      index === slotIndex || !item?.templateId ? sum : sum + onlineMinPopulationForType(item?.troopType || "infantry"), 0);
     const availablePopulation = Math.max(
       onlineMinPopulationForType(troopType),
       POPULATION_BUDGET - otherMinPopulation,
@@ -6812,6 +6837,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function normalizeOnlineLoadoutBudget(lockedIndex = -1) {
     onlineLoadoutDraft = onlineLoadoutDraft.map((item, index) => {
+      if (!onlineCatalogItem(item?.templateId)) {
+        return {
+          slotIndex: index,
+          templateId: null,
+          troopType: normalizeTroopType(item?.troopType || "infantry"),
+          troops: 0,
+          skillType: "kihap",
+        };
+      }
       const troopType = normalizeTroopType(item?.troopType || "infantry");
       return {
         ...item,
@@ -6820,11 +6854,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         troops: onlineClampTroops(index, troopType, item?.troops || minTroopsForType(troopType)),
       };
     });
+    if (onlineLoadoutDraft.some(item => !item.templateId)) return;
 
     const adjustOneStep = (direction, allowLocked = false) => {
       const indices = onlineLoadoutDraft
         .map((_item, index) => index)
-        .filter(index => allowLocked || index !== lockedIndex)
+        .filter(index => onlineLoadoutDraft[index]?.templateId && (allowLocked || index !== lockedIndex))
         .sort((a, b) => {
           const pa = onlineLoadoutPopulation(onlineLoadoutDraft[a]);
           const pb = onlineLoadoutPopulation(onlineLoadoutDraft[b]);
@@ -6862,7 +6897,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function setOnlineLoadoutTroops(slotIndex, troops) {
     const item = onlineLoadoutDraft[slotIndex];
-    if (!item) return;
+    if (!item?.templateId) return;
     onlineLoadoutDraft[slotIndex] = {
       ...item,
       troops: onlineClampTroops(slotIndex, item.troopType, troops),
@@ -6870,7 +6905,328 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     normalizeOnlineLoadoutBudget(slotIndex);
   }
 
+  function emptyOnlineLoadoutSlot(slotIndex) {
+    onlineLoadoutDraft[slotIndex] = {
+      slotIndex,
+      templateId: null,
+      troopType: "infantry",
+      troops: 0,
+      skillType: "kihap",
+    };
+  }
+
+  function setOnlineLoadoutTemplate(slotIndex, templateId) {
+    const template = onlineCatalogItem(templateId);
+    if (!template) return;
+    const duplicateSlot = onlineLoadoutDraft.findIndex((item, index) =>
+      index !== slotIndex && item?.templateId === template.id);
+    if (duplicateSlot >= 0) emptyOnlineLoadoutSlot(duplicateSlot);
+
+    const previous = onlineLoadoutDraft[slotIndex] || {};
+    const troopType = normalizeTroopType(previous.troopType || template.troopType || "infantry");
+    const allowedSkills = onlineAllowedSkills(template, troopType);
+    const previousPopulation = previous.templateId ? onlineLoadoutPopulation(previous) : 0;
+    const defaultTroops = troopType === "cavalry" ? 2500 : 10000;
+    const troops = previousPopulation > 0
+      ? Math.floor(previousPopulation / troopPopulationCost(troopType))
+      : defaultTroops;
+    onlineLoadoutDraft[slotIndex] = {
+      slotIndex,
+      templateId: template.id,
+      troopType,
+      troops: onlineClampTroops(slotIndex, troopType, troops),
+      skillType: allowedSkills.includes(previous.skillType) ? previous.skillType : allowedSkills[0],
+    };
+    normalizeOnlineLoadoutBudget(slotIndex);
+  }
+
+  function moveOnlineLoadoutSlot(sourceSlot, targetSlot) {
+    if (sourceSlot === targetSlot) return;
+    const source = onlineLoadoutDraft[sourceSlot];
+    if (!source?.templateId) return;
+    const target = onlineLoadoutDraft[targetSlot];
+    onlineLoadoutDraft[targetSlot] = { ...source, slotIndex: targetSlot };
+    if (target?.templateId) {
+      onlineLoadoutDraft[sourceSlot] = { ...target, slotIndex: sourceSlot };
+    } else {
+      emptyOnlineLoadoutSlot(sourceSlot);
+    }
+    normalizeOnlineLoadoutBudget();
+  }
+
+  function onlineDragPayload(event) {
+    const raw = event.dataTransfer?.getData("application/x-ageofwar-commander")
+      || event.dataTransfer?.getData("text/plain")
+      || "";
+    try {
+      return JSON.parse(raw);
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function setOnlineDragPayload(event, payload) {
+    const raw = JSON.stringify(payload);
+    event.dataTransfer?.setData("application/x-ageofwar-commander", raw);
+    event.dataTransfer?.setData("text/plain", raw);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+  }
+
+  function onlineLoadoutSlotMarkup(item, index) {
+    const template = onlineCatalogItem(item?.templateId);
+    if (!template) {
+      return `
+        <div class="adjust-card online-loadout-card online-loadout-card--empty player-side"
+          data-online-loadout-slot="${index}" data-template-id="" data-troop-type="infantry" data-skill-type="kihap">
+          <div class="online-loadout-empty-mark">${index + 1}</div>
+          <div class="online-loadout-empty-title">빈 슬롯</div>
+          <div class="online-loadout-empty-note">오른쪽 장수를 끌어다 놓으세요</div>
+        </div>
+      `;
+    }
+    const troopType = normalizeTroopType(item.troopType || template.troopType || "infantry");
+    const allowedSkills = onlineAllowedSkills(template, troopType);
+    const skillType = allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0];
+    const maxTroops = onlineLoadoutMaxTroops(index, troopType);
+    const popUsed = onlineLoadoutPopulation(item);
+    const pct = Math.min(100, popUsed / POPULATION_BUDGET * 100).toFixed(1);
+    return `
+      <div class="adjust-card online-loadout-card player-side" draggable="true"
+        data-online-loadout-slot="${index}" data-template-id="${escapeHtml(template.id)}"
+        data-troop-type="${escapeHtml(troopType)}" data-skill-type="${escapeHtml(skillType)}">
+        ${onlinePortraitMarkup(template)}
+        <div class="online-loadout-name">${escapeHtml(template.name)}</div>
+        <div class="online-loadout-source">${escapeHtml(template.source || "quick")}</div>
+        <div class="adjust-card-stats">
+          <div class="adjust-card-stat"><span>무력</span><strong>${template.power}</strong></div>
+          <div class="adjust-card-stat"><span>통솔</span><strong>${template.leadership}</strong></div>
+          <div class="adjust-card-stat"><span>매력</span><strong>${template.charm}</strong></div>
+        </div>
+        <div class="adjust-type-buttons">
+          ${["infantry", "cavalry"].map(type => `<button type="button" class="adjust-type-btn" data-field="troopType" data-value="${type}" data-active="${type === troopType ? "true" : "false"}">${type === "cavalry" ? "기병" : "보병"}</button>`).join("")}
+        </div>
+        <div class="adjust-skill-buttons">
+          ${allSkillButtons().map(skill => `<button type="button" class="adjust-skill-btn" data-field="skillType" data-value="${escapeHtml(skill)}" data-active="${skill === skillType ? "true" : "false"}" ${allowedSkills.includes(skill) ? "" : "disabled"}>${onlineSkillLabel(skill)}</button>`).join("")}
+        </div>
+        <div class="adjust-bar-bg"><div class="adjust-bar-fill player-fill" style="width:${pct}%"></div></div>
+        <div class="adjust-card-val">${Math.round(item.troops).toLocaleString()} <span>명</span></div>
+        <div class="adjust-card-pop">인구 ${formatTroops(popUsed)}</div>
+        <div class="adjust-slider-wrap">
+          <input data-field="troops" type="range" class="adjust-slider" min="${minTroopsForType(troopType)}" max="${maxTroops}" step="250" value="${Math.round(item.troops)}" />
+        </div>
+      </div>
+    `;
+  }
+
+  function onlineCommanderPoolCardMarkup(commander, selectedSlot) {
+    const selected = selectedSlot >= 0;
+    return `
+      <div class="online-pool-card ${selected ? "is-selected" : ""}"
+        data-online-pool-card="${escapeHtml(commander.id)}" draggable="${selected ? "false" : "true"}">
+        ${onlinePortraitMarkup(commander, "online-pool-portrait")}
+        <div class="online-pool-name">${escapeHtml(commander.name)}</div>
+      </div>
+    `;
+  }
+
+  function bindOnlineLoadoutDragEvents() {
+    const pool = onlineCommanderPool || document.getElementById("onlineCommanderPool");
+    const poolDropTarget = pool?.closest?.(".online-pool-card-page") || pool;
+    onlineCommanders.querySelectorAll("[data-online-pool-card]").forEach((card) => {
+      if (card.classList.contains("is-selected")) return;
+      card.addEventListener("dragstart", (event) => {
+        setOnlineDragPayload(event, {
+          from: "pool",
+          templateId: card.dataset.onlinePoolCard,
+        });
+        card.classList.add("is-dragging");
+      });
+      card.addEventListener("dragend", () => card.classList.remove("is-dragging"));
+    });
+
+    onlineCommanders.querySelectorAll("[data-online-loadout-slot]").forEach((slotEl) => {
+      const slot = Number(slotEl.dataset.onlineLoadoutSlot || 0);
+      slotEl.addEventListener("dragstart", (event) => {
+        if (event.target?.closest?.("button,input")) {
+          event.preventDefault();
+          return;
+        }
+        const templateId = slotEl.dataset.templateId;
+        if (!templateId) {
+          event.preventDefault();
+          return;
+        }
+        setOnlineDragPayload(event, { from: "slot", slot, templateId });
+        slotEl.classList.add("is-dragging");
+      });
+      slotEl.addEventListener("dragend", () => slotEl.classList.remove("is-dragging"));
+      slotEl.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        slotEl.classList.add("is-drop-target");
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      });
+      slotEl.addEventListener("dragleave", () => slotEl.classList.remove("is-drop-target"));
+      slotEl.addEventListener("drop", (event) => {
+        event.preventDefault();
+        slotEl.classList.remove("is-drop-target");
+        const payload = onlineDragPayload(event);
+        if (!payload) return;
+        if (payload.from === "slot") {
+          moveOnlineLoadoutSlot(Number(payload.slot), slot);
+        } else if (payload.templateId) {
+          setOnlineLoadoutTemplate(slot, payload.templateId);
+        }
+        renderOnlineLoadoutEditor();
+      });
+    });
+    pool?.querySelectorAll("[data-online-pool-card]").forEach((card) => {
+      if (card.classList.contains("is-selected")) return;
+      card.addEventListener("dragstart", (event) => {
+        setOnlineDragPayload(event, {
+          from: "pool",
+          templateId: card.dataset.onlinePoolCard,
+        });
+        card.classList.add("is-dragging");
+      });
+      card.addEventListener("dragend", () => card.classList.remove("is-dragging"));
+    });
+
+    if (poolDropTarget) {
+      poolDropTarget.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        poolDropTarget.classList.add("is-drop-target");
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      });
+      poolDropTarget.addEventListener("dragleave", () => poolDropTarget.classList.remove("is-drop-target"));
+      poolDropTarget.addEventListener("drop", (event) => {
+        event.preventDefault();
+        poolDropTarget.classList.remove("is-drop-target");
+        const payload = onlineDragPayload(event);
+        if (payload?.from !== "slot") return;
+        emptyOnlineLoadoutSlot(Number(payload.slot));
+        renderOnlineLoadoutEditor();
+      });
+    }
+  }
+
+  function renderOnlineCommanderPool() {
+    if (!onlineCommanderPool) return;
+    const catalog = onlineClient.catalog || [];
+    if (!catalog.length) {
+      onlineCommanderPool.innerHTML = `<div class="online-status">장수 카탈로그를 불러오는 중입니다.</div>`;
+      return;
+    }
+    const selectedSlotById = new Map(onlineLoadoutDraft
+      .map((item, index) => [item.templateId, index])
+      .filter(([templateId]) => templateId));
+    onlineCommanderPool.innerHTML = catalog
+      .map(commander => onlineCommanderPoolCardMarkup(commander, selectedSlotById.get(commander.id) ?? -1))
+      .join("");
+  }
+
+  function renderOnlineLoadoutEditorDnD() {
+    if (!onlineCommanders) return;
+    const catalog = onlineClient.catalog || [];
+    if (!catalog.length) {
+      onlineCommanders.innerHTML = `<div class="online-status">장수 카탈로그를 불러오는 중입니다.</div>`;
+      renderOnlineCommanderPool();
+      return;
+    }
+    if (!onlineLoadoutDraft.length) onlineLoadoutDraft = normalizeOnlineLoadout();
+    onlineCommanders.classList.add("online-loadout-editor", "online-loadout-dnd");
+    onlineCommanders.classList.remove("adjust-cards");
+
+    onlineLoadoutDraft = Array.from({ length: 5 }, (_unused, index) => {
+      const item = onlineLoadoutDraft[index] || {};
+      const template = onlineCatalogItem(item.templateId);
+      if (!template) {
+        return {
+          slotIndex: index,
+          templateId: null,
+          troopType: normalizeTroopType(item.troopType || "infantry"),
+          troops: 0,
+          skillType: "kihap",
+        };
+      }
+      const troopType = normalizeTroopType(item.troopType || template.troopType || "infantry");
+      const allowedSkills = onlineAllowedSkills(template, troopType);
+      return {
+        slotIndex: index,
+        templateId: template.id,
+        troopType,
+        troops: onlineClampTroops(index, troopType, Number(item.troops || (troopType === "cavalry" ? 2500 : 10000))),
+        skillType: allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0],
+      };
+    });
+    normalizeOnlineLoadoutBudget();
+
+    const draftTotalPopulation = onlineLoadoutTotalPopulation();
+    const loadoutComplete = onlineLoadoutDraft.every(item => onlineCatalogItem(item.templateId));
+    const budgetOk = draftTotalPopulation === POPULATION_BUDGET;
+
+    onlineCommanders.innerHTML = `
+      <div class="online-loadout-total ${!budgetOk || !loadoutComplete ? "is-over" : ""}">
+        총 인구 ${formatTroops(draftTotalPopulation)} / ${formatTroops(POPULATION_BUDGET)}
+      </div>
+      <div class="online-loadout-slots">
+        ${onlineLoadoutDraft.map((item, index) => onlineLoadoutSlotMarkup(item, index)).join("")}
+      </div>
+    `;
+    renderOnlineCommanderPool();
+
+    if (onlineGoMatchBtn) onlineGoMatchBtn.disabled = !loadoutComplete || !budgetOk;
+
+    onlineCommanders.querySelectorAll("button[data-field='troopType']").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.currentTarget.blur();
+        const slot = Number(button.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+        const item = onlineLoadoutDraft[slot];
+        if (!item?.templateId) return;
+        const template = onlineCatalogItem(item.templateId);
+        const troopType = normalizeTroopType(button.dataset.value);
+        if (item.troopType === troopType) return;
+        const preservedPopulation = troopPopulation(item.troops, item.troopType);
+        const allowedSkills = onlineAllowedSkills(template, troopType);
+        onlineLoadoutDraft[slot] = {
+          ...item,
+          troopType,
+          troops: onlineClampTroops(slot, troopType, Math.floor(preservedPopulation / troopPopulationCost(troopType))),
+          skillType: allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0],
+        };
+        normalizeOnlineLoadoutBudget(slot);
+        renderOnlineLoadoutEditor();
+      });
+    });
+
+    onlineCommanders.querySelectorAll("button[data-field='skillType']").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        if (button.disabled) return;
+        event.currentTarget.blur();
+        const slot = Number(button.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+        if (!onlineLoadoutDraft[slot]?.templateId) return;
+        onlineLoadoutDraft[slot] = {
+          ...onlineLoadoutDraft[slot],
+          skillType: button.dataset.value,
+        };
+        renderOnlineLoadoutEditor();
+      });
+    });
+
+    onlineCommanders.querySelectorAll("input[data-field='troops']").forEach((input) => {
+      input.addEventListener("input", () => {
+        const slot = Number(input.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+        const item = onlineLoadoutDraft[slot];
+        setOnlineLoadoutTroops(slot, Number(input.value || item?.troops || 0));
+        renderOnlineLoadoutEditor();
+      });
+    });
+
+    bindOnlineLoadoutDragEvents();
+  }
+
   function renderOnlineLoadoutEditor() {
+    renderOnlineLoadoutEditorDnD();
+    return;
     if (!onlineCommanders) return;
     const catalog = onlineClient.catalog || [];
     if (!catalog.length) {
@@ -7233,6 +7589,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   async function saveOnlineLoadout() {
     onlineLoadoutDraft = readOnlineLoadoutDraft();
+    const emptySlot = onlineLoadoutDraft.findIndex(item => !onlineCatalogItem(item?.templateId));
+    if (emptySlot >= 0) {
+      throw new Error(`${emptySlot + 1}번 슬롯에 장수를 배치해 주세요.`);
+    }
     normalizeOnlineLoadoutBudget();
     const totalPopulation = onlineLoadoutTotalPopulation();
     if (totalPopulation !== POPULATION_BUDGET) {

@@ -2097,6 +2097,10 @@ input[type="range"].adjust-slider {
   width: min(960px, 94vw);
 }
 
+.online-panel[data-online-page="commanders"] {
+  width: min(1180px, 96vw);
+}
+
 .online-header {
   display: flex;
   justify-content: space-between;
@@ -2135,11 +2139,15 @@ input[type="range"].adjust-slider {
 }
 
 .online-panel[data-online-page="auth"] .online-grid,
-.online-panel[data-online-page="commanders"] .online-grid,
 .online-panel[data-online-page="match"] .online-grid {
   display: flex;
   justify-content: center;
   align-items: flex-start;
+}
+
+.online-panel[data-online-page="commanders"] .online-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  align-items: start;
 }
 
 .online-card {
@@ -2166,7 +2174,11 @@ input[type="range"].adjust-slider {
 }
 
 .online-commanders-card {
-  width: min(900px, 100%);
+  width: 100%;
+}
+
+.online-pool-card-page {
+  width: 100%;
 }
 
 .online-match-card {
@@ -2307,10 +2319,132 @@ input[type="range"].adjust-slider {
   min-width: 0;
 }
 
+.online-loadout-dnd {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.online-loadout-slots {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
 .online-loadout-card .online-loadout-portrait {
   width: 72px;
   height: 72px;
   margin: 0 auto 2px;
+}
+
+.online-loadout-card[draggable="true"],
+.online-pool-card[draggable="true"] {
+  cursor: grab;
+}
+
+.online-loadout-card.is-dragging,
+.online-pool-card.is-dragging {
+  opacity: 0.48;
+}
+
+.online-loadout-card.is-drop-target,
+.online-commander-pool.is-drop-target,
+.online-pool-card-page.is-drop-target {
+  outline: 2px solid rgba(244, 216, 154, 0.86);
+  outline-offset: 2px;
+}
+
+.online-loadout-card--empty {
+  min-height: 304px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border-style: dashed;
+  background:
+    linear-gradient(180deg, rgba(42,34,14,0.34), rgba(5,4,2,0.28));
+}
+
+.online-loadout-empty-mark {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(226,187,104,0.34);
+  color: rgba(244,216,154,0.72);
+  font-weight: 900;
+  font-size: 20px;
+}
+
+.online-loadout-empty-title,
+.online-loadout-name {
+  color: var(--gold-bright);
+  font-weight: 900;
+  text-align: center;
+}
+
+.online-loadout-empty-note,
+.online-loadout-source {
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: center;
+}
+
+.online-commander-pool {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 8px;
+  min-width: 0;
+  max-height: 620px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.online-pool-card {
+  display: grid;
+  grid-template-rows: 58px auto;
+  gap: 6px;
+  place-items: center;
+  min-width: 0;
+  min-height: 92px;
+  padding: 7px 6px;
+  border: 1px solid rgba(184,138,8,0.28);
+  background: rgba(0,0,0,0.24);
+}
+
+.online-pool-card.is-selected {
+  opacity: 0.52;
+  cursor: default;
+}
+
+.online-pool-portrait {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(226,187,104,0.34);
+  background: rgba(35,26,11,0.78);
+  color: var(--gold-bright);
+  font-size: 15px;
+  font-weight: 900;
+  overflow: hidden;
+}
+
+.online-pool-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.online-pool-name {
+  width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .online-loadout-select {
@@ -2532,8 +2666,17 @@ input[type="range"].adjust-slider {
 
   .online-match-layout,
   .online-match-columns,
-  .online-loadout-controls {
+  .online-loadout-controls,
+  .online-panel[data-online-page="commanders"] .online-grid {
     grid-template-columns: 1fr;
+  }
+
+  .online-loadout-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .online-commander-pool {
+    max-height: 360px;
   }
 
   .online-loadout-editor.adjust-cards {
@@ -2542,6 +2685,10 @@ input[type="range"].adjust-slider {
 }
 
 @media (max-width: 560px) {
+  .online-loadout-slots {
+    grid-template-columns: 1fr;
+  }
+
   .online-loadout-editor.adjust-cards {
     grid-template-columns: 1fr;
   }
