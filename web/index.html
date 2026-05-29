@@ -24,6 +24,7 @@
         <nav class="home-menu">
           <button id="menuQuickBattle"  class="home-btn home-btn--main">⚔&nbsp; 빠른 전투</button>
           <button id="menuHistoricalScenario" class="home-btn">📜&nbsp; 역사 시나리오</button>
+          <button id="menuOnlineBattle" class="home-btn">⚑&nbsp; 온라인 대전</button>
           <button class="home-btn wip-btn">🌍&nbsp; 월드 모드</button>
           <button class="home-btn wip-btn">📖&nbsp; 게임 소개</button>
           <button class="home-btn wip-btn">💬&nbsp; 커뮤니티</button>
@@ -44,6 +45,73 @@
           <button id="scenarioSelectBackBtn" class="btn-stone" type="button">뒤로</button>
         </div>
         <div id="scenarioSelectGrid" class="scenario-select-grid"></div>
+      </div>
+    </div>
+
+    <div id="onlineScreen" class="screen-overlay online-screen" hidden>
+      <div class="online-bg"></div>
+      <div class="online-panel">
+        <div class="online-header">
+          <div>
+            <div class="online-kicker">ONLINE DUEL</div>
+            <h2 class="online-title">온라인 대전</h2>
+          </div>
+          <button id="onlineBackBtn" class="btn-stone" type="button">뒤로</button>
+        </div>
+
+        <div class="online-grid">
+          <section class="online-card">
+            <h3>계정</h3>
+            <div id="onlineProfile" class="online-profile" hidden></div>
+            <form id="onlineAuthForm" class="online-form">
+              <label>
+                <span>아이디</span>
+                <input id="onlineUsername" autocomplete="username" maxlength="32" />
+              </label>
+              <label>
+                <span>비밀번호</span>
+                <input id="onlinePassword" type="password" autocomplete="current-password" maxlength="72" />
+              </label>
+              <label>
+                <span>표시명</span>
+                <input id="onlineDisplayName" maxlength="32" placeholder="회원가입 시 사용" />
+              </label>
+              <div class="online-actions">
+                <button id="onlineLoginBtn" class="btn-primary" type="button">로그인</button>
+                <button id="onlineRegisterBtn" class="btn-stone" type="button">회원가입</button>
+              </div>
+            </form>
+            <div class="online-actions online-session-actions">
+              <button id="onlineLogoutBtn" class="btn-stone" type="button" hidden>로그아웃</button>
+            </div>
+          </section>
+
+          <section class="online-card">
+            <h3>보유 장수</h3>
+            <div id="onlineCommanders" class="online-commanders"></div>
+          </section>
+
+          <section class="online-card">
+            <h3>매칭</h3>
+            <p class="online-note">현재 단계는 B-1.5 멀티플레이 기반 연결입니다. 매칭 후 seed, side, targetTick 릴레이가 준비됩니다.</p>
+            <div id="onlineMatchStatus" class="online-status">로그인 후 매칭할 수 있습니다.</div>
+            <div id="onlineResultSummary" class="online-result-summary" hidden></div>
+            <div class="online-actions">
+              <button id="onlineQueueBtn" class="btn-primary" type="button">빠른 매칭</button>
+              <button id="onlineLeaveQueueBtn" class="btn-stone" type="button">대기 취소</button>
+            </div>
+          </section>
+
+          <section class="online-card online-card--wide">
+            <h3>최근 경기</h3>
+            <div id="onlineRecentMatches" class="online-record-list"></div>
+          </section>
+
+          <section class="online-card">
+            <h3>랭킹</h3>
+            <div id="onlineLeaderboard" class="online-record-list"></div>
+          </section>
+        </div>
       </div>
     </div>
 
@@ -177,6 +245,7 @@
         <button id="topbarToggleBtn" class="topbar-toggle-btn btn-stone" title="메뉴 접기/펼치기">☰</button>
         <section id="hud" class="hud"></section>
       </div>
+      <div id="onlineSyncNotice" class="online-sync-notice" hidden></div>
 
       <main class="board">
         <div class="canvas-frame">

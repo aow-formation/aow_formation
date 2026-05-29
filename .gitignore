@@ -8,6 +8,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 server-*.log
+vite-*.log
 _history/
 .DS_Store
 Thumbs.db
+*복사본*/
+*복사본 (2)*/
+새 폴더*/

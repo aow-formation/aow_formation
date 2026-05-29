@@ -9,6 +9,8 @@ import {
   Texture,
   Rectangle    as PixiRect,
 } from 'pixi.js';
+import { OnlineClient } from './src/netcode.js';
+import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
 (function () {
   "use strict";
@@ -33,6 +35,7 @@ import {
   const PIXI_TREE_SPRITES = false; // true: 나무를 PixiJS Y정렬 스프라이트로 처리, false: 캔버스에 직접 렌더링
   const SIMULATION_STEP = 1 / 30;
   const MAX_SIMULATION_STEPS = 4;
+  const ONLINE_CHECKSUM_INTERVAL_TICKS = 300;
   const SPATIAL_CELL_SIZE = 4;
   const UNIT_RADIUS = 0.27;
   const TILE_W_MIN = 16;
@@ -242,6 +245,35 @@ import {
   const scenarioSelectScreen = document.getElementById("scenarioSelectScreen");
   const scenarioSelectGrid = document.getElementById("scenarioSelectGrid");
   const scenarioSelectBackBtn = document.getElementById("scenarioSelectBackBtn");
+  const onlineScreen = document.getElementById("onlineScreen");
+  const onlineBackBtn = document.getElementById("onlineBackBtn");
+  const onlineProfile = document.getElementById("onlineProfile");
+  const onlineAuthForm = document.getElementById("onlineAuthForm");
+  const onlineUsername = document.getElementById("onlineUsername");
+  const onlinePassword = document.getElementById("onlinePassword");
+  const onlineDisplayName = document.getElementById("onlineDisplayName");
+  const onlineLoginBtn = document.getElementById("onlineLoginBtn");
+  const onlineRegisterBtn = document.getElementById("onlineRegisterBtn");
+  let onlineLogoutBtn = document.getElementById("onlineLogoutBtn");
+  const onlineCommanders = document.getElementById("onlineCommanders");
+  const onlineMatchStatus = document.getElementById("onlineMatchStatus");
+  const onlineResultSummary = document.getElementById("onlineResultSummary");
+  const onlineRecentMatches = document.getElementById("onlineRecentMatches");
+  const onlineLeaderboard = document.getElementById("onlineLeaderboard");
+  const onlineQueueBtn = document.getElementById("onlineQueueBtn");
+  const onlineLeaveQueueBtn = document.getElementById("onlineLeaveQueueBtn");
+  let onlineSaveLoadoutBtn = null;
+  let onlineGoMatchBtn = null;
+  let onlineRecordsBtn = null;
+  let onlineRecordsBackBtn = null;
+  let onlineMatchLogoutBtn = null;
+  let onlineBackToCommandersBtn = null;
+  let onlineReadyBtn = null;
+  let onlineMatchRoster = null;
+  let onlineMatchPlayerInfo = null;
+  let onlineOpponentPreview = null;
+  let onlineAuthStatus = null;
+  const onlineSyncNotice = document.getElementById("onlineSyncNotice");
   const troopAdjustScreen  = document.getElementById("troopAdjustScreen");
   const battleResultScreen = document.getElementById("battleResultScreen");
   const appShell           = document.getElementById("appShell");
@@ -253,6 +285,7 @@ import {
   const gameLoadingBattleEra = document.getElementById("gameLoadingBattleEra");
   const gameLoadingPlayerForce = document.getElementById("gameLoadingPlayerForce");
   const gameLoadingEnemyForce = document.getElementById("gameLoadingEnemyForce");
+  const menuOnlineBattle = document.getElementById("menuOnlineBattle");
   const menuHistoricalScenario = document.getElementById("menuHistoricalScenario");
   const scenarioHud = document.getElementById("scenarioHud");
   const scenarioTitle = document.getElementById("scenarioTitle");
@@ -269,6 +302,15 @@ import {
 
   // 현재 앱 상태: "home" | "battle" | "troopAdjust" | "battleResult"
   let appState = "home";
+  const onlineClient = new OnlineClient();
+  let onlineSyncNoticeTimer = null;
+  let onlineLastResult = null;
+  let onlinePage = "auth";
+  let onlinePreviousPage = "commanders";
+  let onlineLoadoutDraft = [];
+  let onlinePendingMatch = null;
+  let onlineReadySides = [];
+  let onlineRematchAfterCancel = false;
 
   // 재전투용 저장 데이터
   let savedPlayerGenerals = null;
@@ -287,9 +329,11 @@ import {
     appState = state;
     homeScreen.hidden         = (state !== "home");
     if (scenarioSelectScreen) scenarioSelectScreen.hidden = (state !== "scenarioSelect");
+    if (onlineScreen) onlineScreen.hidden = (state !== "online");
     troopAdjustScreen.hidden  = (state !== "troopAdjust");
     battleResultScreen.hidden = (state !== "battleResult");
-    appShell.hidden           = (state === "home" || state === "scenarioSelect");
+    appShell.hidden           = (state === "home" || state === "scenarioSelect" || state === "online");
+    if (state !== "battle") hideOnlineSyncNotice();
     if (state === "battle") cameraYOffset = 150 - canvas.clientHeight / 2;
     updateBattleLoadingMask();
   }
@@ -1523,6 +1567,7 @@ import {
     fires: [],     // 화공 화염 오브젝트 배열
     flood: null,   // 수공 상태 { timer, damageDealt, cleanupTimer }
     mode: "quick",
+    online: null,
     scenarioData: null,
     scenarioPhaseIndex: -1,
     scenarioStep: "none",
@@ -1748,6 +1793,231 @@ import {
     return game.playerFormations.filter((formation) => formation.id === game.selectedId);
   }
 
+  function isOnlineMode() {
+    return game.mode === "online" && Boolean(game.online);
+  }
+
+  function withSeededRandom(seed, callback) {
+    const originalRandom = Math.random;
+    initRng(seed);
+    Math.random = seededRandom;
+    try {
+      return callback();
+    } finally {
+      Math.random = originalRandom;
+      resetRng();
+    }
+  }
+
+  let onlineOriginalRandom = null;
+
+  function enableOnlineRandom(seed) {
+    if (!onlineOriginalRandom) onlineOriginalRandom = Math.random;
+    initRng(seed);
+    Math.random = seededRandom;
+  }
+
+  function disableOnlineRandom() {
+    if (onlineOriginalRandom) {
+      Math.random = onlineOriginalRandom;
+      onlineOriginalRandom = null;
+    }
+    resetRng();
+  }
+
+  function createGeneralFromOnlineCommander(commander, fallbackName) {
+    const skillType = commander?.skillType || "kihap";
+    const troopType = normalizeTroopType(commander?.troopType || "infantry");
+    return {
+      name: commander?.name || fallbackName,
+      power: Number(commander?.power ?? 75),
+      leadership: Number(commander?.leadership ?? 75),
+      charm: Number(commander?.charm ?? 70),
+      portrait: commander?.portrait || null,
+      optionalSkills: Array.isArray(commander?.allowedSkills) ? commander.allowedSkills.filter(skill => skill !== skillType) : [],
+      allowedSkills: Array.isArray(commander?.allowedSkills) ? commander.allowedSkills : [skillType],
+      troopType,
+      troops: Number(commander?.troops || (troopType === "cavalry" ? 2500 : 10000)),
+      skillType,
+      kills: 0,
+      losses: 0,
+      alive: true,
+    };
+  }
+
+  function onlinePlayerBySide(match, side) {
+    return (match.players || []).find(player => Number(player.side) === side) || null;
+  }
+
+  function buildOnlineFormations(terrain, match, worldSide, team) {
+    const player = onlinePlayerBySide(match, worldSide);
+    const commanders = player?.commanders || [];
+    const start = worldSide === 0 ? terrain.playerStart : terrain.enemyStart;
+    const facing = worldSide === 0 ? vec(1, 0) : vec(-1, 0);
+    return Array.from({ length: 5 }, (_unused, index) => {
+      const general = createGeneralFromOnlineCommander(
+        commanders[index],
+        `${worldSide === 0 ? "Blue" : "Red"} ${index + 1}`,
+      );
+      const formation = createFormation(index, team, general, vec(start.x, start.y + (index - 2) * 10), facing);
+      formation.worldSide = worldSide;
+      formation.skillType = normalizeSkillForGeneral(general, general.skillType, general.troopType);
+      formation.general.skillType = formation.skillType;
+      initializeFormationSlots(formation, false);
+      return formation;
+    });
+  }
+
+  function buildOnlineScenario(match) {
+    const terrain = buildTerrain();
+    const localSide = Number(match.side || 0);
+    const remoteSide = localSide === 0 ? 1 : 0;
+    const sideFormations = new Map([
+      [0, buildOnlineFormations(terrain, match, 0, localSide === 0 ? "player" : "enemy")],
+      [1, buildOnlineFormations(terrain, match, 1, localSide === 1 ? "player" : "enemy")],
+    ]);
+    return {
+      terrain,
+      playerFormations: sideFormations.get(localSide),
+      enemyFormations: sideFormations.get(remoteSide),
+    };
+  }
+
+  function onlineNetTick() {
+    if (!isOnlineMode()) return 0;
+    const tickRate = game.online.tickRate || 30;
+    return Math.max(0, Math.floor((performance.now() - game.online.startedAtClient) / 1000 * tickRate));
+  }
+
+  function onlineFormationsForSide(side) {
+    if (!isOnlineMode()) return game.playerFormations;
+    return Number(side) === game.online.side ? game.playerFormations : game.enemyFormations;
+  }
+
+  function onlineOpponentsForSide(side) {
+    if (!isOnlineMode()) return game.enemyFormations;
+    return Number(side) === game.online.side ? game.enemyFormations : game.playerFormations;
+  }
+
+  function orderedAllFormations() {
+    if (isOnlineMode()) {
+      return [...onlineFormationsForSide(0), ...onlineFormationsForSide(1)];
+    }
+    return [...game.playerFormations, ...game.enemyFormations];
+  }
+
+  function queueOnlineInput(message) {
+    if (!isOnlineMode()) return;
+    if (message.roomId && message.roomId !== game.online.roomId) return;
+    const side = Number(message.side);
+    (message.commands || []).forEach((command) => {
+      const targetTick = Number.isFinite(message.targetTick)
+        ? message.targetTick
+        : onlineNetTick();
+      const list = game.online.commandQueue.get(targetTick) || [];
+      list.push({ side, seq: Number(message.seq || 0), command });
+      game.online.commandQueue.set(targetTick, list);
+    });
+  }
+
+  function drainOnlineCommands(nowTick = onlineNetTick()) {
+    if (!isOnlineMode()) return;
+    game.online.netTick = nowTick;
+    const dueTicks = [...game.online.commandQueue.keys()]
+      .filter(tick => tick <= nowTick)
+      .sort((a, b) => a - b);
+    dueTicks.forEach((tick) => {
+      const entries = game.online.commandQueue.get(tick) || [];
+      game.online.commandQueue.delete(tick);
+      entries
+        .sort((a, b) => a.seq - b.seq)
+        .forEach(entry => applyOnlineCommand(entry.side, entry.command));
+    });
+  }
+
+  function sendOnlineCommands(commands) {
+    if (!isOnlineMode() || !commands.length) return false;
+    onlineClient.sendInput(commands);
+    return true;
+  }
+
+  function computeOnlineStateHash() {
+    const values = [];
+    const formations = [...game.playerFormations, ...game.enemyFormations]
+      .sort((a, b) => (a.worldSide ?? 0) - (b.worldSide ?? 0) || a.id - b.id);
+    formations.forEach((formation) => {
+      const target = formation.target || null;
+      values.push(
+        formation.worldSide ?? -1,
+        formation.id,
+        Math.round(formation.anchor.x * 10),
+        Math.round(formation.anchor.y * 10),
+        formation.speed,
+        formation.density,
+        Math.round((target?.x ?? -1) * 10),
+        Math.round((target?.y ?? -1) * 10),
+        formation.followTarget?.worldSide ?? -1,
+        formation.followTarget?.id ?? -1,
+        Math.round(formationRemainingTroops(formation)),
+        Math.round(formation.disorder * 100),
+        Math.round((formation.kihapCooldown || 0) * 10),
+        Math.round((formation.skillCooldown || 0) * 10),
+        Math.round((formation.swiftTimer || 0) * 10),
+        Math.round((formation.guardTimer || 0) * 10),
+        Math.round((formation.archeryTimer || 0) * 10),
+      );
+      const stride = Math.max(1, Math.floor(formation.units.length / 8));
+      for (let i = 0, samples = 0; i < formation.units.length && samples < 8; i += stride, samples += 1) {
+        const unit = formation.units[i];
+        values.push(
+          Math.round(unit.x * 10),
+          Math.round(unit.y * 10),
+          Math.round((unit.damage || 0) * 10),
+        );
+      }
+    });
+    let hash = 2166136261;
+    values.join(",").split("").forEach((char) => {
+      hash ^= char.charCodeAt(0);
+      hash = Math.imul(hash, 16777619);
+    });
+    return (hash >>> 0).toString(16);
+  }
+
+  function maybeSendOnlineChecksum() {
+    if (!isOnlineMode() || game.battlePhase !== "live") return;
+    const tick = game.online.simTick;
+    if (tick - game.online.lastChecksumTick < ONLINE_CHECKSUM_INTERVAL_TICKS) return;
+    game.online.lastChecksumTick = tick;
+    onlineClient.sendChecksum(tick, computeOnlineStateHash());
+  }
+
+  function collectOnlineResultStats() {
+    const ownInitial = game.playerFormations.reduce((sum, formation) => sum + formationInitialTroops(formation), 0);
+    const ownRemaining = game.playerFormations.reduce((sum, formation) => sum + formationRemainingTroops(formation), 0);
+    const enemyInitial = game.enemyFormations.reduce((sum, formation) => sum + formationInitialTroops(formation), 0);
+    const enemyRemaining = game.enemyFormations.reduce((sum, formation) => sum + formationRemainingTroops(formation), 0);
+    return {
+      troopsInitial: Math.round(ownInitial),
+      troopsRemaining: Math.round(ownRemaining),
+      kills: Math.round(Math.max(0, enemyInitial - enemyRemaining)),
+      losses: Math.round(Math.max(0, ownInitial - ownRemaining)),
+    };
+  }
+
+  function submitOnlineResult(won) {
+    if (!isOnlineMode() || game.online.resultSubmitted) return;
+    game.online.resultSubmitted = true;
+    const winnerSide = won ? game.online.side : (game.online.side === 0 ? 1 : 0);
+    onlineClient.send({
+      type: "RESULT",
+      winnerSide,
+      durationTick: game.online.simTick,
+      finalHash: computeOnlineStateHash(),
+      stats: collectOnlineResultStats(),
+    });
+  }
+
   function computeLocalGridOffsets(count, ratio, spacing) {
     const colsBase = Math.max(1, Math.round(Math.sqrt(count * ratio)));
     let cols = colsBase;
@@ -1965,7 +2235,7 @@ import {
     }
     if (unit.damage >= capacity && prevDamage < capacity) {
       fillSlotFromBehind(targetFormation, unit);
-      if (options.trace !== false && game.traces.length < 2000 && !isOnWater(unit)) {
+      if (!isOnlineMode() && options.trace !== false && game.traces.length < 2000 && !isOnWater(unit)) {
         game.traces.push({ x: unit.x, y: unit.y, type: Math.floor(Math.random() * 3) });
       }
     }
@@ -2137,7 +2407,7 @@ import {
   // ── 스킬 상태 업데이트 ──────────────────────────────────────────────────
   function updateSkills(dt) {
     if (game.battlePhase !== "live") return;
-    const allF = [...game.playerFormations, ...game.enemyFormations];
+    const allF = orderedAllFormations();
 
     // 스킬 쿨다운 · 지속형 스킬 타이머 감소
     allF.forEach(f => {
@@ -2795,7 +3065,7 @@ import {
   }
 
   function applyPositionCorrection() {
-    const allFormations = [...game.playerFormations, ...game.enemyFormations];
+    const allFormations = orderedAllFormations();
     const correctionHash = buildSpatialHash(allFormations);
     const maxRadius = allFormations.reduce((max, formation) => Math.max(max, formationUnitRadius(formation)), UNIT_RADIUS);
     const searchRadius = maxRadius * 2;
@@ -2825,9 +3095,26 @@ import {
 
       const PLAYER_RETREAT_X = 8;
       const ENEMY_RETREAT_X = MAP_WIDTH - 8;
+      const retreatXForFormation = (formation, fallbackX) => {
+        if (isOnlineMode() && formation.worldSide != null) {
+          return formation.worldSide === 0 ? 0 : MAP_WIDTH;
+        }
+        return fallbackX;
+      };
+      const reachedRetreatEdge = (formation, fallbackTeam) => {
+        if (isOnlineMode() && formation.worldSide != null) {
+          return formation.worldSide === 0
+            ? formation.anchor.x < PLAYER_RETREAT_X
+            : formation.anchor.x > ENEMY_RETREAT_X;
+        }
+        return fallbackTeam === "player"
+          ? formation.anchor.x < PLAYER_RETREAT_X
+          : formation.anchor.x > ENEMY_RETREAT_X;
+      };
 
-      game.playerFormations.forEach((formation) => {
-        if (!formation.retreated && formation.units.some(isUnitAlive) && formation.anchor.x < PLAYER_RETREAT_X) {
+      const allFormations = orderedAllFormations();
+      allFormations.forEach((formation) => {
+        if (!formation.retreated && formation.units.some(isUnitAlive) && reachedRetreatEdge(formation, formation.team)) {
           formation.retreated = true;
           formation.units.forEach((u) => { u.damage = 100; });
         }
@@ -2835,13 +3122,6 @@ import {
         const alive = formation.followTarget.units.some(isUnitAlive);
         if (!alive) { formation.followTarget = null; return; }
         formation.target = formationCenter(formation.followTarget);
-      });
-
-      game.enemyFormations.forEach((formation) => {
-        if (!formation.retreated && formation.units.some(isUnitAlive) && formation.anchor.x > ENEMY_RETREAT_X) {
-          formation.retreated = true;
-          formation.units.forEach((u) => { u.damage = 100; });
-        }
       });
 
       const checkAutoRetreat = (formation, retreatX) => {
@@ -2861,20 +3141,26 @@ import {
           formation.target = vec(retreatX, formation.anchor.y);
         }
       };
-      game.playerFormations.forEach((f) => checkAutoRetreat(f, 0));
-      game.enemyFormations.forEach((f) => checkAutoRetreat(f, MAP_WIDTH));
-
-      const allFormations = [...game.playerFormations, ...game.enemyFormations];
+      allFormations.forEach((f) => checkAutoRetreat(f, retreatXForFormation(f, f.team === "player" ? 0 : MAP_WIDTH)));
       allFormations.forEach((f) => { if (f.kihapCooldown > 0) f.kihapCooldown -= dt; });
 
-      const playerSpatialHash = buildSpatialHash(game.playerFormations);
-      const enemySpatialHash = buildSpatialHash(game.enemyFormations);
       const allSpatialHash = buildSpatialHash(allFormations);
-      game.playerFormations.forEach((formation) => updateFormation(formation, enemySpatialHash, allSpatialHash, dt));
-      game.enemyFormations.forEach((formation) => updateFormation(formation, playerSpatialHash, allSpatialHash, dt));
+      if (isOnlineMode()) {
+        const side0Formations = onlineFormationsForSide(0);
+        const side1Formations = onlineFormationsForSide(1);
+        const side0SpatialHash = buildSpatialHash(side0Formations);
+        const side1SpatialHash = buildSpatialHash(side1Formations);
+        side0Formations.forEach((formation) => updateFormation(formation, side1SpatialHash, allSpatialHash, dt));
+        side1Formations.forEach((formation) => updateFormation(formation, side0SpatialHash, allSpatialHash, dt));
+      } else {
+        const playerSpatialHash = buildSpatialHash(game.playerFormations);
+        const enemySpatialHash = buildSpatialHash(game.enemyFormations);
+        game.playerFormations.forEach((formation) => updateFormation(formation, enemySpatialHash, allSpatialHash, dt));
+        game.enemyFormations.forEach((formation) => updateFormation(formation, playerSpatialHash, allSpatialHash, dt));
+      }
       applyPositionCorrection();
       if (isHistoricalMode()) updateHistoricalAI(dt);
-      else updateAI(dt);
+      else if (!isOnlineMode()) updateAI(dt);
       updateSkills(dt);
       updateSpeechTriggers();
       checkBattleEnd();
@@ -3609,10 +3895,12 @@ import {
   // ── 말풍선 시스템 ────────────────────────────────────────────────────
   function randFrom(arr) {
     if (!arr || !arr.length) return null;
+    if (isOnlineMode()) return arr[0];
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
   function tryShowSpeech(formation, text, priority = "low") {
+    if (isOnlineMode()) return;
     if (!text || !speechData) return;
     if (game.battlePhase !== "live") return;
     if (game.battleTime < formation.speechCooldown) return;
@@ -3623,6 +3911,7 @@ import {
   }
 
   function tryShowSpeechCommand(formation, text) {
+    if (isOnlineMode()) return;
     // 명령 계기 (저확률, 전투 전에도 발동)
     if (!text || !speechData) return;
     if (game.battleTime < formation.speechCooldown) return;
@@ -4371,10 +4660,12 @@ import {
     // 상단 버튼
     phaseButton.textContent = game.battlePhase === "planning" ? "전투 개시" : "전투 진행 중";
     phaseButton.disabled = game.battlePhase !== "planning";
-    speedToggleButton.disabled = game.battlePhase !== "live";
+    speedToggleButton.disabled = game.battlePhase !== "live" || isOnlineMode();
     speedToggleButton.classList.toggle("active", game.speedMultiplier === 2);
     speedToggleButton.textContent = game.speedMultiplier === 2 ? "기본속도" : "2배속";
-    troopAdjustBtn.hidden = isHistoricalMode();
+    phaseButton.hidden = isOnlineMode();
+    speedToggleButton.hidden = isOnlineMode();
+    troopAdjustBtn.hidden = isHistoricalMode() || isOnlineMode();
     troopAdjustBtn.disabled = game.battlePhase !== "planning" || isHistoricalMode();
     endBattleBtn.hidden = isHistoricalMode();
     if (isScenarioSceneActive()) {
@@ -4470,10 +4761,127 @@ import {
     }
   }
 
+  function setFormationSpeed(formation, newSpeed, showSpeech = true) {
+    if (!formation || formation.retreating) return;
+    if (newSpeed === "STOP") {
+      if (formation.speed === "STOP") {
+        formation.speed = formation.prevSpeed || "NORMAL";
+      } else {
+        formation.prevSpeed = formation.speed;
+        formation.speed = "STOP";
+        formation.target = null;
+        if (showSpeech && speechData) tryShowSpeechCommand(formation, randFrom(speechData.speed_stop));
+      }
+      return;
+    }
+    if (formation.speed === "STOP") formation.prevSpeed = newSpeed;
+    formation.speed = newSpeed;
+    if (showSpeech && newSpeed === "SLOW" && speechData)
+      tryShowSpeechCommand(formation, "현재 진형을 유지한채 이동하라.");
+    if (showSpeech && newSpeed === "FAST" && speechData)
+      tryShowSpeechCommand(formation, randFrom(speechData.speed_fast));
+  }
+
+  function setFormationDensity(formation, newDensity, showSpeech = true) {
+    if (!formation || formation.retreating) return;
+    if (!isDensityAllowed(formation.troopType, newDensity)) return;
+    formation.density = newDensity;
+    initializeFormationSlots(formation, true);
+    if (showSpeech && speechData) {
+      const key = newDensity === "TIGHT" ? "density_tight"
+                : newDensity === "WIDE"  ? "density_wide" : null;
+      if (key) tryShowSpeechCommand(formation, randFrom(speechData[key]));
+    }
+  }
+
+  function adjustFormationRatio(formation, delta) {
+    if (!formation || formation.retreating) return;
+    formation.ratio = clamp(formation.ratio + delta, 0.33, 3.0);
+    initializeFormationSlots(formation, true);
+  }
+
+  function moveFormation(formation, tile, clickedEnemy = null) {
+    if (!formation || formation.retreating) return;
+    if (clickedEnemy) {
+      formation.followTarget = clickedEnemy;
+      formation.target = formationCenter(clickedEnemy);
+      formation.targetSetTime = game.battleTime;
+      const desiredFacing = normalize(sub(formation.target, formation.anchor));
+      if (canTurnWhileMoving(formation)) applyTurnRule(formation, desiredFacing);
+      return;
+    }
+    formation.followTarget = null;
+    const desiredFacing = normalize(sub(tile, formation.anchor));
+    if (canTurnWhileMoving(formation)) applyTurnRule(formation, desiredFacing);
+    if (formation.speed === "STOP") {
+      if (game.battlePhase === "planning") {
+        formation.target = vec(tile.x, tile.y);
+        formation.targetSetTime = game.battleTime;
+      }
+    } else {
+      formation.target = vec(tile.x, tile.y);
+      formation.targetSetTime = game.battleTime;
+    }
+  }
+
+  function toggleFormationStop(formation, showSpeech = true) {
+    if (!formation || formation.retreating) return;
+    if (formation.speed === "STOP") {
+      formation.speed = formation.prevSpeed || "NORMAL";
+    } else {
+      formation.prevSpeed = formation.speed;
+      formation.speed = "STOP";
+      formation.target = null;
+      if (showSpeech && speechData) tryShowSpeechCommand(formation, randFrom(speechData.speed_stop));
+    }
+  }
+
+  function applyOnlineCommand(side, command) {
+    if (!command) return;
+    if (command.type === "START_BATTLE") {
+      startLiveBattle();
+      return;
+    }
+    const formation = onlineFormationsForSide(side).find(f => f.id === command.formationId);
+    if (!formation) return;
+    switch (command.type) {
+      case "MOVE": {
+        const targetEnemy = command.targetEnemyId == null ? null
+          : onlineOpponentsForSide(side).find(f => f.id === command.targetEnemyId);
+        moveFormation(formation, vec(command.tx, command.ty), targetEnemy);
+        break;
+      }
+      case "SET_SPEED":
+        setFormationSpeed(formation, command.speed, side === game.online.side);
+        break;
+      case "SET_DENSITY":
+        setFormationDensity(formation, command.density, side === game.online.side);
+        break;
+      case "ADJUST_RATIO":
+        adjustFormationRatio(formation, Number(command.delta || 0));
+        break;
+      case "USE_SKILL":
+        activateSkill(formation);
+        break;
+      case "TOGGLE_STOP":
+        toggleFormationStop(formation, side === game.online.side);
+        break;
+    }
+    game.hudDirty = true;
+  }
+
   buttons.speed.forEach((button) => {
     button.addEventListener("click", () => {
       if (isScenarioSceneActive()) return;
       const newSpeed = button.dataset.speed;
+      if (isOnlineMode()) {
+        sendOnlineCommands(currentSelection().map(formation => ({
+          type: "SET_SPEED",
+          formationId: formation.id,
+          speed: newSpeed,
+        })));
+        return;
+      }
       currentSelection().forEach((formation) => {
         if (formation.retreating) return;
         if (newSpeed === "STOP") {
@@ -4508,6 +4916,14 @@ import {
     button.addEventListener("click", () => {
       if (isScenarioSceneActive()) return;
       const newDensity = button.dataset.density;
+      if (isOnlineMode()) {
+        sendOnlineCommands(currentSelection().map(formation => ({
+          type: "SET_DENSITY",
+          formationId: formation.id,
+          density: newDensity,
+        })));
+        return;
+      }
       currentSelection().forEach((formation) => {
         if (formation.retreating) return;
         if (!isDensityAllowed(formation.troopType, newDensity)) return;
@@ -4526,6 +4942,14 @@ import {
 
   buttons.ratioDown.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "ADJUST_RATIO",
+        formationId: formation.id,
+        delta: -0.3,
+      })));
+      return;
+    }
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       formation.ratio = clamp(formation.ratio - 0.3, 0.33, 3.0);
@@ -4536,6 +4960,14 @@ import {
 
   buttons.ratioUp.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "ADJUST_RATIO",
+        formationId: formation.id,
+        delta: 0.3,
+      })));
+      return;
+    }
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       formation.ratio = clamp(formation.ratio + 0.3, 0.33, 3.0);
@@ -4563,15 +4995,26 @@ import {
 
   phaseButton.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands([{ type: "START_BATTLE" }]);
+      return;
+    }
     startLiveBattle();
   });
 
   endBattleBtn.addEventListener("click", () => {
+    if (isOnlineMode()) {
+      onlineClient.disconnect();
+      disableOnlineRandom();
+      game.online = null;
+      game.mode = "quick";
+    }
     setScreen("home");
   });
 
   speedToggleButton.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) return;
     if (game.battlePhase !== "live") return;
     // 정지 상태에서 배속 토글 → 정지 전 속도로 복귀
     currentSelection().forEach((formation) => {
@@ -4584,12 +5027,26 @@ import {
 
   kihapBtn.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "USE_SKILL",
+        formationId: formation.id,
+      })));
+      return;
+    }
     currentSelection().forEach((formation) => activateSkill(formation));
     refreshButtons();
   });
 
   function toggleStop() {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "TOGGLE_STOP",
+        formationId: formation.id,
+      })));
+      return;
+    }
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       if (formation.speed === "STOP") {
@@ -4683,6 +5140,16 @@ import {
       const center = formationCenter(f);
       const d = len(center.x - tile.x, center.y - tile.y);
       if (d < minDist) { minDist = d; clickedEnemy = f; }
+    }
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "MOVE",
+        formationId: formation.id,
+        tx: tile.x,
+        ty: tile.y,
+        targetEnemyId: clickedEnemy?.id ?? null,
+      })));
+      return;
     }
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
@@ -4848,13 +5315,26 @@ import {
     const dt = Math.min(0.05, (now - tick.last) / 1000);
     tick.last = now;
     if (game.paused) { requestAnimationFrame(tick); return; }
-    game.simulationAccumulator = Math.min(game.simulationAccumulator + dt * game.speedMultiplier, SIMULATION_STEP * MAX_SIMULATION_STEPS);
-    let stepCount = 0;
-    while (game.simulationAccumulator >= SIMULATION_STEP && stepCount < MAX_SIMULATION_STEPS) {
-      update(SIMULATION_STEP);
-      game.simulationAccumulator -= SIMULATION_STEP;
-      stepCount += 1;
+    if (isOnlineMode()) {
+      const targetTick = Math.max(0, onlineNetTick() - (game.online.inputDelayTicks || 10));
+      drainOnlineCommands(game.online.simTick);
+      let stepCount = 0;
+      while (game.online.simTick < targetTick && stepCount < MAX_SIMULATION_STEPS) {
+        game.online.simTick += 1;
+        drainOnlineCommands(game.online.simTick);
+        update(SIMULATION_STEP);
+        stepCount += 1;
+      }
+    } else {
+      game.simulationAccumulator = Math.min(game.simulationAccumulator + dt * game.speedMultiplier, SIMULATION_STEP * MAX_SIMULATION_STEPS);
+      let stepCount = 0;
+      while (game.simulationAccumulator >= SIMULATION_STEP && stepCount < MAX_SIMULATION_STEPS) {
+        update(SIMULATION_STEP);
+        game.simulationAccumulator -= SIMULATION_STEP;
+        stepCount += 1;
+      }
     }
+    maybeSendOnlineChecksum();
     // ── 선택 진형 사망 시 자동 선택 (2초 대기) ────────────────────────
     if (game.battlePhase === 'live') {
       const sel = game.playerFormations.find(f => f.id === game.selectedId);
@@ -4920,7 +5400,10 @@ import {
     game.battleEndPending = false;
     game.battleEndTimer = 0;
     game.battlePhase = "ended";
-    showBattleResult(finalOutcome ? finalOutcome.won : game.battleEndWon);
+    const won = finalOutcome ? finalOutcome.won : game.battleEndWon;
+    submitOnlineResult(won);
+    if (isOnlineMode()) disableOnlineRandom();
+    showBattleResult(won);
   }
 
   // ── 시나리오 초기화 공통 ────────────────────────────────────────────
@@ -4993,7 +5476,9 @@ import {
 
   // ── 빠른 전투 진입 ──────────────────────────────────────────────────
   function enterQuickBattle(isNew) {
+    disableOnlineRandom();
     game.mode = "quick";
+    game.online = null;
     game.scenarioData = null;
     resetScenarioRuntime();
     let terrain, pGens, eGens;
@@ -5015,6 +5500,40 @@ import {
     refreshButtons();
   }
 
+  function enterOnlineBattle(match) {
+    enableOnlineRandom(match.seed);
+    const { terrain, playerFormations, enemyFormations } = buildOnlineScenario(match);
+    applyScenario(terrain, playerFormations, enemyFormations);
+    game.mode = "online";
+    const startedAt = Number(match.startedAt || Date.now());
+    const serverNow = Number(match.serverNow || startedAt);
+    const serverElapsed = Math.max(0, serverNow - startedAt);
+    game.online = {
+      roomId: match.roomId,
+      side: Number(match.side || 0),
+      seed: match.seed,
+      tickRate: Number(match.tickRate || 30),
+      inputDelayTicks: Number(match.inputDelayTicks || 10),
+      receivedAt: performance.now(),
+      startedAt,
+      serverNow,
+      startedAtClient: performance.now() - serverElapsed,
+      netTick: 0,
+      simTick: 0,
+      lastChecksumTick: 0,
+      commandQueue: new Map(),
+      resultSubmitted: false,
+      players: match.players || [],
+    };
+    game.selectedId = playerFormations[0]?.id ?? 0;
+    startLiveBattle();
+    setScreen("battle");
+    centerCameraOn(formationCenter(game.playerFormations[0]));
+    refreshHud();
+    refreshButtons();
+    showOnlineSyncNotice("온라인 전투 동기화 준비 중...", "info", 2500);
+  }
+
   function hideScenarioOverlays() {
     if (scenarioHud) scenarioHud.hidden = true;
     if (scenarioDialogue) scenarioDialogue.hidden = true;
@@ -5022,12 +5541,14 @@ import {
   }
 
   function applyHistoricalScenario(scenario, terrain) {
+    disableOnlineRandom();
     const playerFormations = scenario.player.formations.map((spec, index) =>
       createFormationFromScenarioSpec(spec, "player", index));
     const enemyFormations = scenario.enemy.formations.map((spec, index) =>
       createFormationFromScenarioSpec(spec, "enemy", index));
     applyScenario(terrain, playerFormations, enemyFormations);
     game.mode = "historical";
+    game.online = null;
     game.scenarioData = scenario;
     game.scenarioPhaseIndex = -1;
     game.selectedId = playerFormations[0]?.id ?? 0;
@@ -5971,13 +6492,995 @@ import {
 
   // ── 새 화면 이벤트 핸들러 ────────────────────────────────────────────
   // 홈: 빠른 전투
+  function setOnlineStatus(text) {
+    if (onlineMatchStatus) onlineMatchStatus.textContent = text;
+    if (onlineAuthStatus) onlineAuthStatus.textContent = text;
+  }
+
+  function showOnlineSyncNotice(text, tone = "info", durationMs = 5000) {
+    if (!onlineSyncNotice) return;
+    window.clearTimeout(onlineSyncNoticeTimer);
+    onlineSyncNotice.textContent = text;
+    onlineSyncNotice.dataset.tone = tone;
+    onlineSyncNotice.hidden = false;
+    if (durationMs > 0) {
+      onlineSyncNoticeTimer = window.setTimeout(hideOnlineSyncNotice, durationMs);
+    }
+  }
+
+  function hideOnlineSyncNotice() {
+    if (!onlineSyncNotice) return;
+    window.clearTimeout(onlineSyncNoticeTimer);
+    onlineSyncNoticeTimer = null;
+    onlineSyncNotice.hidden = true;
+    onlineSyncNotice.textContent = "";
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    })[char]);
+  }
+
+  function onlineCardFor(element) {
+    return element?.closest?.(".online-card") || null;
+  }
+
+  function makeOnlineButton(id, label, className = "btn-stone") {
+    let button = document.getElementById(id);
+    if (!button) {
+      button = document.createElement("button");
+      button.id = id;
+      button.type = "button";
+      button.className = className;
+      button.textContent = label;
+    }
+    return button;
+  }
+
+  function syncOnlineHeaderActions() {
+    const header = onlineScreen?.querySelector(".online-header");
+    if (!header || !onlineBackBtn) return;
+    let headerActions = header.querySelector(".online-header-actions");
+    if (!headerActions) {
+      headerActions = document.createElement("div");
+      headerActions.className = "online-header-actions";
+      header.appendChild(headerActions);
+    }
+    if (!headerActions.contains(onlineBackBtn)) headerActions.appendChild(onlineBackBtn);
+    if (!onlineLogoutBtn) onlineLogoutBtn = makeOnlineButton("onlineLogoutBtn", "로그아웃");
+    onlineLogoutBtn.textContent = "로그아웃";
+    if (!headerActions.contains(onlineLogoutBtn)) headerActions.appendChild(onlineLogoutBtn);
+    onlineLogoutBtn.hidden = !onlineClient.player || !["commanders", "match"].includes(onlinePage);
+  }
+
+  function ensureOnlineUiScaffold() {
+    const authCard = onlineCardFor(onlineAuthForm);
+    const commanderCard = onlineCardFor(onlineCommanders);
+    const matchCard = onlineCardFor(onlineMatchStatus);
+    const recentCard = onlineCardFor(onlineRecentMatches);
+    const leaderboardCard = onlineCardFor(onlineLeaderboard);
+    const header = onlineScreen?.querySelector(".online-header");
+
+    authCard?.classList.add("online-page-card", "online-auth-card");
+    commanderCard?.classList.add("online-page-card", "online-commanders-card", "online-card--wide");
+    matchCard?.classList.add("online-page-card", "online-match-card");
+    recentCard?.classList.add("online-page-card", "online-records-card", "online-card--wide");
+    leaderboardCard?.classList.add("online-page-card", "online-records-card");
+
+    if (authCard && !onlineAuthStatus) {
+      onlineAuthStatus = document.createElement("div");
+      onlineAuthStatus.id = "onlineAuthStatus";
+      onlineAuthStatus.className = "online-status";
+      onlineAuthStatus.textContent = "로그인 후 온라인 대전을 시작할 수 있습니다.";
+      authCard.appendChild(onlineAuthStatus);
+    }
+
+    syncOnlineHeaderActions();
+
+    if (commanderCard) {
+      if (onlineProfile && onlineProfile.parentElement !== commanderCard) {
+        commanderCard.insertBefore(onlineProfile, onlineCommanders);
+      }
+      let actions = commanderCard.querySelector(".online-loadout-actions");
+      if (!actions) {
+        actions = document.createElement("div");
+        actions.className = "online-actions online-loadout-actions";
+        commanderCard.appendChild(actions);
+      }
+      onlineRecordsBtn = makeOnlineButton("onlineRecordsBtn", "전적/랭킹");
+      onlineSaveLoadoutBtn = makeOnlineButton("onlineSaveLoadoutBtn", "편성 저장");
+      onlineGoMatchBtn = makeOnlineButton("onlineGoMatchBtn", "매칭 화면으로", "btn-primary");
+      onlineLogoutBtn = onlineLogoutBtn || makeOnlineButton("onlineLogoutBtn", "로그아웃");
+      onlineLogoutBtn.hidden = false;
+      [onlineRecordsBtn, onlineSaveLoadoutBtn, onlineGoMatchBtn].forEach((button) => {
+        if (!actions.contains(button)) actions.appendChild(button);
+      });
+      if (onlineSaveLoadoutBtn) {
+        onlineSaveLoadoutBtn.hidden = true;
+        if (actions.contains(onlineSaveLoadoutBtn)) actions.removeChild(onlineSaveLoadoutBtn);
+      }
+    }
+
+    if (matchCard) {
+      if (!onlineMatchPlayerInfo) {
+        onlineMatchPlayerInfo = document.createElement("div");
+        onlineMatchPlayerInfo.id = "onlineMatchPlayerInfo";
+        onlineMatchPlayerInfo.className = "online-profile";
+        matchCard.insertBefore(onlineMatchPlayerInfo, onlineMatchStatus);
+      }
+      if (!onlineMatchRoster) {
+        onlineMatchRoster = document.createElement("div");
+        onlineMatchRoster.id = "onlineMatchRoster";
+        onlineMatchRoster.className = "online-commanders online-match-roster";
+        matchCard.insertBefore(onlineMatchRoster, onlineMatchStatus);
+      }
+      if (!matchCard.querySelector(".online-search-anim")) {
+        const anim = document.createElement("div");
+        anim.className = "online-search-anim";
+        anim.setAttribute("aria-hidden", "true");
+        matchCard.insertBefore(anim, onlineMatchStatus);
+      }
+      if (!onlineOpponentPreview) {
+        onlineOpponentPreview = document.createElement("div");
+        onlineOpponentPreview.id = "onlineOpponentPreview";
+        onlineOpponentPreview.className = "online-opponent-preview";
+        onlineOpponentPreview.hidden = true;
+        matchCard.insertBefore(onlineOpponentPreview, onlineResultSummary || onlineMatchStatus.nextSibling);
+      }
+      let actions = matchCard.querySelector(".online-actions");
+      if (!actions) {
+        actions = document.createElement("div");
+        actions.className = "online-actions";
+        matchCard.appendChild(actions);
+      }
+      onlineReadyBtn = makeOnlineButton("onlineReadyBtn", "게임 시작", "btn-primary");
+      onlineReadyBtn.disabled = true;
+      onlineBackToCommandersBtn = makeOnlineButton("onlineBackToCommandersBtn", "편성으로");
+      onlineMatchLogoutBtn = makeOnlineButton("onlineMatchLogoutBtn", "로그아웃");
+      [onlineQueueBtn, onlineLeaveQueueBtn, onlineReadyBtn, onlineBackToCommandersBtn, onlineMatchLogoutBtn]
+        .filter(Boolean)
+        .forEach((button) => {
+          if (!actions.contains(button)) actions.appendChild(button);
+        });
+      if (onlineMatchLogoutBtn) onlineMatchLogoutBtn.hidden = true;
+      let columns = matchCard.querySelector(".online-match-columns");
+      if (!columns) {
+        columns = document.createElement("div");
+        columns.className = "online-match-columns";
+        columns.innerHTML = `<div class="online-match-left"></div><div class="online-match-right"></div>`;
+        matchCard.querySelector("h3")?.after(columns);
+      }
+      const left = columns.querySelector(".online-match-left");
+      const right = columns.querySelector(".online-match-right");
+      const anim = matchCard.querySelector(".online-search-anim");
+      if (left) {
+        left.appendChild(onlineMatchPlayerInfo);
+        left.appendChild(onlineMatchRoster);
+      }
+      if (right) {
+        if (anim) right.appendChild(anim);
+        right.appendChild(onlineMatchStatus);
+        right.appendChild(onlineOpponentPreview);
+        if (onlineResultSummary) right.appendChild(onlineResultSummary);
+        right.appendChild(actions);
+      }
+    }
+
+    const recordCards = [recentCard, leaderboardCard].filter(Boolean);
+    if (recordCards.length && !onlineRecordsBackBtn) {
+      onlineRecordsBackBtn = makeOnlineButton("onlineRecordsBackBtn", "돌아가기");
+      const actions = document.createElement("div");
+      actions.className = "online-actions online-records-actions";
+      actions.appendChild(onlineRecordsBackBtn);
+      recordCards[0].parentElement?.insertBefore(actions, recordCards[0]);
+    }
+    syncOnlineHeaderActions();
+  }
+
+  function setOnlinePage(page) {
+    ensureOnlineUiScaffold();
+    if (page === "records" && onlinePage !== "records") onlinePreviousPage = onlinePage;
+    onlinePage = page;
+    const onlinePanel = onlineScreen?.querySelector(".online-panel");
+    if (onlinePanel) onlinePanel.dataset.onlinePage = page;
+    const authCard = onlineCardFor(onlineAuthForm);
+    const commanderCard = onlineCardFor(onlineCommanders);
+    const matchCard = onlineCardFor(onlineMatchStatus);
+    const recentCard = onlineCardFor(onlineRecentMatches);
+    const leaderboardCard = onlineCardFor(onlineLeaderboard);
+    const recordsActions = document.querySelector(".online-records-actions");
+    if (authCard) authCard.hidden = page !== "auth";
+    if (commanderCard) commanderCard.hidden = page !== "commanders";
+    if (matchCard) matchCard.hidden = page !== "match";
+    if (recentCard) recentCard.hidden = page !== "records";
+    if (leaderboardCard) leaderboardCard.hidden = page !== "records";
+    if (recordsActions) recordsActions.hidden = page !== "records";
+    syncOnlineHeaderActions();
+  }
+
+  function onlineSkillLabel(skill) {
+    return ({
+      kihap: "기합",
+      swift: "신속",
+      guard: "사수",
+      fire: "화공",
+      flood: "수공",
+      archery: "신궁",
+    })[skill] || skill;
+  }
+
+  function onlineCatalogItem(templateId) {
+    return (onlineClient.catalog || []).find(item => item.id === templateId)
+      || onlineClient.catalog?.[0]
+      || null;
+  }
+
+  function normalizeOnlineLoadout(commanders = onlineClient.player?.commanders || []) {
+    const catalog = onlineClient.catalog || [];
+    return Array.from({ length: 5 }, (_unused, index) => {
+      const current = commanders[index] || {};
+      const template = onlineCatalogItem(current.templateId) || catalog[index] || catalog[0] || current;
+      const troopType = current.troopType || template?.troopType || "infantry";
+      const allowedSkills = troopType === "cavalry" ? ["kihap"] : (template?.allowedSkills || [template?.skillType || "kihap"]);
+      const skillType = allowedSkills.includes(current.skillType) ? current.skillType : allowedSkills[0];
+      return {
+        slotIndex: index,
+        templateId: template?.id || current.templateId,
+        troopType,
+        troops: Number(current.troops || (troopType === "cavalry" ? 2500 : 10000)),
+        skillType,
+      };
+    });
+  }
+
+  function readOnlineLoadoutDraft() {
+    const rows = [...document.querySelectorAll("[data-online-loadout-slot]")];
+    if (!rows.length) return onlineLoadoutDraft;
+    return rows.map((row, index) => {
+      const templateId = row.querySelector("[data-field='templateId']")?.value || onlineLoadoutDraft[index]?.templateId;
+      const troopType = normalizeTroopType(row.dataset.troopType || row.querySelector("[data-field='troopType']")?.value || "infantry");
+      const template = onlineCatalogItem(templateId);
+      const allowedSkills = onlineAllowedSkills(template, troopType);
+      const rawSkill = row.dataset.skillType || row.querySelector("[data-field='skillType']")?.value || onlineLoadoutDraft[index]?.skillType || "kihap";
+      return {
+        slotIndex: index,
+        templateId,
+        troopType,
+        troops: normalizeTroopsForType(Number(row.querySelector("[data-field='troops']")?.value || onlineLoadoutDraft[index]?.troops || 0), troopType),
+        skillType: allowedSkills.includes(rawSkill) ? rawSkill : allowedSkills[0],
+      };
+    });
+  }
+
+  function onlinePortraitMarkup(commander, className = "online-loadout-portrait") {
+    if (commander?.portrait) {
+      return `<div class="${className}"><img src="${escapeHtml(commander.portrait)}" alt="${escapeHtml(commander.name || "")}" /></div>`;
+    }
+    return `<div class="${className}">${escapeHtml((commander?.name || "?").slice(0, 1))}</div>`;
+  }
+
+  function onlineAllowedSkills(template, troopType) {
+    if (troopType === "cavalry") return ["kihap"];
+    const skills = Array.isArray(template?.allowedSkills)
+      ? template.allowedSkills
+      : [template?.skillType || "kihap"];
+    return skills.filter(skill => SKILL_DEF[skill]);
+  }
+
+  function onlineLoadoutPopulation(item) {
+    return troopPopulation(item?.troops || 0, item?.troopType || "infantry");
+  }
+
+  const ONLINE_TROOP_STEP = 250;
+
+  function onlineRoundTroops(troops) {
+    return Math.max(0, Math.round(Number(troops || 0) / ONLINE_TROOP_STEP) * ONLINE_TROOP_STEP);
+  }
+
+  function onlineMinPopulationForType(type) {
+    return troopPopulation(minTroopsForType(type), type);
+  }
+
+  function onlineLoadoutTotalPopulation() {
+    return onlineLoadoutDraft.reduce((sum, item) => sum + onlineLoadoutPopulation(item), 0);
+  }
+
+  function onlineLoadoutMaxTroops(slotIndex, troopType) {
+    const otherMinPopulation = onlineLoadoutDraft.reduce((sum, item, index) =>
+      index === slotIndex ? sum : sum + onlineMinPopulationForType(item?.troopType || "infantry"), 0);
+    const availablePopulation = Math.max(
+      onlineMinPopulationForType(troopType),
+      POPULATION_BUDGET - otherMinPopulation,
+    );
+    return Math.max(
+      minTroopsForType(troopType),
+      Math.floor(availablePopulation / troopPopulationCost(troopType) / ONLINE_TROOP_STEP) * ONLINE_TROOP_STEP,
+    );
+  }
+
+  function onlineClampTroops(slotIndex, troopType, troops) {
+    return Math.min(
+      onlineLoadoutMaxTroops(slotIndex, troopType),
+      Math.max(minTroopsForType(troopType), onlineRoundTroops(troops))
+    );
+  }
+
+  function normalizeOnlineLoadoutBudget(lockedIndex = -1) {
+    onlineLoadoutDraft = onlineLoadoutDraft.map((item, index) => {
+      const troopType = normalizeTroopType(item?.troopType || "infantry");
+      return {
+        ...item,
+        slotIndex: index,
+        troopType,
+        troops: onlineClampTroops(index, troopType, item?.troops || minTroopsForType(troopType)),
+      };
+    });
+
+    const adjustOneStep = (direction, allowLocked = false) => {
+      const indices = onlineLoadoutDraft
+        .map((_item, index) => index)
+        .filter(index => allowLocked || index !== lockedIndex)
+        .sort((a, b) => {
+          const pa = onlineLoadoutPopulation(onlineLoadoutDraft[a]);
+          const pb = onlineLoadoutPopulation(onlineLoadoutDraft[b]);
+          return direction > 0 ? pa - pb : pb - pa;
+        });
+      const total = onlineLoadoutTotalPopulation();
+      for (const index of indices) {
+        const item = onlineLoadoutDraft[index];
+        const stepPopulation = troopPopulation(ONLINE_TROOP_STEP, item.troopType);
+        if (direction > 0) {
+          if (total + stepPopulation > POPULATION_BUDGET) continue;
+          if (item.troops + ONLINE_TROOP_STEP > onlineLoadoutMaxTroops(index, item.troopType)) continue;
+          onlineLoadoutDraft[index] = { ...item, troops: item.troops + ONLINE_TROOP_STEP };
+          return true;
+        }
+        if (total - stepPopulation < POPULATION_BUDGET) continue;
+        if (item.troops - ONLINE_TROOP_STEP < minTroopsForType(item.troopType)) continue;
+        onlineLoadoutDraft[index] = { ...item, troops: item.troops - ONLINE_TROOP_STEP };
+        return true;
+      }
+      return false;
+    };
+
+    let guard = 0;
+    while (onlineLoadoutTotalPopulation() < POPULATION_BUDGET && guard < 1000) {
+      if (!adjustOneStep(1) && !adjustOneStep(1, true)) break;
+      guard++;
+    }
+    guard = 0;
+    while (onlineLoadoutTotalPopulation() > POPULATION_BUDGET && guard < 1000) {
+      if (!adjustOneStep(-1) && !adjustOneStep(-1, true)) break;
+      guard++;
+    }
+  }
+
+  function setOnlineLoadoutTroops(slotIndex, troops) {
+    const item = onlineLoadoutDraft[slotIndex];
+    if (!item) return;
+    onlineLoadoutDraft[slotIndex] = {
+      ...item,
+      troops: onlineClampTroops(slotIndex, item.troopType, troops),
+    };
+    normalizeOnlineLoadoutBudget(slotIndex);
+  }
+
+  function renderOnlineLoadoutEditor() {
+    if (!onlineCommanders) return;
+    const catalog = onlineClient.catalog || [];
+    if (!catalog.length) {
+      onlineCommanders.innerHTML = `<div class="online-status">장수 카탈로그를 불러오는 중입니다.</div>`;
+      return;
+    }
+    if (!onlineLoadoutDraft.length) onlineLoadoutDraft = normalizeOnlineLoadout();
+    {
+      onlineCommanders.classList.add("online-loadout-editor", "adjust-cards");
+      onlineLoadoutDraft = onlineLoadoutDraft.map((item, index) => {
+        const template = onlineCatalogItem(item.templateId) || catalog[index] || catalog[0];
+        const troopType = normalizeTroopType(item.troopType || template?.troopType || "infantry");
+        const allowedSkills = onlineAllowedSkills(template, troopType);
+        const troops = onlineClampTroops(index, troopType, Number(item.troops || (troopType === "cavalry" ? 2500 : 10000)));
+        return {
+          slotIndex: index,
+          templateId: template?.id || item.templateId,
+          troopType,
+          troops,
+          skillType: allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0],
+        };
+      });
+      normalizeOnlineLoadoutBudget();
+
+      const draftTotalPopulation = onlineLoadoutDraft.reduce((sum, item) => sum + onlineLoadoutPopulation(item), 0);
+      onlineCommanders.innerHTML = `
+        <div class="online-loadout-total ${draftTotalPopulation > POPULATION_BUDGET ? "is-over" : ""}">
+          총 인구 ${formatTroops(draftTotalPopulation)} / ${formatTroops(POPULATION_BUDGET)}
+        </div>
+        ${onlineLoadoutDraft.map((item, index) => {
+          const template = onlineCatalogItem(item.templateId) || catalog[index] || catalog[0];
+          const troopType = normalizeTroopType(item.troopType || template?.troopType || "infantry");
+          const allowedSkills = onlineAllowedSkills(template, troopType);
+          const skillType = allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0];
+          const maxTroops = onlineLoadoutMaxTroops(index, troopType);
+          const popUsed = onlineLoadoutPopulation(item);
+          const pct = Math.min(100, popUsed / POPULATION_BUDGET * 100).toFixed(1);
+          const takenIds = new Set(onlineLoadoutDraft
+            .map((draftItem, draftIndex) => draftIndex === index ? null : draftItem.templateId)
+            .filter(Boolean));
+          return `
+            <div class="adjust-card online-loadout-card player-side" data-online-loadout-slot="${index}" data-troop-type="${escapeHtml(troopType)}" data-skill-type="${escapeHtml(skillType)}">
+              ${onlinePortraitMarkup(template)}
+              <select class="online-loadout-select" data-field="templateId" aria-label="장수 선택">
+                ${catalog.map(option => {
+                  const disabled = takenIds.has(option.id) && option.id !== template.id;
+                  return `<option value="${escapeHtml(option.id)}" ${option.id === template.id ? "selected" : ""} ${disabled ? "disabled" : ""}>${escapeHtml(option.name)} · ${escapeHtml(option.source || "quick")}</option>`;
+                }).join("")}
+              </select>
+              <div class="adjust-card-stats">
+                <div class="adjust-card-stat"><span>무력</span><strong>${template.power}</strong></div>
+                <div class="adjust-card-stat"><span>통솔</span><strong>${template.leadership}</strong></div>
+                <div class="adjust-card-stat"><span>매력</span><strong>${template.charm}</strong></div>
+              </div>
+              <div class="adjust-type-buttons">
+                ${["infantry", "cavalry"].map(type => `<button type="button" class="adjust-type-btn" data-field="troopType" data-value="${type}" data-active="${type === troopType ? "true" : "false"}">${type === "cavalry" ? "기병" : "보병"}</button>`).join("")}
+              </div>
+              <div class="adjust-skill-buttons">
+                ${allSkillButtons().map(skill => `<button type="button" class="adjust-skill-btn" data-field="skillType" data-value="${escapeHtml(skill)}" data-active="${skill === skillType ? "true" : "false"}" ${allowedSkills.includes(skill) ? "" : "disabled"}>${onlineSkillLabel(skill)}</button>`).join("")}
+              </div>
+              <div class="adjust-bar-bg"><div class="adjust-bar-fill player-fill" style="width:${pct}%"></div></div>
+              <div class="adjust-card-val">${Math.round(item.troops).toLocaleString()} <span>명</span></div>
+              <div class="adjust-card-pop">인구 ${formatTroops(popUsed)}</div>
+              <div class="adjust-slider-wrap">
+                <input data-field="troops" type="range" class="adjust-slider" min="${minTroopsForType(troopType)}" max="${maxTroops}" step="250" value="${Math.round(item.troops)}" />
+              </div>
+            </div>
+          `;
+        }).join("")}
+      `;
+
+      if (onlineGoMatchBtn) onlineGoMatchBtn.disabled = draftTotalPopulation > POPULATION_BUDGET;
+
+      onlineCommanders.querySelectorAll("[data-field='templateId']").forEach((select) => {
+        select.addEventListener("change", () => {
+          const slot = Number(select.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+          const prev = onlineLoadoutDraft[slot] || {};
+          const template = onlineCatalogItem(select.value) || catalog[0];
+          const troopType = normalizeTroopType(prev.troopType || template?.troopType || "infantry");
+          const allowedSkills = onlineAllowedSkills(template, troopType);
+          onlineLoadoutDraft[slot] = {
+            slotIndex: slot,
+            templateId: template?.id,
+            troopType,
+            troops: onlineClampTroops(slot, troopType, prev.troops || (troopType === "cavalry" ? 2500 : 10000)),
+            skillType: allowedSkills.includes(prev.skillType) ? prev.skillType : allowedSkills[0],
+          };
+          normalizeOnlineLoadoutBudget(slot);
+          renderOnlineLoadoutEditor();
+        });
+      });
+
+      onlineCommanders.querySelectorAll("button[data-field='troopType']").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.currentTarget.blur();
+          const slot = Number(button.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+          const item = onlineLoadoutDraft[slot];
+          const template = onlineCatalogItem(item.templateId);
+          const troopType = normalizeTroopType(button.dataset.value);
+          if (item.troopType === troopType) return;
+          const preservedPopulation = troopPopulation(item.troops, item.troopType);
+          const allowedSkills = onlineAllowedSkills(template, troopType);
+          onlineLoadoutDraft[slot] = {
+            ...item,
+            troopType,
+            troops: onlineClampTroops(slot, troopType, Math.floor(preservedPopulation / troopPopulationCost(troopType))),
+            skillType: allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0],
+          };
+          normalizeOnlineLoadoutBudget(slot);
+          renderOnlineLoadoutEditor();
+        });
+      });
+
+      onlineCommanders.querySelectorAll("button[data-field='skillType']").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          if (button.disabled) return;
+          event.currentTarget.blur();
+          const slot = Number(button.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+          onlineLoadoutDraft[slot] = {
+            ...onlineLoadoutDraft[slot],
+            skillType: button.dataset.value,
+          };
+          renderOnlineLoadoutEditor();
+        });
+      });
+
+      onlineCommanders.querySelectorAll("input[data-field='troops']").forEach((input) => {
+        input.addEventListener("input", () => {
+          const slot = Number(input.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+          const item = onlineLoadoutDraft[slot];
+          setOnlineLoadoutTroops(slot, Number(input.value || item.troops));
+          renderOnlineLoadoutEditor();
+        });
+      });
+      return;
+    }
+    const totalPopulation = onlineLoadoutDraft.reduce((sum, item) =>
+      sum + item.troops * (item.troopType === "cavalry" ? 4 : 1), 0);
+    onlineCommanders.innerHTML = `
+      <div class="online-loadout-total ${totalPopulation > 50000 ? "is-over" : ""}">
+        총 인구 ${formatTroops(totalPopulation)} / 50,000
+      </div>
+      ${onlineLoadoutDraft.map((item, index) => {
+        const template = onlineCatalogItem(item.templateId) || catalog[index] || catalog[0];
+        const troopType = item.troopType || template.troopType || "infantry";
+        const allowedSkills = troopType === "cavalry" ? ["kihap"] : (template.allowedSkills || [template.skillType || "kihap"]);
+        const skillType = allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0];
+        return `
+          <div class="online-loadout-row" data-online-loadout-slot="${index}">
+            ${onlinePortraitMarkup(template)}
+            <div class="online-loadout-main">
+              <select data-field="templateId">
+                ${catalog.map(option => `<option value="${escapeHtml(option.id)}" ${option.id === template.id ? "selected" : ""}>${escapeHtml(option.name)} · ${escapeHtml(option.source || "quick")}</option>`).join("")}
+              </select>
+              <div class="online-loadout-stats">
+                무력 ${template.power} · 통솔 ${template.leadership} · 매력 ${template.charm}
+              </div>
+              <div class="online-loadout-controls">
+                <select data-field="troopType">
+                  <option value="infantry" ${troopType === "infantry" ? "selected" : ""}>보병</option>
+                  <option value="cavalry" ${troopType === "cavalry" ? "selected" : ""}>기병</option>
+                </select>
+                <input data-field="troops" type="number" min="${troopType === "cavalry" ? 250 : 1000}" max="${troopType === "cavalry" ? 12500 : 50000}" step="250" value="${Math.round(item.troops)}" />
+                <select data-field="skillType">
+                  ${allowedSkills.map(skill => `<option value="${escapeHtml(skill)}" ${skill === skillType ? "selected" : ""}>${onlineSkillLabel(skill)}</option>`).join("")}
+                </select>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    `;
+    onlineCommanders.querySelectorAll("select,input").forEach((input) => {
+      input.addEventListener("change", () => {
+        onlineLoadoutDraft = readOnlineLoadoutDraft();
+        renderOnlineLoadoutEditor();
+      });
+    });
+  }
+
+  function renderOnlineMatchPanel() {
+    ensureOnlineUiScaffold();
+    const player = onlineClient.player;
+    if (onlineMatchPlayerInfo) {
+      onlineMatchPlayerInfo.innerHTML = player ? `
+        <div class="online-profile-summary">
+          <div class="online-profile-name">${escapeHtml(player.displayName)}</div>
+          <div class="online-profile-record">Rating ${player.rating} · ${player.wins}승 ${player.losses}패 ${player.draws}무</div>
+        </div>
+      ` : "";
+    }
+    if (onlineMatchRoster) {
+      const commanders = player?.commanders || [];
+      onlineMatchRoster.innerHTML = commanders.map((commander, index) => `
+        <div class="online-commander">
+          ${onlinePortraitMarkup(commander, "online-commander-portrait")}
+          <div>
+            <div class="online-commander-name">${escapeHtml(commander.name)}</div>
+            <div class="online-commander-meta">${commander.troopType} · ${formatTroops(commander.troops || 0)} · ${onlineSkillLabel(commander.skillType)}</div>
+          </div>
+          <div class="online-commander-meta">${commander.power}/${commander.leadership}/${commander.charm}</div>
+        </div>
+      `).join("");
+    }
+    if (onlineOpponentPreview) {
+      const opponent = onlinePendingMatch?.players?.find(playerInfo => playerInfo.side !== onlinePendingMatch.side);
+      onlineOpponentPreview.hidden = !opponent;
+      onlineOpponentPreview.innerHTML = opponent ? `
+        <div class="online-record-title">상대: ${escapeHtml(opponent.displayName)}</div>
+        <div class="online-record-meta">Rating ${opponent.rating} · 준비 상태를 기다리는 중</div>
+      ` : "";
+    }
+  }
+
+  function setOnlineMatchActionState(state) {
+    if (onlineQueueBtn) {
+      onlineQueueBtn.hidden = state !== "matched";
+      onlineQueueBtn.textContent = "재매칭";
+    }
+    if (onlineLeaveQueueBtn) onlineLeaveQueueBtn.hidden = state !== "searching";
+    if (onlineReadyBtn) {
+      onlineReadyBtn.hidden = state !== "matched";
+      onlineReadyBtn.disabled = state !== "matched";
+      onlineReadyBtn.textContent = "게임 시작";
+    }
+    const anim = onlineScreen?.querySelector(".online-search-anim");
+    if (anim) anim.hidden = state !== "searching";
+  }
+
+  async function beginOnlineMatchmaking() {
+    onlinePendingMatch = null;
+    onlineReadySides = [];
+    onlineRematchAfterCancel = false;
+    setOnlinePage("match");
+    renderOnlineMatchPanel();
+    setOnlineMatchActionState("searching");
+    setOnlineStatus("상대를 찾는 중입니다...");
+    await onlineClient.joinQueue("quick");
+  }
+
+  function renderOnlineProfile() {
+    const player = onlineClient.player;
+    if (onlineProfile) {
+      onlineProfile.hidden = !player;
+      onlineProfile.innerHTML = player ? `
+        <div class="online-profile-summary">
+          <div class="online-profile-name">${escapeHtml(player.displayName)}</div>
+          <div class="online-profile-record">
+            Rating ${player.rating} · ${player.wins}승 ${player.losses}패 ${player.draws}무
+          </div>
+        </div>
+      ` : "";
+    }
+    if (onlineAuthForm) onlineAuthForm.hidden = Boolean(player);
+    if (onlineLogoutBtn) onlineLogoutBtn.hidden = !player;
+    if (onlineQueueBtn) onlineQueueBtn.disabled = !player;
+    if (onlineCommanders) {
+      onlineLoadoutDraft = player ? normalizeOnlineLoadout(player.commanders || []) : [];
+      renderOnlineLoadoutEditor();
+      return;
+      const commanders = player?.commanders || [];
+      onlineCommanders.innerHTML = commanders.length ? commanders.map((commander, index) => `
+        <div class="online-commander">
+          <div class="online-commander-slot">${index + 1}</div>
+          <div>
+            <div class="online-commander-name">${escapeHtml(commander.name)}</div>
+            <div class="online-commander-meta">${escapeHtml(commander.troopType)} · ${escapeHtml(commander.skillType)}</div>
+          </div>
+          <div class="online-commander-meta">${commander.power}/${commander.leadership}/${commander.charm}</div>
+        </div>
+      `).join("") : `<div class="online-status">로그인하면 계정에 귀속된 장수 5명이 표시됩니다.</div>`;
+    }
+  }
+
+  function onlineMatchLabel(match) {
+    const playerId = onlineClient.player?.id;
+    if (match.status === "desync") return { text: "무효", className: "is-invalid" };
+    if (match.status === "playing") return { text: "진행", className: "" };
+    if (!match.winnerId || match.winnerId === "-1") return { text: "무승부", className: "is-invalid" };
+    return match.winnerId === playerId
+      ? { text: "승리", className: "is-win" }
+      : { text: "패배", className: "is-loss" };
+  }
+
+  function renderOnlineResultSummary() {
+    if (!onlineResultSummary) return;
+    const result = onlineLastResult;
+    if (!result) {
+      onlineResultSummary.hidden = true;
+      onlineResultSummary.textContent = "";
+      return;
+    }
+    const mine = result.my || {};
+    const ratingChange = mine.ratingChange;
+    const stats = mine.stats;
+    const won = result.winnerSide === game.online?.side;
+    const resultText = result.status === "desync"
+      ? "무효 경기"
+      : won ? "승리" : "패배";
+    const ratingText = ratingChange
+      ? `${ratingChange.ratingBefore} → ${ratingChange.ratingAfter} (${ratingChange.ratingDelta >= 0 ? "+" : ""}${ratingChange.ratingDelta})`
+      : "변동 없음";
+    onlineResultSummary.innerHTML = `
+      <strong>${escapeHtml(resultText)}</strong><br>
+      Rating ${escapeHtml(ratingText)}<br>
+      ${stats ? `격파 ${formatTroops(stats.kills)} · 손실 ${formatTroops(stats.losses)} · 잔여 ${formatTroops(stats.troopsRemaining)}` : "전투 통계 없음"}
+    `;
+    onlineResultSummary.hidden = false;
+  }
+
+  function renderOnlineRecords() {
+    const recentMatches = onlineClient.recentMatches || [];
+    if (onlineRecentMatches) {
+      onlineRecentMatches.innerHTML = recentMatches.length ? recentMatches.map((match) => {
+        const label = onlineMatchLabel(match);
+        const delta = Number(match.ratingAfter ?? match.ratingBefore) - Number(match.ratingBefore ?? 0);
+        const deltaText = match.ratingAfter == null ? "" : ` · Rating ${delta >= 0 ? "+" : ""}${delta}`;
+        const opponent = match.opponentName || "상대";
+        return `
+          <div class="online-record-row">
+            <div class="online-record-main">
+              <div class="online-record-title">${escapeHtml(opponent)}</div>
+              <div class="online-record-meta">${escapeHtml(match.status)}${deltaText} · 격파 ${formatTroops(match.kills || 0)} · 손실 ${formatTroops(match.losses || 0)}</div>
+            </div>
+            <div class="online-record-badge ${label.className}">${label.text}</div>
+          </div>
+        `;
+      }).join("") : `<div class="online-status">아직 기록된 경기가 없습니다.</div>`;
+    }
+
+    const leaderboard = onlineClient.leaderboard || [];
+    if (onlineLeaderboard) {
+      onlineLeaderboard.innerHTML = leaderboard.length ? leaderboard.slice(0, 10).map((player, index) => `
+        <div class="online-record-row">
+          <div class="online-record-main">
+            <div class="online-record-title">${index + 1}. ${escapeHtml(player.displayName)}</div>
+            <div class="online-record-meta">${player.wins}승 ${player.losses}패 ${player.draws}무</div>
+          </div>
+          <div class="online-record-badge">${player.rating}</div>
+        </div>
+      `).join("") : `<div class="online-status">랭킹 기록이 없습니다.</div>`;
+    }
+    renderOnlineResultSummary();
+  }
+
+  async function refreshOnlineRecords() {
+    if (!onlineClient.token) {
+      renderOnlineProfile();
+      renderOnlineRecords();
+      return;
+    }
+    await Promise.all([
+      onlineClient.loadCommanderCatalog(),
+      onlineClient.loadMe(),
+      onlineClient.loadLeaderboard(),
+    ]);
+    renderOnlineProfile();
+    renderOnlineRecords();
+  }
+
+  async function saveOnlineLoadout() {
+    onlineLoadoutDraft = readOnlineLoadoutDraft();
+    normalizeOnlineLoadoutBudget();
+    const totalPopulation = onlineLoadoutTotalPopulation();
+    if (totalPopulation !== POPULATION_BUDGET) {
+      throw new Error("총 인구가 50,000이 되도록 편성을 조정해 주세요.");
+    }
+    setOnlineStatus("편성을 저장하는 중...");
+    await onlineClient.saveLoadout(onlineLoadoutDraft);
+    await refreshOnlineRecords();
+    setOnlineStatus("편성이 저장되었습니다.");
+    renderOnlineMatchPanel();
+  }
+
+  async function loadOnlineSession() {
+    try {
+      await refreshOnlineRecords();
+      setOnlinePage(onlineClient.player ? "commanders" : "auth");
+      if (onlineClient.player) setOnlineStatus("빠른 매칭을 시작할 수 있습니다.");
+    } catch (error) {
+      onlineClient.logout();
+      renderOnlineProfile();
+      renderOnlineRecords();
+      setOnlinePage("auth");
+      setOnlineStatus(error.message || "온라인 프로필을 불러오지 못했습니다.");
+    }
+  }
+
+  function onlineCredentials() {
+    return {
+      username: onlineUsername?.value.trim() || "",
+      password: onlinePassword?.value || "",
+      displayName: onlineDisplayName?.value.trim() || "",
+    };
+  }
+
+  async function loginOnline() {
+    try {
+      setOnlineStatus("로그인 중...");
+      const { username, password } = onlineCredentials();
+      await onlineClient.login({ username, password });
+      await refreshOnlineRecords();
+      setOnlinePage("commanders");
+      setOnlineStatus("로그인되었습니다. 빠른 매칭을 시작할 수 있습니다.");
+    } catch (error) {
+      setOnlineStatus(error.message || "로그인에 실패했습니다.");
+    }
+  }
+
+  async function registerOnline() {
+    try {
+      setOnlineStatus("계정 생성 중...");
+      const { username, password, displayName } = onlineCredentials();
+      await onlineClient.register({ username, password, displayName });
+      await refreshOnlineRecords();
+      setOnlinePage("commanders");
+      setOnlineStatus("계정이 생성되었습니다. 기본 장수 5명이 지급되었습니다.");
+    } catch (error) {
+      setOnlineStatus(error.message || "회원가입에 실패했습니다.");
+    }
+  }
+
+  onlineClient.on("AUTH_OK", (message) => {
+    onlineClient.player = message.player || onlineClient.player;
+    renderOnlineProfile();
+    renderOnlineRecords();
+    setOnlineStatus("서버에 연결되었습니다. 매칭 대기열에 참가합니다...");
+  });
+  onlineClient.on("QUEUE_JOINED", () => setOnlineStatus("상대를 찾는 중입니다..."));
+  onlineClient.on("QUEUE_LEFT", () => setOnlineStatus("매칭 대기를 취소했습니다."));
+  onlineClient.on("QUEUE_JOINED", () => {
+    setOnlineMatchActionState("searching");
+    setOnlineStatus("상대를 찾는 중입니다...");
+  });
+  onlineClient.on("QUEUE_LEFT", () => {
+    setOnlineMatchActionState("idle");
+    setOnlineStatus("매칭 대기를 취소했습니다.");
+  });
+  onlineClient.on("MATCH_FOUND", (message) => {
+    const opponent = (message.players || []).find(player => player.side !== message.side);
+    onlinePendingMatch = message;
+    onlineReadySides = [];
+    renderOnlineMatchPanel();
+    setOnlinePage("match");
+    setOnlineMatchActionState("matched");
+    if (onlineReadyBtn) {
+      onlineReadyBtn.disabled = false;
+      onlineReadyBtn.textContent = "게임 시작";
+    }
+    setOnlineStatus(`매칭 완료: ${opponent?.displayName || "상대"}. 양쪽 모두 게임 시작을 눌러야 전투가 시작됩니다.`);
+    return;
+    setOnlineStatus(
+      `매칭 완료: ${opponent?.displayName || "상대"} · seed ${message.seed} · side ${message.side}. 전투 동기화 연결 준비 완료.`,
+    );
+    enterOnlineBattle(message);
+  });
+  onlineClient.on("READY_STATE", (message) => {
+    onlineReadySides = message.readySides || [];
+    const myReady = onlineReadySides.includes(onlinePendingMatch?.side);
+    if (onlineReadyBtn) {
+      onlineReadyBtn.disabled = myReady;
+      onlineReadyBtn.textContent = myReady ? "상대 준비 대기" : "게임 시작";
+    }
+    setOnlineStatus(message.allReady ? "양쪽 준비 완료. 전장을 여는 중..." : `준비 상태: ${onlineReadySides.length}/2`);
+  });
+  onlineClient.on("MATCH_START", (message) => {
+    setOnlineStatus("전투를 시작합니다.");
+    enterOnlineBattle(message);
+  });
+  onlineClient.on("MATCH_CANCELLED", () => {
+    onlinePendingMatch = null;
+    onlineReadySides = [];
+    setOnlineMatchActionState("idle");
+    if (onlineRematchAfterCancel) {
+      onlineRematchAfterCancel = false;
+      beginOnlineMatchmaking().catch(error => setOnlineStatus(error.message || "재매칭을 시작하지 못했습니다."));
+    } else {
+      setOnlineStatus("매칭이 취소되었습니다.");
+    }
+  });
+  onlineClient.on("INPUT", queueOnlineInput);
+  onlineClient.on("DESYNC_DETECTED", (message) => {
+    console.warn("[online] desync detected", message);
+    const sides = (message.checksums || [])
+      .map(entry => `${entry.side}:${entry.hash}`)
+      .join(" / ");
+    showOnlineSyncNotice(`동기화 경고: tick ${message.tick} (${sides})`, "danger", 0);
+    setOnlineStatus(`동기화 경고가 감지되었습니다. tick ${message.tick}`);
+  });
+  onlineClient.on("CHECKSUM_OK", (message) => {
+    console.info("[online] checksum ok", message);
+  });
+  onlineClient.on("MATCH_ENDED", (message) => {
+    setOnlineStatus(`경기가 종료되었습니다. 결과: ${message.status}`);
+    onlineLastResult = message;
+    renderOnlineResultSummary();
+    refreshOnlineRecords().catch(error => console.warn("[online] record refresh failed", error));
+  });
+  onlineClient.on("MATCH_ENDED", () => {
+    hideOnlineSyncNotice();
+  });
+  onlineClient.on("OPPONENT_DISCONNECTED", () => {
+    setOnlineStatus("상대 연결이 끊어졌습니다.");
+    if (isOnlineMode() && appState === "battle") {
+      game.battlePhase = "ended";
+      game.online.resultSubmitted = true;
+      disableOnlineRandom();
+      showBattleResult(true);
+    }
+  });
+  onlineClient.on("ERROR", (message) => {
+    setOnlineStatus(message.error || "온라인 연결 오류가 발생했습니다.");
+  });
+  onlineClient.on("DISCONNECTED", () => {
+    setOnlineStatus("서버 연결이 종료되었습니다.");
+  });
+
   document.getElementById("menuQuickBattle").addEventListener("click", () => {
     enterQuickBattle(true);
+  });
+
+  menuOnlineBattle?.addEventListener("click", () => {
+    renderOnlineProfile();
+    renderOnlineRecords();
+    setScreen("online");
+    loadOnlineSession();
   });
 
   menuHistoricalScenario?.addEventListener("click", () => {
     renderScenarioSelect();
     setScreen("scenarioSelect");
+  });
+
+  onlineBackBtn?.addEventListener("click", () => {
+    onlineClient.leaveQueue();
+    setScreen("home");
+  });
+
+  onlineLoginBtn?.addEventListener("click", loginOnline);
+  onlineRegisterBtn?.addEventListener("click", registerOnline);
+  onlineAuthForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    loginOnline();
+  });
+  onlineLogoutBtn?.addEventListener("click", () => {
+    onlineClient.logout();
+    onlineLastResult = null;
+    renderOnlineProfile();
+    renderOnlineRecords();
+    setOnlineStatus("로그아웃되었습니다.");
+  });
+  onlineLogoutBtn?.addEventListener("click", () => setOnlinePage("auth"));
+  onlineQueueBtn?.addEventListener("click", async () => {
+    try {
+      onlineLastResult = null;
+      renderOnlineResultSummary();
+      setOnlineStatus("서버에 연결 중...");
+      if (onlinePendingMatch) {
+        onlineRematchAfterCancel = true;
+        setOnlineStatus("재매칭을 준비합니다...");
+        onlineClient.leaveMatch();
+        return;
+      }
+      await saveOnlineLoadout();
+      setOnlinePage("match");
+      renderOnlineMatchPanel();
+      await onlineClient.joinQueue("quick");
+    } catch (error) {
+      setOnlineStatus(error.message || "매칭을 시작하지 못했습니다.");
+    }
+  });
+  onlineLeaveQueueBtn?.addEventListener("click", () => {
+    onlineClient.leaveQueue();
+  });
+
+  onlineScreen?.addEventListener("click", async (event) => {
+    const id = event.target?.id;
+    try {
+      if (id === "onlineSaveLoadoutBtn") {
+        await saveOnlineLoadout();
+      } else if (id === "onlineGoMatchBtn") {
+        await saveOnlineLoadout();
+        await beginOnlineMatchmaking();
+      } else if (id === "onlineRecordsBtn") {
+        await refreshOnlineRecords();
+        setOnlinePage("records");
+      } else if (id === "onlineRecordsBackBtn") {
+        setOnlinePage(onlinePreviousPage === "match" ? "match" : "commanders");
+      } else if (id === "onlineBackToCommandersBtn") {
+        onlineClient.leaveQueue();
+        if (onlinePendingMatch) onlineClient.leaveMatch();
+        onlinePendingMatch = null;
+        setOnlinePage("commanders");
+      } else if (id === "onlineReadyBtn") {
+        onlineClient.setReady(true);
+        event.target.disabled = true;
+        event.target.textContent = "상대 준비 대기";
+        setOnlineStatus("내 준비 완료. 상대를 기다립니다...");
+      } else if (id === "onlineMatchLogoutBtn") {
+        onlineClient.logout();
+        onlineLastResult = null;
+        onlinePendingMatch = null;
+        renderOnlineProfile();
+        renderOnlineRecords();
+        setOnlinePage("auth");
+        setOnlineStatus("로그아웃되었습니다.");
+      }
+    } catch (error) {
+      setOnlineStatus(error.message || "온라인 작업을 완료하지 못했습니다.");
+    }
   });
 
   scenarioSelectBackBtn?.addEventListener("click", () => {
@@ -6014,6 +7517,7 @@ import {
 
   // 전투 화면: 병력 조정
   troopAdjustBtn.addEventListener("click", () => {
+    if (isOnlineMode()) return;
     if (isHistoricalMode()) return;
     if (game.battlePhase === "live") return;
     openTroopAdjust();
