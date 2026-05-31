@@ -35,6 +35,12 @@ const checksumSchema = z.object({
   hash: z.string().min(1).max(128),
 });
 
+const clientLoadedSchema = z.object({
+  type: z.literal("CLIENT_LOADED"),
+  initialHash: z.string().min(1).max(128),
+  protocol: z.string().max(64).optional(),
+});
+
 const resultSchema = z.object({
   type: z.literal("RESULT"),
   winnerSide: z.number().int().min(-1).max(1),
@@ -100,9 +106,11 @@ export function installMultiplayerServer({ server, db }) {
       seq: 0,
       ended: false,
       matchStarted: false,
+      simStarted: false,
       sockets: [a, b],
       results: new Map(),
       checksums: new Map(),
+      loadStates: new Map(),
       desyncTicks: new Set(),
       recentInputs: [],
       readySides: new Set(),
@@ -160,7 +168,6 @@ export function installMultiplayerServer({ server, db }) {
   async function startMatchedRoom(room) {
     if (room.matchStarted || room.ended) return;
     room.matchStarted = true;
-    room.startedAt = Date.now() + MATCH_START_DELAY_MS;
     const serverNow = Date.now();
     const players = room.sockets.map(ws => publicPlayer(ws.player, ws.side));
     room.sockets.forEach((ws) => {
@@ -169,7 +176,6 @@ export function installMultiplayerServer({ server, db }) {
         roomId: room.id,
         side: ws.side,
         seed: room.seed,
-        startedAt: room.startedAt,
         serverNow,
         tickRate: TICK_RATE,
         inputDelayTicks: INPUT_DELAY_TICKS,
@@ -177,6 +183,50 @@ export function installMultiplayerServer({ server, db }) {
         players,
       });
     });
+  }
+
+  async function handleClientLoaded(ws, msg) {
+    const room = rooms.get(ws.roomId);
+    if (!room || room.ended || !room.matchStarted || room.simStarted) return;
+    room.loadStates.set(ws.side, {
+      side: ws.side,
+      initialHash: msg.initialHash,
+      protocol: msg.protocol || "unknown",
+      loadedAt: Date.now(),
+    });
+    room.sockets.forEach(peer => send(peer, {
+      type: "LOAD_STATE",
+      roomId: room.id,
+      loadedSides: [...room.loadStates.keys()].sort((a, b) => a - b),
+    }));
+    if (room.loadStates.size < room.sockets.length) return;
+
+    const states = [...room.loadStates.values()].sort((a, b) => a.side - b.side);
+    const hashes = new Set(states.map(state => state.initialHash));
+    if (hashes.size !== 1) {
+      const payload = {
+        type: "LOAD_MISMATCH",
+        roomId: room.id,
+        states,
+      };
+      console.warn("[online/load-mismatch]", JSON.stringify(payload));
+      room.sockets.forEach(peer => send(peer, payload));
+      await finishRoom(room, -1, "desync", states[0]?.initialHash || null);
+      return;
+    }
+
+    room.simStarted = true;
+    room.startedAt = Date.now() + MATCH_START_DELAY_MS;
+    const serverNow = Date.now();
+    room.sockets.forEach(peer => send(peer, {
+      type: "SIM_START",
+      roomId: room.id,
+      startedAt: room.startedAt,
+      serverNow,
+      tickRate: TICK_RATE,
+      inputDelayTicks: INPUT_DELAY_TICKS,
+      initialHash: states[0].initialHash,
+    }));
   }
 
   function removeFromQueue(ws) {
@@ -237,7 +287,7 @@ export function installMultiplayerServer({ server, db }) {
 
   async function handleInput(ws, msg) {
     const room = rooms.get(ws.roomId);
-    if (!room || room.ended || !room.matchStarted) return;
+    if (!room || room.ended || !room.matchStarted || !room.simStarted) return;
     room.seq += 1;
     const elapsedMs = Math.max(0, Date.now() - room.startedAt);
     const matchTick = Math.floor(elapsedMs / 1000 * TICK_RATE);
@@ -324,7 +374,7 @@ export function installMultiplayerServer({ server, db }) {
     const ratingChanges = new Map();
     const commanderProgressByPlayer = new Map();
     if (db) {
-      const durationTick = Math.max(0, Math.floor((Date.now() - room.startedAt) / 1000 * TICK_RATE));
+      const durationTick = Math.max(0, Math.floor((Date.now() - (room.startedAt || Date.now())) / 1000 * TICK_RATE));
       await db.query(
         `UPDATE matches
             SET status = $1, winner_id = $2, duration_tick = $3, final_hash = $4, ended_at = NOW()
@@ -516,6 +566,10 @@ export function installMultiplayerServer({ server, db }) {
         }
         if (msg.type === "PLAYER_READY") {
           await handleReady(ws, readySchema.parse(msg));
+          return;
+        }
+        if (msg.type === "CLIENT_LOADED") {
+          await handleClientLoaded(ws, clientLoadedSchema.parse(msg));
           return;
         }
         if (msg.type === "INPUT") {

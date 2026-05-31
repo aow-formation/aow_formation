@@ -35,6 +35,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const PIXI_TREE_SPRITES = false; // true: 나무를 PixiJS Y정렬 스프라이트로 처리, false: 캔버스에 직접 렌더링
   const SIMULATION_STEP = 1 / 30;
   const MAX_SIMULATION_STEPS = 4;
+  const ONLINE_CATCHUP_CHUNK_STEPS = 180;
+  const ONLINE_MAX_INLINE_CATCHUP_STEPS = 12;
   const ONLINE_CHECKSUM_INTERVAL_TICKS = 300;
   const SPATIAL_CELL_SIZE = 4;
   const UNIT_RADIUS = 0.27;
@@ -160,14 +162,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   });
 
   function setPaused(paused) {
+    if (isOnlineMode()) paused = false;
     game.paused = paused;
     pauseOverlay.hidden = !paused;
     if (paused) { syncPauseSpeedBtns(); syncPauseCtrlBtns(); }
   }
 
   function syncPauseSpeedBtns() {
-    document.getElementById("pauseSpeed1x").classList.toggle("active", game.speedMultiplier === 1);
-    document.getElementById("pauseSpeed2x").classList.toggle("active", game.speedMultiplier === 2);
+    const speed1x = document.getElementById("pauseSpeed1x");
+    const speed2x = document.getElementById("pauseSpeed2x");
+    if (isOnlineMode()) game.speedMultiplier = 1;
+    speed1x.classList.toggle("active", game.speedMultiplier === 1);
+    speed2x.classList.toggle("active", game.speedMultiplier === 2);
+    speed2x.hidden = isOnlineMode();
   }
 
   function setControlType(type) {
@@ -206,6 +213,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   });
 
   document.getElementById("pauseSpeed2x").addEventListener("click", () => {
+    if (isOnlineMode()) return;
     game.speedMultiplier = 2;
     syncPauseSpeedBtns();
   });
@@ -305,6 +313,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   let appState = "home";
   const onlineClient = new OnlineClient();
   let onlineSyncNoticeTimer = null;
+  let onlineCatchupScheduled = false;
   let onlineLastResult = null;
   let onlinePage = "auth";
   let onlinePreviousPage = "commanders";
@@ -677,6 +686,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   cavalryWalkBlueSprite.src = './assets/units/ancient_cavity_helmet_walk_blue.png';
   const cavalryWalkBackSprite = new Image();
   cavalryWalkBackSprite.src = './assets/units/ancient_cavity_helmet_walk_back.png';
+  const cavalryWalkBackBlueSprite = new Image();
+  cavalryWalkBackBlueSprite.src = './assets/units/ancient_cavity_helmet_walk_back_blue.png';
   const unitIdleSprite = new Image();
   unitIdleSprite.src = './assets/units/ancient_infantry_helmet_idle_1.png';
   const unitIdleBlueSprite = new Image();
@@ -688,6 +699,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     cavalryWalkSprite,
     cavalryWalkBlueSprite,
     cavalryWalkBackSprite,
+    cavalryWalkBackBlueSprite,
     unitIdleSprite,
     unitIdleBlueSprite,
   ];
@@ -714,7 +726,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     infantry: { player: [], enemy: [] },
     cavalry:  { player: [], enemy: [] },
   };
-  const pixiWalkBackTex = { cavalry: [] }; // 기병 후방(우상향) 스프라이트
+  const pixiWalkBackTex = { cavalry: { player: [], enemy: [] } }; // 기병 후방(우상향) 스프라이트
   const pixiIdleTex  = {
     infantry: { player: null, enemy: null },
     cavalry:  { player: null, enemy: null },
@@ -770,19 +782,20 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       // 유닛 텍스처 로드
       const load = url => PixiAssets.load(url).catch(() => null);
-      const [wP, wE, cP, cE, cBack, iP, iE, treeT] = await Promise.all([
+      const [wP, wE, cP, cE, cBack, cBackBlue, iP, iE, treeT] = await Promise.all([
         load('./assets/units/ancient_infantry_helmet_walk.png'),
         load('./assets/units/ancient_infantry_helmet_walk_blue.png'),
         load('./assets/units/ancient_cavity_helmet_walk.png'),
         load('./assets/units/ancient_cavity_helmet_walk_blue.png'),
         load('./assets/units/ancient_cavity_helmet_walk_back.png'),
+        load('./assets/units/ancient_cavity_helmet_walk_back_blue.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1_blue.png'),
         load('./assets/terrain_tiles_v3/objects/trees/tree.png'),
       ]);
       pixiTreeTex = treeT;
       // 픽셀아트: 모든 유닛 텍스처에 nearest-neighbor 보간 설정
-      [wP, wE, cP, cE, cBack, iP, iE].forEach(tex => { if (tex) tex.source.scaleMode = 'nearest'; });
+      [wP, wE, cP, cE, cBack, cBackBlue, iP, iE].forEach(tex => { if (tex) tex.source.scaleMode = 'nearest'; });
 
       const makeFrames = (tex, type) => {
         if (!tex) return [];
@@ -796,7 +809,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       pixiWalkTex.infantry.enemy   = makeFrames(wE, "infantry");
       pixiWalkTex.cavalry.player   = makeFrames(cP, "cavalry");
       pixiWalkTex.cavalry.enemy    = makeFrames(cE, "cavalry");
-      pixiWalkBackTex.cavalry      = makeFrames(cBack, "cavalry");
+      pixiWalkBackTex.cavalry.player = makeFrames(cBack, "cavalry");
+      pixiWalkBackTex.cavalry.enemy  = makeFrames(cBackBlue, "cavalry");
       if (iP) pixiIdleTex.infantry.player = iP;
       if (iE) pixiIdleTex.infantry.enemy  = iE;
       pixiIdleTex.cavalry.player = pixiWalkTex.cavalry.player[0] || null;
@@ -1890,6 +1904,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function onlineNetTick() {
     if (!isOnlineMode()) return 0;
+    if (!game.online.simStarted || !Number.isFinite(game.online.startedAtClient)) return game.online.simTick || 0;
     const tickRate = game.online.tickRate || 30;
     return Math.max(0, Math.floor((performance.now() - game.online.startedAtClient) / 1000 * tickRate));
   }
@@ -1942,14 +1957,80 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function sendOnlineCommands(commands) {
     if (!isOnlineMode() || !commands.length) return false;
+    if (!game.online.simStarted) {
+      showOnlineSyncNotice("상대 전장 확인을 기다리는 중입니다.", "info", 1800);
+      return false;
+    }
     onlineClient.sendInput(commands);
     return true;
   }
 
+  function onlineHashNumber(text) {
+    let hash = 2166136261;
+    String(text).split("").forEach((char) => {
+      hash ^= char.charCodeAt(0);
+      hash = Math.imul(hash, 16777619);
+    });
+    return hash >>> 0;
+  }
+
+  function onlineHashString(text) {
+    return onlineHashNumber(text).toString(16);
+  }
+
+  function onlineDeterministicRoll(...parts) {
+    return onlineHashNumber(parts.join("|")) / 4294967296;
+  }
+
+  function onlineSortedFormations() {
+    return [...game.playerFormations, ...game.enemyFormations]
+      .sort((a, b) => (a.worldSide ?? 0) - (b.worldSide ?? 0) || a.id - b.id);
+  }
+
+  function computeOnlineInitialHash() {
+    if (!isOnlineMode()) return "";
+    const terrainRows = game.terrain.tiles.map(row => row.join("")).join("|");
+    const objectRows = (game.terrain.objects || [])
+      .map(object => `${object.x},${object.y},${object.kind || object.type || ""}`)
+      .join("|");
+    const values = [
+      "online-init-v2",
+      game.online.roomId,
+      game.online.seed,
+      game.online.tickRate,
+      game.online.inputDelayTicks,
+      onlineHashString(terrainRows),
+      onlineHashString(objectRows),
+    ];
+    onlineSortedFormations().forEach((formation) => {
+      values.push(
+        formation.worldSide ?? -1,
+        formation.id,
+        formation.troopType,
+        formation.skillType,
+        formation.density,
+        formation.speed,
+        Math.round(formation.anchor.x * 10),
+        Math.round(formation.anchor.y * 10),
+        Math.round(formation.facing.x * 100),
+        Math.round(formation.facing.y * 100),
+        formation.general.templateId || formation.general.id || formation.general.name,
+        Math.round(formation.general.power * 10),
+        Math.round(formation.general.leadership * 10),
+        Math.round(formation.general.charm * 10),
+        Math.round(formationInitialTroops(formation)),
+        formation.units.length,
+      );
+      formation.units.forEach((unit) => {
+        values.push(Math.round(unit.x * 10), Math.round(unit.y * 10), Math.round(unit.maxDamage || 100));
+      });
+    });
+    return onlineHashString(values.join(","));
+  }
+
   function computeOnlineStateHash() {
     const values = [];
-    const formations = [...game.playerFormations, ...game.enemyFormations]
-      .sort((a, b) => (a.worldSide ?? 0) - (b.worldSide ?? 0) || a.id - b.id);
+    const formations = onlineSortedFormations();
     formations.forEach((formation) => {
       const target = formation.target || null;
       values.push(
@@ -1963,6 +2044,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         Math.round((target?.y ?? -1) * 10),
         formation.followTarget?.worldSide ?? -1,
         formation.followTarget?.id ?? -1,
+        formation.retreating ? 1 : 0,
+        formation.retreated ? 1 : 0,
+        Math.round((formation.retreatLastCheckpoint || 0) * 10),
         Math.round(formationRemainingTroops(formation)),
         Math.round(formation.disorder * 100),
         Math.round((formation.kihapCooldown || 0) * 10),
@@ -1981,12 +2065,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         );
       }
     });
-    let hash = 2166136261;
-    values.join(",").split("").forEach((char) => {
-      hash ^= char.charCodeAt(0);
-      hash = Math.imul(hash, 16777619);
-    });
-    return (hash >>> 0).toString(16);
+    return onlineHashString(values.join(","));
   }
 
   function maybeSendOnlineChecksum() {
@@ -1995,6 +2074,53 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (tick - game.online.lastChecksumTick < ONLINE_CHECKSUM_INTERVAL_TICKS) return;
     game.online.lastChecksumTick = tick;
     onlineClient.sendChecksum(tick, computeOnlineStateHash());
+  }
+
+  function onlineTargetSimulationTick() {
+    if (!isOnlineMode() || !game.online.simStarted) return game.online?.simTick || 0;
+    return Math.max(0, onlineNetTick() - (game.online.inputDelayTicks || 10));
+  }
+
+  function advanceOnlineSimulationTo(targetTick, maxSteps) {
+    if (!isOnlineMode() || !game.online.simStarted || game.battlePhase !== "live") return 0;
+    game.speedMultiplier = 1;
+    const goalTick = Math.max(0, Math.floor(targetTick));
+    let stepCount = 0;
+    drainOnlineCommands(game.online.simTick);
+    while (game.online.simTick < goalTick && stepCount < maxSteps && game.battlePhase === "live") {
+      game.online.simTick += 1;
+      drainOnlineCommands(game.online.simTick);
+      update(SIMULATION_STEP);
+      stepCount += 1;
+    }
+    return Math.max(0, goalTick - game.online.simTick);
+  }
+
+  function requestOnlineCatchup(reason = "resume") {
+    if (!isOnlineMode() || !game.online.simStarted || game.battlePhase !== "live") return;
+    if (onlineCatchupScheduled) return;
+    onlineCatchupScheduled = true;
+    showOnlineSyncNotice("동기화 따라잡는 중...", "info", 0);
+    const runChunk = () => {
+      onlineCatchupScheduled = false;
+      if (!isOnlineMode() || !game.online.simStarted || game.battlePhase !== "live") {
+        hideOnlineSyncNotice();
+        return;
+      }
+      const remaining = advanceOnlineSimulationTo(onlineTargetSimulationTick(), ONLINE_CATCHUP_CHUNK_STEPS);
+      maybeSendOnlineChecksum();
+      game.hudDirty = true;
+      refreshHud();
+      refreshButtons();
+      render();
+      if (remaining > 0) {
+        onlineCatchupScheduled = true;
+        window.setTimeout(runChunk, 0);
+      } else {
+        showOnlineSyncNotice(reason === "background" ? "백그라운드 동기화 유지 중" : "동기화 완료", "ok", 1200);
+      }
+    };
+    window.setTimeout(runChunk, 0);
   }
 
   function collectOnlineResultStats() {
@@ -3144,11 +3270,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         if (formation.disorder < 0.7) return;
         // 혼란도 0.1 증가마다 체크포인트 발동 (0.7, 0.8, 0.9, 1.0)
         const checkpoint = Math.floor(formation.disorder * 10) / 10;
-        if (checkpoint <= formation.retreatLastCheckpoint) return;
+        if (checkpoint <= Number(formation.retreatLastCheckpoint || 0)) return;
         formation.retreatLastCheckpoint = checkpoint;
         // 혼란도가 높을수록, 매력이 낮을수록 후퇴 확률 상승
         const retreatChance = (checkpoint - 0.6) * 0.6 * (1 - formation.general.charm / 100 * 0.5);
-        if (Math.random() < retreatChance) {
+        const retreatRoll = isOnlineMode()
+          ? onlineDeterministicRoll(game.online.seed, "retreat", formation.worldSide ?? formation.team, formation.id, checkpoint)
+          : Math.random();
+        if (retreatRoll < retreatChance) {
           formation.retreating = true;
           formation.speed = "FAST";
           formation.followTarget = null;
@@ -3649,8 +3778,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (hasPixiSprites(troopType)) {
         if (moving) {
           const fi = Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % troopWalkFrames(troopType);
-          if (facingBack && troopType === 'cavalry' && pixiWalkBackTex.cavalry.length > 0) {
-            sprite.texture = pixiWalkBackTex.cavalry[fi];
+          if (facingBack && troopType === 'cavalry' && pixiWalkBackTex.cavalry[formation.team]?.length > 0) {
+            sprite.texture = pixiWalkBackTex.cavalry[formation.team][fi];
           } else {
             sprite.texture = pixiWalkTex[troopType][formation.team][fi];
           }
@@ -4171,8 +4300,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       if (externalUnitLoaded) {
         const teamSprite = troopType === "cavalry"
-          ? (isFacingBack && cavalryWalkBackSprite.naturalWidth > 0
-              ? cavalryWalkBackSprite
+          ? (isFacingBack
+              ? (formation.team === 'enemy'
+                  ? (cavalryWalkBackBlueSprite.naturalWidth > 0 ? cavalryWalkBackBlueSprite : cavalryWalkBlueSprite)
+                  : (cavalryWalkBackSprite.naturalWidth > 0 ? cavalryWalkBackSprite : cavalryWalkSprite))
               : (formation.team === 'enemy' ? cavalryWalkBlueSprite : cavalryWalkSprite))
           : formation.team === 'enemy'
             ? (isMoving && unitWalkBlueSprite.naturalWidth > 0 ? unitWalkBlueSprite : unitIdleBlueSprite)
@@ -4660,6 +4791,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function refreshButtons() {
     const selected = currentSelection()[0];
+    if (isOnlineMode()) game.speedMultiplier = 1;
     if (selected) selected.density = normalizeDensityForTroopType(selected.troopType, selected.density);
 
     // 속도·밀도 버튼 활성 상태
@@ -5330,14 +5462,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     tick.last = now;
     if (game.paused) { requestAnimationFrame(tick); return; }
     if (isOnlineMode()) {
-      const targetTick = Math.max(0, onlineNetTick() - (game.online.inputDelayTicks || 10));
-      drainOnlineCommands(game.online.simTick);
-      let stepCount = 0;
-      while (game.online.simTick < targetTick && stepCount < MAX_SIMULATION_STEPS) {
-        game.online.simTick += 1;
-        drainOnlineCommands(game.online.simTick);
-        update(SIMULATION_STEP);
-        stepCount += 1;
+      const remaining = advanceOnlineSimulationTo(
+        onlineTargetSimulationTick(),
+        document.hidden ? ONLINE_MAX_INLINE_CATCHUP_STEPS : MAX_SIMULATION_STEPS,
+      );
+      if (remaining > ONLINE_CATCHUP_CHUNK_STEPS && !onlineCatchupScheduled) {
+        requestOnlineCatchup("resume");
       }
     } else {
       game.simulationAccumulator = Math.min(game.simulationAccumulator + dt * game.speedMultiplier, SIMULATION_STEP * MAX_SIMULATION_STEPS);
@@ -5380,6 +5510,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   }
 
   // ── 전투 종료 감지 ──────────────────────────────────────────────────
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) requestOnlineCatchup("resume");
+  });
+  window.addEventListener("focus", () => requestOnlineCatchup("resume"));
+  window.addEventListener("pageshow", () => requestOnlineCatchup("resume"));
+  window.setInterval(() => {
+    if (document.hidden) requestOnlineCatchup("background");
+  }, 1000);
+
   function getBattleOutcome() {
     const playerAlive = game.playerFormations.some(f =>
       !f.retreated && f.units.some(isUnitAlive));
@@ -5520,9 +5659,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const { terrain, playerFormations, enemyFormations } = buildOnlineScenario(match);
     applyScenario(terrain, playerFormations, enemyFormations);
     game.mode = "online";
-    const startedAt = Number(match.startedAt || Date.now());
-    const serverNow = Number(match.serverNow || startedAt);
-    const serverElapsed = Math.max(0, serverNow - startedAt);
     game.online = {
       roomId: match.roomId,
       side: Number(match.side || 0),
@@ -5530,23 +5666,55 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       tickRate: Number(match.tickRate || 30),
       inputDelayTicks: Number(match.inputDelayTicks || 10),
       receivedAt: performance.now(),
-      startedAt,
-      serverNow,
-      startedAtClient: performance.now() - serverElapsed,
+      startedAt: null,
+      serverNow: Number(match.serverNow || Date.now()),
+      startedAtClient: null,
       netTick: 0,
       simTick: 0,
       lastChecksumTick: 0,
       commandQueue: new Map(),
       resultSubmitted: false,
+      simStarted: false,
+      waitingForSimStart: true,
+      initialHash: null,
       players: match.players || [],
     };
+    game.speedMultiplier = 1;
+    game.paused = false;
+    pauseOverlay.hidden = true;
     game.selectedId = playerFormations[0]?.id ?? 0;
-    startLiveBattle();
     setScreen("battle");
     centerCameraOn(formationCenter(game.playerFormations[0]));
     refreshHud();
     refreshButtons();
-    showOnlineSyncNotice("온라인 전투 동기화 준비 중...", "info", 2500);
+    const initialHash = computeOnlineInitialHash();
+    game.online.initialHash = initialHash;
+    onlineClient.sendClientLoaded(initialHash, match.protocol || "thin-relay-scheduled-lockstep");
+    showOnlineSyncNotice("전장 구성 완료. 상대 확인을 기다리는 중...", "info", 0);
+  }
+
+  function startOnlineSimulation(message) {
+    if (!isOnlineMode() || message.roomId !== game.online.roomId) return;
+    const startedAt = Number(message.startedAt || Date.now());
+    const serverNow = Number(message.serverNow || startedAt);
+    game.online.startedAt = startedAt;
+    game.online.serverNow = serverNow;
+    game.online.startedAtClient = performance.now() + (startedAt - serverNow);
+    game.online.tickRate = Number(message.tickRate || game.online.tickRate || 30);
+    game.online.inputDelayTicks = Number(message.inputDelayTicks || game.online.inputDelayTicks || 10);
+    game.online.simTick = 0;
+    game.online.netTick = 0;
+    game.online.lastChecksumTick = 0;
+    game.online.commandQueue.clear();
+    game.online.simStarted = true;
+    game.online.waitingForSimStart = false;
+    game.speedMultiplier = 1;
+    game.paused = false;
+    pauseOverlay.hidden = true;
+    startLiveBattle();
+    refreshHud();
+    refreshButtons();
+    showOnlineSyncNotice("양쪽 전장 확인 완료. 전투를 시작합니다.", "ok", 2200);
   }
 
   function hideScenarioOverlays() {
@@ -6478,6 +6646,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   // ── 전투 결과 화면 ──────────────────────────────────────────────────
   function showBattleResult(won) {
     setTopbarCollapsed(false);
+    const onlineResult = isOnlineMode();
+    const replayBtn = document.getElementById("resultReplay");
+    const newBattleBtn = document.getElementById("resultNewBattle");
+    const homeBtn = document.getElementById("resultHome");
+    if (replayBtn) replayBtn.hidden = onlineResult;
+    if (newBattleBtn) newBattleBtn.hidden = onlineResult;
+    if (homeBtn) homeBtn.textContent = onlineResult ? "온라인 로비로" : "홈 화면";
     const verdict = document.getElementById("resultVerdict");
     verdict.textContent = won ? "승 리" : "패 배";
     verdict.className   = `result-verdict ${won ? "victory" : "defeat"}`;
@@ -7886,8 +8061,32 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     setOnlineStatus(message.allReady ? "양쪽 준비 완료. 전장을 여는 중..." : `준비 상태: ${onlineReadySides.length}/2`);
   });
   onlineClient.on("MATCH_START", (message) => {
-    setOnlineStatus("전투를 시작합니다.");
+    setOnlineStatus("전장을 구성하고 상대와 동기화합니다.");
     enterOnlineBattle(message);
+  });
+  onlineClient.on("LOAD_STATE", (message) => {
+    const count = message.loadedSides?.length || 0;
+    setOnlineStatus(`전장 확인 중: ${count}/2`);
+    if (isOnlineMode() && message.roomId === game.online.roomId) {
+      showOnlineSyncNotice(`전장 확인 중: ${count}/2`, "info", 0);
+    }
+  });
+  onlineClient.on("SIM_START", (message) => {
+    setOnlineStatus("양쪽 전장 확인 완료. 전투를 시작합니다.");
+    startOnlineSimulation(message);
+  });
+  onlineClient.on("LOAD_MISMATCH", (message) => {
+    console.warn("[online] initial load mismatch", message);
+    setOnlineStatus("전장 동기화에 실패했습니다. 경기를 무효 처리합니다.");
+    showOnlineSyncNotice("전장 동기화 실패 — 잠시 후 로비로 이동합니다.", "danger", 0);
+    window.setTimeout(() => {
+      disableOnlineRandom();
+      game.online = null;
+      game.mode = "quick";
+      setScreen("online");
+      setOnlinePage(onlineClient.player ? "commanders" : "auth");
+      hideOnlineSyncNotice();
+    }, 3000);
   });
   onlineClient.on("MATCH_CANCELLED", () => {
     onlinePendingMatch = null;
@@ -8083,6 +8282,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   // 결과 화면: 같은 조건 재전투
   document.getElementById("resultReplay").addEventListener("click", () => {
+    if (isOnlineMode()) return;
     if (isHistoricalMode()) {
       enterHistoricalScenario(game.scenarioData?.id || "cannae");
       return;
@@ -8098,11 +8298,20 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   // 결과 화면: 새로운 전투
   document.getElementById("resultNewBattle").addEventListener("click", () => {
+    if (isOnlineMode()) return;
     enterQuickBattle(true);
   });
 
   // 결과 화면: 홈 화면
   document.getElementById("resultHome").addEventListener("click", () => {
+    if (isOnlineMode()) {
+      disableOnlineRandom();
+      game.online = null;
+      game.mode = "quick";
+      setScreen("online");
+      setOnlinePage(onlineClient.player ? "commanders" : "auth");
+      return;
+    }
     setScreen("home");
   });
 

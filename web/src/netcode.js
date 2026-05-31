@@ -188,4 +188,8 @@ export class OnlineClient {
   sendChecksum(tick, hash) {
     this.send({ type: "CHECKSUM", tick, hash });
   }
+
+  sendClientLoaded(initialHash, protocol = "thin-relay-scheduled-lockstep") {
+    this.send({ type: "CLIENT_LOADED", initialHash, protocol });
+  }
 }
