@@ -1830,10 +1830,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const skillType = commander?.skillType || "kihap";
     const troopType = normalizeTroopType(commander?.troopType || "infantry");
     return {
+      templateId: commander?.templateId || commander?.id || null,
       name: commander?.name || fallbackName,
       power: Number(commander?.power ?? 75),
       leadership: Number(commander?.leadership ?? 75),
       charm: Number(commander?.charm ?? 70),
+      level: Number(commander?.level || 0),
+      exp: Number(commander?.exp || 0),
+      expRequired: Number(commander?.expRequired || 0),
       portrait: commander?.portrait || null,
       optionalSkills: Array.isArray(commander?.allowedSkills) ? commander.allowedSkills.filter(skill => skill !== skillType) : [],
       allowedSkills: Array.isArray(commander?.allowedSkills) ? commander.allowedSkills : [skillType],
@@ -1998,11 +2002,20 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const ownRemaining = game.playerFormations.reduce((sum, formation) => sum + formationRemainingTroops(formation), 0);
     const enemyInitial = game.enemyFormations.reduce((sum, formation) => sum + formationInitialTroops(formation), 0);
     const enemyRemaining = game.enemyFormations.reduce((sum, formation) => sum + formationRemainingTroops(formation), 0);
+    const commanderStats = game.playerFormations.map((formation, index) => ({
+      templateId: formation.general.templateId || formation.general.id || formation.general.name,
+      slotIndex: index,
+      kills: Math.round(Math.max(0, formation.general.kills || 0)),
+      losses: Math.round(Math.max(0, formation.general.losses || 0)),
+      troopsInitial: Math.round(formationInitialTroops(formation)),
+      troopsRemaining: Math.round(formationRemainingTroops(formation)),
+    })).filter(stat => stat.templateId);
     return {
       troopsInitial: Math.round(ownInitial),
       troopsRemaining: Math.round(ownRemaining),
       kills: Math.round(Math.max(0, enemyInitial - enemyRemaining)),
       losses: Math.round(Math.max(0, ownInitial - ownRemaining)),
+      commanderStats,
     };
   }
 
@@ -5437,6 +5450,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     game.scenarioStep        = "none";
     game.scenarioAggro       = false;
     game.scenarioMarkerRevealUntil = 0;
+    game.scenarioClearRecorded = false;
     speedToggleButton.classList.remove("active");
   }
 
@@ -5578,6 +5592,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
   }
 
+  function recordHistoricalScenarioClear() {
+    const scenarioId = game.scenarioData?.id;
+    if (!scenarioId || !onlineClient.token || game.scenarioClearRecorded) return;
+    game.scenarioClearRecorded = true;
+    onlineClient.recordScenarioClear(scenarioId)
+      .then(() => {
+        if (onlineClient.player) {
+          onlineLoadoutDraft = normalizeOnlineLoadout(onlineClient.player.commanders || []);
+        }
+      })
+      .catch(error => console.warn("[online] scenario clear save failed", error));
+  }
+
   function showVictoryDialogue() {
     const lines = game.scenarioData?.victoryDialogue || [];
     const line = lines[game.scenarioDialogueIndex];
@@ -5585,6 +5612,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       game.scenarioStep = "complete";
       game.scenarioSceneLocked = false;
       hideScenarioOverlays();
+      recordHistoricalScenarioClear();
       showBattleResult(true);
       return;
     }
@@ -5614,6 +5642,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         game.scenarioStep = "complete";
         game.scenarioSceneLocked = false;
         hideScenarioOverlays();
+        recordHistoricalScenarioClear();
         showBattleResult(true);
       }
       return;
@@ -6488,7 +6517,70 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     document.getElementById("resultEnemyRemaining").textContent =
       formatTroops(eRemain);
 
+    renderBattleResultOnlineProgress();
     setScreen("battleResult");
+  }
+
+  function battleResultProgressContainer() {
+    const panel = document.querySelector("#battleResultScreen .result-panel");
+    if (!panel) return null;
+    let container = document.getElementById("resultCommanderProgress");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "resultCommanderProgress";
+      container.className = "result-commander-progress";
+      const totals = panel.querySelector(".result-totals");
+      panel.insertBefore(container, totals?.nextSibling || panel.querySelector(".result-actions"));
+    }
+    return container;
+  }
+
+  function renderBattleResultOnlineProgress() {
+    const container = battleResultProgressContainer();
+    if (!container) return;
+    if (!isOnlineMode()) {
+      container.hidden = true;
+      container.innerHTML = "";
+      return;
+    }
+    const progress = onlineLastResult?.my?.commanderProgress || [];
+    if (!onlineLastResult) {
+      container.hidden = false;
+      container.innerHTML = `<div class="result-growth-title">장수 성장 집계 중...</div>`;
+      return;
+    }
+    if (!progress.length) {
+      container.hidden = false;
+      container.innerHTML = `<div class="result-growth-title">장수 성장</div><div class="result-growth-empty">이번 경기에서 반영된 장수 경험치가 없습니다.</div>`;
+      return;
+    }
+    container.hidden = false;
+    container.innerHTML = `
+      <div class="result-growth-title">장수 성장</div>
+      <div class="result-growth-grid">
+        ${progress.map(item => {
+          const before = item.statsBefore || {};
+          const after = item.statsAfter || {};
+          return `
+            <div class="result-growth-card ${item.leveledUp ? "is-level-up" : ""}">
+              ${onlinePortraitMarkup(item, "result-growth-portrait")}
+              <div class="result-growth-main">
+                <div class="result-growth-name">${escapeHtml(item.name || item.templateId)}</div>
+                <div class="result-growth-level">
+                  Lv ${item.levelBefore} → Lv ${item.levelAfter}
+                  ${item.leveledUp ? `<strong>LEVEL UP</strong>` : ""}
+                </div>
+                <div class="result-growth-exp">EXP +${formatTroops(item.gainedExp || 0)} · ${formatTroops(item.expAfter || 0)}/${formatTroops(item.nextRequiredExp ?? item.requiredExp ?? 0)}</div>
+                <div class="result-growth-stats">
+                  무력 ${before.power ?? "-"} → ${after.power ?? "-"} · 통솔 ${before.leadership ?? "-"} → ${after.leadership ?? "-"} · 매력 ${before.charm ?? "-"} → ${after.charm ?? "-"}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+    settleOnlinePortraitLoading(container);
   }
 
   // ── 새 화면 이벤트 핸들러 ────────────────────────────────────────────
@@ -6736,11 +6828,52 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       || null;
   }
 
+  function onlineCommanderUnlocked(commander) {
+    if (!commander) return false;
+    if (commander.unlocked === true) return true;
+    if (commander.unlocked === false) return false;
+    return commander.source === "quick";
+  }
+
+  function onlineScenarioName(scenarioId) {
+    return ({
+      gaugamela: "가우가멜라 전투",
+      cannae: "칸나에 전투",
+      bomangpa: "박망파 전투",
+      gwiju: "귀주대첩",
+      jupil: "주필산 전투",
+      kalka: "칼카강 전투",
+      yiling: "이릉 대첩",
+      tours: "투르 푸아티에 전투",
+    })[scenarioId] || scenarioId || "해당 시나리오";
+  }
+
+  function onlineCommanderLockMessage(commander) {
+    if (onlineCommanderUnlocked(commander)) return "";
+    return `역사 시나리오에서 ${onlineScenarioName(commander?.unlockScenarioId || commander?.source)}을 먼저 클리어 해야 합니다.`;
+  }
+
+  function onlineCommanderLevelLabel(commander) {
+    const level = Number(commander?.level || 0);
+    const expRequired = Number(commander?.expRequired || 0);
+    if (level >= 50) return `Lv ${level} MAX`;
+    return `Lv ${level} · ${formatTroops(commander?.exp || 0)}/${formatTroops(expRequired)}`;
+  }
+
+  function onlineCommanderStatsText(commander) {
+    if (!commander) return "";
+    const base = commander.basePower != null
+      ? ` · base ${commander.basePower}/${commander.baseLeadership}/${commander.baseCharm}`
+      : "";
+    return `${commander.power}/${commander.leadership}/${commander.charm}${base}`;
+  }
+
   function normalizeOnlineLoadout(commanders = onlineClient.player?.commanders || []) {
     const catalog = onlineClient.catalog || [];
+    const unlockedCatalog = catalog.filter(onlineCommanderUnlocked);
     return Array.from({ length: 5 }, (_unused, index) => {
       const current = commanders[index] || {};
-      const template = onlineCatalogItem(current.templateId) || catalog[index] || catalog[0] || current;
+      const template = onlineCatalogItem(current.templateId) || unlockedCatalog[index] || unlockedCatalog[0] || current;
       const troopType = current.troopType || template?.troopType || "infantry";
       const allowedSkills = troopType === "cavalry" ? ["kihap"] : (template?.allowedSkills || [template?.skillType || "kihap"]);
       const skillType = allowedSkills.includes(current.skillType) ? current.skillType : allowedSkills[0];
@@ -6784,9 +6917,34 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function onlinePortraitMarkup(commander, className = "online-loadout-portrait") {
     if (commander?.portrait) {
-      return `<div class="${className}"><img src="${escapeHtml(commander.portrait)}" alt="${escapeHtml(commander.name || "")}" /></div>`;
+      return `<div class="${className} online-portrait-loading" data-online-portrait><img src="${escapeHtml(commander.portrait)}" alt="${escapeHtml(commander.name || "")}" loading="eager" decoding="async" /></div>`;
     }
     return `<div class="${className}">${escapeHtml((commander?.name || "?").slice(0, 1))}</div>`;
+  }
+
+  function settleOnlinePortraitLoading(root = onlineScreen) {
+    root?.querySelectorAll?.("[data-online-portrait]").forEach((portrait) => {
+      const img = portrait.querySelector("img");
+      if (!img) {
+        portrait.classList.remove("online-portrait-loading");
+        return;
+      }
+      const markReady = () => {
+        portrait.classList.remove("online-portrait-loading");
+        portrait.classList.add("online-portrait-ready");
+      };
+      const markFailed = () => {
+        portrait.classList.remove("online-portrait-loading");
+        portrait.classList.add("online-portrait-failed");
+      };
+      if (img.complete) {
+        if (img.naturalWidth > 0) markReady();
+        else markFailed();
+        return;
+      }
+      img.addEventListener("load", markReady, { once: true });
+      img.addEventListener("error", markFailed, { once: true });
+    });
   }
 
   function onlineAllowedSkills(template, troopType) {
@@ -6918,6 +7076,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   function setOnlineLoadoutTemplate(slotIndex, templateId) {
     const template = onlineCatalogItem(templateId);
     if (!template) return;
+    if (!onlineCommanderUnlocked(template)) return;
     const duplicateSlot = onlineLoadoutDraft.findIndex((item, index) =>
       index !== slotIndex && item?.templateId === template.id);
     if (duplicateSlot >= 0) emptyOnlineLoadoutSlot(duplicateSlot);
@@ -6990,13 +7149,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const maxTroops = onlineLoadoutMaxTroops(index, troopType);
     const popUsed = onlineLoadoutPopulation(item);
     const pct = Math.min(100, popUsed / POPULATION_BUDGET * 100).toFixed(1);
+    const locked = !onlineCommanderUnlocked(template);
+    const lockMessage = onlineCommanderLockMessage(template);
     return `
-      <div class="adjust-card online-loadout-card player-side" draggable="true"
+      <div class="adjust-card online-loadout-card player-side ${locked ? "is-locked" : ""}" draggable="${locked ? "false" : "true"}"
         data-online-loadout-slot="${index}" data-template-id="${escapeHtml(template.id)}"
-        data-troop-type="${escapeHtml(troopType)}" data-skill-type="${escapeHtml(skillType)}">
+        data-troop-type="${escapeHtml(troopType)}" data-skill-type="${escapeHtml(skillType)}"
+        ${lockMessage ? `title="${escapeHtml(lockMessage)}"` : ""}>
         ${onlinePortraitMarkup(template)}
         <div class="online-loadout-name">${escapeHtml(template.name)}</div>
-        <div class="online-loadout-source">${escapeHtml(template.source || "quick")}</div>
+        <div class="online-loadout-source">${escapeHtml(locked ? "Locked" : onlineCommanderLevelLabel(template))}</div>
         <div class="adjust-card-stats">
           <div class="adjust-card-stat"><span>무력</span><strong>${template.power}</strong></div>
           <div class="adjust-card-stat"><span>통솔</span><strong>${template.leadership}</strong></div>
@@ -7020,11 +7182,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function onlineCommanderPoolCardMarkup(commander, selectedSlot) {
     const selected = selectedSlot >= 0;
+    const locked = !onlineCommanderUnlocked(commander);
+    const lockMessage = onlineCommanderLockMessage(commander);
     return `
-      <div class="online-pool-card ${selected ? "is-selected" : ""}"
-        data-online-pool-card="${escapeHtml(commander.id)}" draggable="${selected ? "false" : "true"}">
+      <div class="online-pool-card ${selected ? "is-selected" : ""} ${locked ? "is-locked" : ""}"
+        data-online-pool-card="${escapeHtml(commander.id)}" draggable="${selected || locked ? "false" : "true"}"
+        ${lockMessage ? `title="${escapeHtml(lockMessage)}"` : ""}>
         ${onlinePortraitMarkup(commander, "online-pool-portrait")}
         <div class="online-pool-name">${escapeHtml(commander.name)}</div>
+        <div class="online-pool-level">${escapeHtml(locked ? "Locked" : `Lv ${commander.level || 0}`)}</div>
       </div>
     `;
   }
@@ -7034,6 +7200,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const poolDropTarget = pool?.closest?.(".online-pool-card-page") || pool;
     onlineCommanders.querySelectorAll("[data-online-pool-card]").forEach((card) => {
       if (card.classList.contains("is-selected")) return;
+      if (card.classList.contains("is-locked")) return;
       card.addEventListener("dragstart", (event) => {
         setOnlineDragPayload(event, {
           from: "pool",
@@ -7081,6 +7248,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
     pool?.querySelectorAll("[data-online-pool-card]").forEach((card) => {
       if (card.classList.contains("is-selected")) return;
+      if (card.classList.contains("is-locked")) return;
       card.addEventListener("dragstart", (event) => {
         setOnlineDragPayload(event, {
           from: "pool",
@@ -7119,9 +7287,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const selectedSlotById = new Map(onlineLoadoutDraft
       .map((item, index) => [item.templateId, index])
       .filter(([templateId]) => templateId));
-    onlineCommanderPool.innerHTML = catalog
+    onlineCommanderPool.innerHTML = [...catalog]
+      .sort((a, b) => Number(onlineCommanderUnlocked(b)) - Number(onlineCommanderUnlocked(a))
+        || String(a.source || "").localeCompare(String(b.source || ""))
+        || String(a.name || "").localeCompare(String(b.name || "")))
       .map(commander => onlineCommanderPoolCardMarkup(commander, selectedSlotById.get(commander.id) ?? -1))
       .join("");
+    settleOnlinePortraitLoading(onlineCommanderPool);
   }
 
   function renderOnlineLoadoutEditorDnD() {
@@ -7161,7 +7333,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     normalizeOnlineLoadoutBudget();
 
     const draftTotalPopulation = onlineLoadoutTotalPopulation();
-    const loadoutComplete = onlineLoadoutDraft.every(item => onlineCatalogItem(item.templateId));
+    const loadoutComplete = onlineLoadoutDraft.every((item) => {
+      const template = onlineCatalogItem(item.templateId);
+      return template && onlineCommanderUnlocked(template);
+    });
     const budgetOk = draftTotalPopulation === POPULATION_BUDGET;
 
     onlineCommanders.innerHTML = `
@@ -7172,6 +7347,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         ${onlineLoadoutDraft.map((item, index) => onlineLoadoutSlotMarkup(item, index)).join("")}
       </div>
     `;
+    settleOnlinePortraitLoading(onlineCommanders);
     renderOnlineCommanderPool();
 
     if (onlineGoMatchBtn) onlineGoMatchBtn.disabled = !loadoutComplete || !budgetOk;
@@ -7425,11 +7601,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           ${onlinePortraitMarkup(commander, "online-commander-portrait")}
           <div>
             <div class="online-commander-name">${escapeHtml(commander.name)}</div>
+            <div class="online-commander-meta">${onlineCommanderLevelLabel(commander)}</div>
             <div class="online-commander-meta">${commander.troopType} · ${formatTroops(commander.troops || 0)} · ${onlineSkillLabel(commander.skillType)}</div>
           </div>
-          <div class="online-commander-meta">${commander.power}/${commander.leadership}/${commander.charm}</div>
+          <div class="online-commander-meta">${onlineCommanderStatsText(commander)}</div>
         </div>
       `).join("");
+      settleOnlinePortraitLoading(onlineMatchRoster);
     }
     if (onlineOpponentPreview) {
       const opponent = onlinePendingMatch?.players?.find(playerInfo => playerInfo.side !== onlinePendingMatch.side);
@@ -7460,6 +7638,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     onlinePendingMatch = null;
     onlineReadySides = [];
     onlineRematchAfterCancel = false;
+    onlineLastResult = null;
+    renderOnlineResultSummary();
     setOnlinePage("match");
     renderOnlineMatchPanel();
     setOnlineMatchActionState("searching");
@@ -7529,6 +7709,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const ratingText = ratingChange
       ? `${ratingChange.ratingBefore} → ${ratingChange.ratingAfter} (${ratingChange.ratingDelta >= 0 ? "+" : ""}${ratingChange.ratingDelta})`
       : "변동 없음";
+    const commanderProgress = mine.commanderProgress || [];
+    const levelUps = commanderProgress.filter(item => item.leveledUp);
     onlineResultSummary.innerHTML = `
       <strong>${escapeHtml(resultText)}</strong><br>
       Rating ${escapeHtml(ratingText)}<br>
@@ -7590,8 +7772,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   async function saveOnlineLoadout() {
     onlineLoadoutDraft = readOnlineLoadoutDraft();
     const emptySlot = onlineLoadoutDraft.findIndex(item => !onlineCatalogItem(item?.templateId));
+    const lockedSlot = onlineLoadoutDraft.findIndex((item) => {
+      const template = onlineCatalogItem(item?.templateId);
+      return !onlineCommanderUnlocked(template);
+    });
     if (emptySlot >= 0) {
       throw new Error(`${emptySlot + 1}번 슬롯에 장수를 배치해 주세요.`);
+    }
+    if (lockedSlot >= 0) {
+      throw new Error(`${lockedSlot + 1}번 슬롯의 장수는 아직 해금되지 않았습니다.`);
     }
     normalizeOnlineLoadoutBudget();
     const totalPopulation = onlineLoadoutTotalPopulation();
@@ -7727,6 +7916,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     setOnlineStatus(`경기가 종료되었습니다. 결과: ${message.status}`);
     onlineLastResult = message;
     renderOnlineResultSummary();
+    renderBattleResultOnlineProgress();
     refreshOnlineRecords().catch(error => console.warn("[online] record refresh failed", error));
   });
   onlineClient.on("MATCH_ENDED", () => {

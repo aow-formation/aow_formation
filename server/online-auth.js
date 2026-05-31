@@ -3,10 +3,12 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import {
-  getCommanderCatalog,
+  getPlayerCommanderCatalog,
   getPlayerProfile,
   getPlayerRecentMatches,
+  getPlayerScenarioClears,
   grantStarterCommanders,
+  recordScenarioClear,
   savePlayerLoadout,
 } from "./online-db.js";
 
@@ -196,8 +198,25 @@ export function installAuthRoutes(app, db) {
     res.json({ ok: true, players: result.rows });
   });
 
-  app.get("/api/commanders/catalog", authMiddleware(db), (_req, res) => {
-    res.json({ ok: true, commanders: getCommanderCatalog() });
+  app.get("/api/commanders/catalog", authMiddleware(db), async (req, res) => {
+    const commanders = await getPlayerCommanderCatalog(db, req.player.id);
+    res.json({ ok: true, commanders });
+  });
+
+  app.get("/api/scenarios/clears", authMiddleware(db), async (req, res) => {
+    const clears = await getPlayerScenarioClears(db, req.player.id);
+    res.json({ ok: true, clears });
+  });
+
+  app.post("/api/scenarios/:id/clear", authMiddleware(db), async (req, res) => {
+    try {
+      const result = await recordScenarioClear(db, req.player.id, req.params.id);
+      const player = await getPlayerProfile(db, req.player.id);
+      const commanders = await getPlayerCommanderCatalog(db, req.player.id);
+      res.json({ ok: true, ...result, player, commanders });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message || "Scenario clear save failed" });
+    }
   });
 
   app.get("/api/loadout/me", authMiddleware(db), (req, res) => {

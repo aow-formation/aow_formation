@@ -45,6 +45,32 @@ const SCENARIO_UNIT_NAME_PATTERNS = [
   /잔병/,
   /후속대/,
 ];
+const SCENARIO_REPRESENTATIVE_IDS = new Map([
+  ["bomangpa", new Set(["zhuge_liang", "liu_bei", "zhao_yun", "xiahou_dun"])],
+  ["cannae", new Set(["hannibal", "mago", "gisgo", "hasdrubal", "maharbal"])],
+  ["gaugamela", new Set(["alexander", "parmenion", "darius_iii"])],
+  ["gwiju", new Set(["gang_gamchan", "kim_jonghyeon", "so_bae_ap"])],
+  ["jupil", new Set(["tang_taizong", "li_shiji", "zhangsun_wuji", "xue_rengui", "go_yeon_su"])],
+]);
+
+export const MAX_COMMANDER_LEVEL = 50;
+
+export function commanderLevelMultiplier(level = 0) {
+  const normalized = Math.max(0, Math.min(MAX_COMMANDER_LEVEL, Number(level) || 0));
+  return 0.5 + normalized / MAX_COMMANDER_LEVEL * 1.5;
+}
+
+export function commanderExpRequired(level = 0) {
+  const normalized = Math.max(0, Math.min(MAX_COMMANDER_LEVEL - 1, Number(level) || 0));
+  return 100 + normalized * normalized * 20;
+}
+
+export function commanderExpGain({ kills = 0, won = false } = {}) {
+  const base = Math.max(0, Number(kills) || 0) / 10;
+  return Math.round(won
+    ? Math.min(1500, base * 1.5 + 100)
+    : base * 0.7 + 30);
+}
 
 function readJsonAsset(relativePath, fallback) {
   try {
@@ -118,18 +144,15 @@ function buildCommanderCatalog() {
 
   const addCommander = (commander) => {
     if (!commander?.name) return;
-    if (usedNames.has(commander.name)) return;
+    const nameKey = commander.name;
+    if (usedNames.has(nameKey)) return;
     catalog.push(commander);
     usedIds.add(commander.id);
-    usedNames.add(commander.name);
+    usedNames.add(nameKey);
   };
 
   BASE_COMMANDER_CATALOG.forEach((commander) => {
     addCommander({ ...commander, id: uniqueId(commander.id, usedIds) });
-  });
-
-  readJsonAsset("../web/assets/portraits/generals.json", []).forEach((general, index) => {
-    addCommander(normalizeCatalogCommander(general, "quick", portraitId(general.portrait, `quick_${index + 1}`), usedIds));
   });
 
   let scenarioFiles = [];
@@ -144,19 +167,26 @@ function buildCommanderCatalog() {
     const scenario = readJsonAsset(`../web/data/scenarios/${file}`, null);
     if (!scenario) return;
     const source = scenario.id || file.replace(/\.json$/, "");
+    const representativeIds = SCENARIO_REPRESENTATIVE_IDS.get(source) || new Set();
     ["player", "enemy"].forEach((side) => {
       (scenario[side]?.formations || []).forEach((formation) => {
+        if (!representativeIds.has(formation.id)) return;
         if (isScenarioUnitFormation(formation)) return;
         addCommander(normalizeCatalogCommander(formation, source, formation.id || portraitId(formation.portrait, formation.name), usedIds));
       });
     });
   });
 
+  readJsonAsset("../web/assets/portraits/generals.json", []).forEach((general, index) => {
+    addCommander(normalizeCatalogCommander(general, "quick", portraitId(general.portrait, `quick_${index + 1}`), usedIds));
+  });
+
   return catalog;
 }
 
 export const COMMANDER_CATALOG = buildCommanderCatalog();
-export const DEFAULT_COMMANDERS = COMMANDER_CATALOG.slice(0, 5);
+const QUICK_COMMANDERS = COMMANDER_CATALOG.filter(commander => commander.source === "quick");
+export const DEFAULT_COMMANDERS = (QUICK_COMMANDERS.length >= 5 ? QUICK_COMMANDERS : COMMANDER_CATALOG).slice(0, 5);
 
 export function createDb() {
   if (!process.env.DATABASE_URL) return createMemoryDb();
@@ -173,6 +203,9 @@ function createMemoryDb() {
     players: new Map(),
     commanderTemplates: new Map(COMMANDER_CATALOG.map(template => [template.id, { ...template }])),
     playerCommanders: new Map(),
+    playerCommanderProgress: new Map(),
+    scenarioClears: new Map(),
+    matchCommanderStats: new Map(),
     matches: new Map(),
     matchPlayers: new Map(),
     matchInputs: new Map(),
@@ -221,7 +254,7 @@ function createMemoryDb() {
           troop_type: null,
           troops: null,
           skill_type: null,
-          level: 1,
+          level: 0,
           exp: 0,
           created_at: new Date(),
         });
@@ -447,6 +480,8 @@ function createMemoryDb() {
     query,
     async connect() {
       return {
+        mode: "memory",
+        state,
         query,
         release() {},
       };
@@ -499,6 +534,27 @@ export async function ensureOnlineSchema(db) {
       UNIQUE(player_id, slot_index)
     );
 
+    CREATE TABLE IF NOT EXISTS player_scenario_clears (
+      player_id UUID REFERENCES players(id) ON DELETE CASCADE,
+      scenario_id VARCHAR(32) NOT NULL,
+      clear_count INT DEFAULT 1,
+      first_cleared_at TIMESTAMPTZ DEFAULT NOW(),
+      last_cleared_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (player_id, scenario_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS player_commander_progress (
+      player_id UUID REFERENCES players(id) ON DELETE CASCADE,
+      template_id VARCHAR(32) REFERENCES commander_templates(id),
+      unlocked BOOLEAN DEFAULT false,
+      level INT DEFAULT 0,
+      exp INT DEFAULT 0,
+      total_exp INT DEFAULT 0,
+      unlocked_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (player_id, template_id)
+    );
+
     CREATE TABLE IF NOT EXISTS matches (
       id UUID PRIMARY KEY,
       room_id VARCHAR(64) UNIQUE NOT NULL,
@@ -536,6 +592,22 @@ export async function ensureOnlineSchema(db) {
       PRIMARY KEY (match_id, seq)
     );
 
+    CREATE TABLE IF NOT EXISTS match_commander_stats (
+      match_id UUID REFERENCES matches(id) ON DELETE CASCADE,
+      player_id UUID REFERENCES players(id),
+      template_id VARCHAR(32) REFERENCES commander_templates(id),
+      slot_index SMALLINT,
+      kills INT DEFAULT 0,
+      losses INT DEFAULT 0,
+      troops_initial INT DEFAULT 0,
+      troops_remaining INT DEFAULT 0,
+      exp_gained INT DEFAULT 0,
+      level_before INT DEFAULT 0,
+      level_after INT DEFAULT 0,
+      leveled_up BOOLEAN DEFAULT false,
+      PRIMARY KEY (match_id, player_id, template_id)
+    );
+
     CREATE TABLE IF NOT EXISTS rating_events (
       id UUID PRIMARY KEY,
       match_id UUID REFERENCES matches(id) ON DELETE CASCADE,
@@ -553,6 +625,7 @@ export async function ensureOnlineSchema(db) {
       ALTER TABLE player_commanders ADD COLUMN IF NOT EXISTS troop_type VARCHAR(16);
       ALTER TABLE player_commanders ADD COLUMN IF NOT EXISTS troops INT;
       ALTER TABLE player_commanders ADD COLUMN IF NOT EXISTS skill_type VARCHAR(16);
+      ALTER TABLE player_commanders ALTER COLUMN level SET DEFAULT 0;
     `);
   }
 
@@ -595,6 +668,20 @@ export async function grantStarterCommanders(db, playerId) {
        ON CONFLICT (player_id, slot_index) DO NOTHING`,
       [randomUUID(), playerId, DEFAULT_COMMANDERS[index].id, index],
     );
+    if (db?.mode === "memory" && db.state) {
+      memorySetProgress(db, playerId, DEFAULT_COMMANDERS[index].id, { unlocked: true });
+    } else {
+      await db.query(
+        `INSERT INTO player_commander_progress
+          (player_id, template_id, unlocked, level, exp, total_exp, unlocked_at, updated_at)
+         VALUES ($1, $2, true, 0, 0, 0, NOW(), NOW())
+         ON CONFLICT (player_id, template_id) DO UPDATE SET
+          unlocked = true,
+          unlocked_at = COALESCE(player_commander_progress.unlocked_at, NOW()),
+          updated_at = NOW()`,
+        [playerId, DEFAULT_COMMANDERS[index].id],
+      );
+    }
   }
 }
 
@@ -613,30 +700,435 @@ export function getCommanderCatalog() {
   }));
 }
 
+function progressKey(playerId, templateId) {
+  return `${playerId}:${templateId}`;
+}
+
+function isCommanderDefaultUnlocked(commander) {
+  return commander?.source === "quick";
+}
+
+function scenarioIdForCommander(commander) {
+  return isCommanderDefaultUnlocked(commander) ? null : commander?.source || null;
+}
+
+function defaultCommanderProgress(commander) {
+  const unlocked = isCommanderDefaultUnlocked(commander);
+  return {
+    unlocked,
+    level: 0,
+    exp: 0,
+    totalExp: 0,
+    unlockedAt: unlocked ? new Date() : null,
+  };
+}
+
+function coerceAllowedSkills(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (_error) {
+      return ["kihap"];
+    }
+  }
+  return ["kihap"];
+}
+
+function decorateCommander(commander, progress = null) {
+  const fallback = defaultCommanderProgress(commander);
+  const level = Math.max(0, Math.min(MAX_COMMANDER_LEVEL, Number(progress?.level ?? fallback.level) || 0));
+  const exp = Math.max(0, Number(progress?.exp ?? fallback.exp) || 0);
+  const totalExp = Math.max(0, Number(progress?.total_exp ?? progress?.totalExp ?? fallback.totalExp) || 0);
+  const unlocked = Boolean(progress?.unlocked ?? fallback.unlocked);
+  const mult = commanderLevelMultiplier(level);
+  return {
+    id: commander.id,
+    templateId: commander.id,
+    name: commander.name,
+    source: commander.source,
+    unlockScenarioId: scenarioIdForCommander(commander),
+    unlocked,
+    level,
+    exp,
+    totalExp,
+    expRequired: level >= MAX_COMMANDER_LEVEL ? 0 : commanderExpRequired(level),
+    statMultiplier: mult,
+    troopType: commander.troop_type,
+    basePower: commander.power,
+    baseLeadership: commander.leadership,
+    baseCharm: commander.charm,
+    power: Math.round(commander.power * mult),
+    leadership: Math.round(commander.leadership * mult),
+    charm: Math.round(commander.charm * mult),
+    skillType: commander.skill_type,
+    allowedSkills: coerceAllowedSkills(commander.allowed_skills),
+    portrait: commander.portrait,
+  };
+}
+
+function decoratePlayerCommander(row, progress = null) {
+  const commander = commanderTemplateById(row.templateId || row.template_id) || {
+    id: row.templateId || row.template_id,
+    name: row.name,
+    source: row.source || "quick",
+    troop_type: row.troopType || row.troop_type || "infantry",
+    power: row.power || 70,
+    leadership: row.leadership || 70,
+    charm: row.charm || 70,
+    skill_type: row.skillType || row.skill_type || "kihap",
+    allowed_skills: row.allowedSkills || row.allowed_skills || ["kihap"],
+    portrait: row.portrait || null,
+  };
+  const decorated = decorateCommander(commander, progress);
+  const troopType = row.troopType || row.troop_type || commander.troop_type || "infantry";
+  return {
+    ...decorated,
+    id: row.id,
+    templateId: commander.id,
+    slotIndex: row.slotIndex ?? row.slot_index,
+    name: row.name || decorated.name,
+    troopType,
+    troops: row.troops || (troopType === "cavalry" ? 2500 : 10000),
+    skillType: row.skillType || row.skill_type || decorated.skillType,
+  };
+}
+
+function memoryProgressFor(db, playerId, templateId) {
+  const commander = commanderTemplateById(templateId);
+  if (!commander) return null;
+  return db.state.playerCommanderProgress.get(progressKey(playerId, templateId))
+    || defaultCommanderProgress(commander);
+}
+
+function memorySetProgress(db, playerId, templateId, next) {
+  const commander = commanderTemplateById(templateId);
+  if (!commander) return null;
+  const previous = memoryProgressFor(db, playerId, templateId);
+  const progress = {
+    unlocked: Boolean(next.unlocked ?? previous.unlocked),
+    level: Math.max(0, Math.min(MAX_COMMANDER_LEVEL, Number(next.level ?? previous.level) || 0)),
+    exp: Math.max(0, Number(next.exp ?? previous.exp) || 0),
+    totalExp: Math.max(0, Number(next.totalExp ?? next.total_exp ?? previous.totalExp) || 0),
+    unlockedAt: next.unlockedAt ?? next.unlocked_at ?? previous.unlockedAt ?? (next.unlocked ? new Date() : null),
+    updatedAt: new Date(),
+  };
+  db.state.playerCommanderProgress.set(progressKey(playerId, templateId), progress);
+  return progress;
+}
+
+async function progressMapForPlayer(db, playerId) {
+  if (db?.mode === "memory" && db.state) {
+    return new Map([...db.state.playerCommanderProgress.entries()]
+      .filter(([key]) => key.startsWith(`${playerId}:`))
+      .map(([key, value]) => [key.split(":").slice(1).join(":"), value]));
+  }
+  const result = await db.query(
+    `SELECT template_id, unlocked, level, exp, total_exp AS "totalExp", unlocked_at AS "unlockedAt"
+       FROM player_commander_progress
+      WHERE player_id = $1`,
+    [playerId],
+  );
+  return new Map(result.rows.map(row => [row.template_id || row.templateId, row]));
+}
+
+async function commanderUnlockedForPlayer(db, playerId, templateId) {
+  const commander = commanderTemplateById(templateId);
+  if (!commander) return false;
+  if (isCommanderDefaultUnlocked(commander)) return true;
+  if (db?.mode === "memory" && db.state) {
+    const progress = memoryProgressFor(db, playerId, templateId);
+    return Boolean(progress?.unlocked);
+  }
+  const result = await db.query(
+    `SELECT unlocked
+       FROM player_commander_progress
+      WHERE player_id = $1 AND template_id = $2`,
+    [playerId, templateId],
+  );
+  return Boolean(result.rows[0]?.unlocked);
+}
+
+export async function getPlayerCommanderCatalog(db, playerId) {
+  const progressMap = await progressMapForPlayer(db, playerId);
+  return COMMANDER_CATALOG.map(commander => decorateCommander(
+    commander,
+    progressMap.get(commander.id) || defaultCommanderProgress(commander),
+  ));
+}
+
 function commanderTemplateById(templateId) {
   return COMMANDER_CATALOG.find(commander => commander.id === templateId) || null;
 }
 
+export async function recordScenarioClear(db, playerId, scenarioId) {
+  const id = String(scenarioId || "").trim();
+  if (!id) throw new Error("Scenario id is required.");
+  const unlockedCommanders = COMMANDER_CATALOG.filter(commander => commander.source === id);
+
+  if (db?.mode === "memory" && db.state) {
+    const key = `${playerId}:${id}`;
+    const existing = db.state.scenarioClears.get(key);
+    db.state.scenarioClears.set(key, {
+      player_id: playerId,
+      scenario_id: id,
+      clear_count: (existing?.clear_count || 0) + 1,
+      first_cleared_at: existing?.first_cleared_at || new Date(),
+      last_cleared_at: new Date(),
+    });
+    unlockedCommanders.forEach((commander) => {
+      memorySetProgress(db, playerId, commander.id, { unlocked: true });
+    });
+    return {
+      scenarioId: id,
+      unlockedCommanders: unlockedCommanders.map(commander => decorateCommander(
+        commander,
+        memoryProgressFor(db, playerId, commander.id),
+      )),
+    };
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO player_scenario_clears
+        (player_id, scenario_id, clear_count, first_cleared_at, last_cleared_at)
+       VALUES ($1, $2, 1, NOW(), NOW())
+       ON CONFLICT (player_id, scenario_id) DO UPDATE SET
+        clear_count = player_scenario_clears.clear_count + 1,
+        last_cleared_at = NOW()`,
+      [playerId, id],
+    );
+    for (const commander of unlockedCommanders) {
+      await client.query(
+        `INSERT INTO player_commander_progress
+          (player_id, template_id, unlocked, level, exp, total_exp, unlocked_at, updated_at)
+         VALUES ($1, $2, true, 0, 0, 0, NOW(), NOW())
+         ON CONFLICT (player_id, template_id) DO UPDATE SET
+          unlocked = true,
+          unlocked_at = COALESCE(player_commander_progress.unlocked_at, NOW()),
+          updated_at = NOW()`,
+        [playerId, commander.id],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  const catalog = await getPlayerCommanderCatalog(db, playerId);
+  return {
+    scenarioId: id,
+    unlockedCommanders: catalog.filter(commander => commander.source === id && commander.unlocked),
+  };
+}
+
+export async function getPlayerScenarioClears(db, playerId) {
+  if (db?.mode === "memory" && db.state) {
+    return [...db.state.scenarioClears.values()]
+      .filter(clear => clear.player_id === playerId)
+      .map(clear => ({
+        scenarioId: clear.scenario_id,
+        clearCount: clear.clear_count,
+        firstClearedAt: clear.first_cleared_at,
+        lastClearedAt: clear.last_cleared_at,
+      }));
+  }
+  const result = await db.query(
+    `SELECT scenario_id AS "scenarioId",
+            clear_count AS "clearCount",
+            first_cleared_at AS "firstClearedAt",
+            last_cleared_at AS "lastClearedAt"
+       FROM player_scenario_clears
+      WHERE player_id = $1
+      ORDER BY last_cleared_at DESC`,
+    [playerId],
+  );
+  return result.rows;
+}
+
+function buildCommanderProgressResult(commander, before, after, gainedExp, statBefore, statAfter) {
+  return {
+    templateId: commander.id,
+    name: commander.name,
+    portrait: commander.portrait,
+    source: commander.source,
+    levelBefore: before.level,
+    levelAfter: after.level,
+    expBefore: before.exp,
+    expAfter: after.exp,
+    totalExpAfter: after.totalExp ?? after.total_exp ?? 0,
+    gainedExp,
+    requiredExp: before.level >= MAX_COMMANDER_LEVEL ? 0 : commanderExpRequired(before.level),
+    nextRequiredExp: after.level >= MAX_COMMANDER_LEVEL ? 0 : commanderExpRequired(after.level),
+    leveledUp: after.level > before.level,
+    statsBefore: statBefore,
+    statsAfter: statAfter,
+  };
+}
+
+export async function applyCommanderBattleProgress(db, playerId, matchId, commanderStats = [], won = false) {
+  const normalizedStats = Array.isArray(commanderStats) ? commanderStats.slice(0, 5) : [];
+  const results = [];
+
+  for (const stat of normalizedStats) {
+    const templateId = stat.templateId || stat.template_id;
+    const commander = commanderTemplateById(templateId);
+    if (!commander) continue;
+    const kills = Math.max(0, Math.round(Number(stat.kills) || 0));
+    const losses = Math.max(0, Math.round(Number(stat.losses) || 0));
+    const troopsInitial = Math.max(0, Math.round(Number(stat.troopsInitial ?? stat.troops_initial) || 0));
+    const troopsRemaining = Math.max(0, Math.round(Number(stat.troopsRemaining ?? stat.troops_remaining) || 0));
+    const slotIndex = Number.isInteger(stat.slotIndex) ? stat.slotIndex : Number(stat.slot_index ?? 0);
+    const gainedExp = commanderExpGain({ kills, won });
+
+    let before;
+    let after;
+    if (db?.mode === "memory" && db.state) {
+      before = {
+        ...defaultCommanderProgress(commander),
+        ...memoryProgressFor(db, playerId, templateId),
+      };
+      const required = before.level >= MAX_COMMANDER_LEVEL ? Infinity : commanderExpRequired(before.level);
+      const willLevel = before.level < MAX_COMMANDER_LEVEL && before.exp + gainedExp >= required;
+      after = {
+        unlocked: true,
+        level: willLevel ? before.level + 1 : before.level,
+        exp: willLevel || before.level >= MAX_COMMANDER_LEVEL ? 0 : before.exp + gainedExp,
+        totalExp: (before.totalExp || before.total_exp || 0) + gainedExp,
+        unlockedAt: before.unlockedAt || before.unlocked_at || new Date(),
+      };
+      memorySetProgress(db, playerId, templateId, after);
+      db.state.matchCommanderStats.set(`${matchId}:${playerId}:${templateId}`, {
+        match_id: matchId,
+        player_id: playerId,
+        template_id: templateId,
+        slot_index: slotIndex,
+        kills,
+        losses,
+        troops_initial: troopsInitial,
+        troops_remaining: troopsRemaining,
+        exp_gained: gainedExp,
+        level_before: before.level,
+        level_after: after.level,
+        leveled_up: after.level > before.level,
+      });
+    } else {
+      const progressResult = await db.query(
+        `SELECT unlocked, level, exp, total_exp AS "totalExp", unlocked_at AS "unlockedAt"
+           FROM player_commander_progress
+          WHERE player_id = $1 AND template_id = $2`,
+        [playerId, templateId],
+      );
+      before = {
+        ...defaultCommanderProgress(commander),
+        ...(progressResult.rows[0] || {}),
+      };
+      before.level = Math.max(0, Math.min(MAX_COMMANDER_LEVEL, Number(before.level) || 0));
+      before.exp = Math.max(0, Number(before.exp) || 0);
+      before.totalExp = Math.max(0, Number(before.totalExp ?? before.total_exp) || 0);
+      const required = before.level >= MAX_COMMANDER_LEVEL ? Infinity : commanderExpRequired(before.level);
+      const willLevel = before.level < MAX_COMMANDER_LEVEL && before.exp + gainedExp >= required;
+      after = {
+        unlocked: true,
+        level: willLevel ? before.level + 1 : before.level,
+        exp: willLevel || before.level >= MAX_COMMANDER_LEVEL ? 0 : before.exp + gainedExp,
+        totalExp: before.totalExp + gainedExp,
+      };
+      await db.query(
+        `INSERT INTO player_commander_progress
+          (player_id, template_id, unlocked, level, exp, total_exp, unlocked_at, updated_at)
+         VALUES ($1, $2, true, $3, $4, $5, NOW(), NOW())
+         ON CONFLICT (player_id, template_id) DO UPDATE SET
+          unlocked = true,
+          level = EXCLUDED.level,
+          exp = EXCLUDED.exp,
+          total_exp = EXCLUDED.total_exp,
+          unlocked_at = COALESCE(player_commander_progress.unlocked_at, NOW()),
+          updated_at = NOW()`,
+        [playerId, templateId, after.level, after.exp, after.totalExp],
+      );
+      await db.query(
+        `INSERT INTO match_commander_stats
+          (match_id, player_id, template_id, slot_index, kills, losses, troops_initial, troops_remaining,
+           exp_gained, level_before, level_after, leveled_up)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (match_id, player_id, template_id) DO UPDATE SET
+          slot_index = EXCLUDED.slot_index,
+          kills = EXCLUDED.kills,
+          losses = EXCLUDED.losses,
+          troops_initial = EXCLUDED.troops_initial,
+          troops_remaining = EXCLUDED.troops_remaining,
+          exp_gained = EXCLUDED.exp_gained,
+          level_before = EXCLUDED.level_before,
+          level_after = EXCLUDED.level_after,
+          leveled_up = EXCLUDED.leveled_up`,
+        [
+          matchId,
+          playerId,
+          templateId,
+          slotIndex,
+          kills,
+          losses,
+          troopsInitial,
+          troopsRemaining,
+          gainedExp,
+          before.level,
+          after.level,
+          after.level > before.level,
+        ],
+      );
+    }
+
+    const statBefore = {
+      power: Math.round(commander.power * commanderLevelMultiplier(before.level)),
+      leadership: Math.round(commander.leadership * commanderLevelMultiplier(before.level)),
+      charm: Math.round(commander.charm * commanderLevelMultiplier(before.level)),
+    };
+    const statAfter = {
+      power: Math.round(commander.power * commanderLevelMultiplier(after.level)),
+      leadership: Math.round(commander.leadership * commanderLevelMultiplier(after.level)),
+      charm: Math.round(commander.charm * commanderLevelMultiplier(after.level)),
+    };
+    results.push(buildCommanderProgressResult(commander, before, after, gainedExp, statBefore, statAfter));
+  }
+
+  return results;
+}
+
 export async function savePlayerLoadout(db, playerId, commanders) {
-  const normalized = commanders.slice(0, 5).map((item, index) => {
+  const normalized = [];
+  for (let index = 0; index < commanders.slice(0, 5).length; index += 1) {
+    const item = commanders[index];
     const template = commanderTemplateById(item.templateId);
     if (!template) throw new Error(`Unknown commander template: ${item.templateId}`);
+    if (!(await commanderUnlockedForPlayer(db, playerId, template.id))) {
+      throw new Error(`Commander is locked: ${template.name}`);
+    }
     const troopType = item.troopType === "cavalry" ? "cavalry" : "infantry";
     const allowedSkills = troopType === "cavalry" ? ["kihap"] : (template.allowed_skills || ["kihap", "guard", "swift"]);
     const skillType = allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0];
     const minTroops = troopType === "cavalry" ? 250 : 1000;
     const maxTroops = troopType === "cavalry" ? 12500 : 50000;
     const troops = Math.max(minTroops, Math.min(maxTroops, Math.round(Number(item.troops) || (troopType === "cavalry" ? 2500 : 10000))));
-    return {
+    normalized.push({
       slotIndex: Number.isInteger(item.slotIndex) ? item.slotIndex : index,
       templateId: template.id,
       troopType,
       troops,
       skillType,
-    };
-  });
+    });
+  }
 
   if (normalized.length !== 5) throw new Error("Loadout requires exactly 5 commanders.");
+  if (new Set(normalized.map(item => item.templateId)).size !== normalized.length) {
+    throw new Error("Loadout cannot contain duplicate commanders.");
+  }
 
   const population = normalized.reduce((sum, item) => sum + item.troops * (item.troopType === "cavalry" ? 4 : 1), 0);
   if (population > 50000) throw new Error("Loadout population exceeds 50,000.");
@@ -654,7 +1146,7 @@ export async function savePlayerLoadout(db, playerId, commanders) {
         troop_type: item.troopType,
         troops: item.troops,
         skill_type: item.skillType,
-        level: existing?.level || 1,
+        level: existing?.level || 0,
         exp: existing?.exp || 0,
         created_at: existing?.created_at || new Date(),
       });
@@ -699,7 +1191,8 @@ export async function getPlayerProfile(db, playerId) {
   const player = playerResult.rows[0];
   if (!player) return null;
   const commanders = await getPlayerCommanders(db, playerId);
-  return { ...player, commanders };
+  const scenarioClears = await getPlayerScenarioClears(db, playerId);
+  return { ...player, commanders, scenarioClears };
 }
 
 export async function getPlayerRecentMatches(db, playerId, limit = 10) {
@@ -773,10 +1266,27 @@ export async function getPlayerRecentMatches(db, playerId, limit = 10) {
 }
 
 export async function getPlayerCommanders(db, playerId) {
+  if (db?.mode === "memory" && db.state) {
+    return [...db.state.playerCommanders.values()]
+      .filter(item => item.player_id === playerId)
+      .sort((a, b) => a.slot_index - b.slot_index)
+      .map((item) => {
+        const template = commanderTemplateById(item.template_id);
+        return decoratePlayerCommander({
+          id: item.id,
+          slotIndex: item.slot_index,
+          templateId: item.template_id,
+          name: item.custom_name || template?.name || item.template_id,
+          troopType: item.troop_type || template?.troop_type || "infantry",
+          troops: item.troops || ((item.troop_type || template?.troop_type) === "cavalry" ? 2500 : 10000),
+          skillType: item.skill_type || template?.skill_type || "kihap",
+        }, memoryProgressFor(db, playerId, item.template_id));
+      });
+  }
+
   const result = await db.query(
     `SELECT pc.id, pc.slot_index AS "slotIndex", pc.template_id AS "templateId",
             COALESCE(pc.custom_name, ct.name) AS name,
-            pc.level, pc.exp,
             COALESCE(pc.troop_type, ct.troop_type) AS "troopType",
             COALESCE(pc.troops, CASE WHEN COALESCE(pc.troop_type, ct.troop_type) = 'cavalry' THEN 2500 ELSE 10000 END) AS troops,
             ct.power, ct.leadership, ct.charm,
@@ -790,5 +1300,6 @@ export async function getPlayerCommanders(db, playerId) {
       ORDER BY pc.slot_index ASC`,
     [playerId],
   );
-  return result.rows;
+  const progressMap = await progressMapForPlayer(db, playerId);
+  return result.rows.map(row => decoratePlayerCommander(row, progressMap.get(row.templateId)));
 }

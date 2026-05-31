@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
-import { getPlayerProfile } from "./online-db.js";
+import { applyCommanderBattleProgress, getPlayerProfile } from "./online-db.js";
 import { verifyPlayerToken } from "./online-auth.js";
 
 const TICK_RATE = 30;
@@ -45,6 +45,14 @@ const resultSchema = z.object({
     troopsRemaining: z.number().int().nonnegative().optional(),
     kills: z.number().int().nonnegative().optional(),
     losses: z.number().int().nonnegative().optional(),
+    commanderStats: z.array(z.object({
+      templateId: z.string().min(1).max(32),
+      slotIndex: z.number().int().min(0).max(4).optional(),
+      kills: z.number().int().nonnegative().optional(),
+      losses: z.number().int().nonnegative().optional(),
+      troopsInitial: z.number().int().nonnegative().optional(),
+      troopsRemaining: z.number().int().nonnegative().optional(),
+    }).passthrough()).max(5).optional(),
   }).passthrough().optional(),
 });
 
@@ -314,6 +322,7 @@ export function installMultiplayerServer({ server, db }) {
     const winner = room.sockets.find(ws => ws.side === winnerSide)?.player || null;
     const resultStats = new Map();
     const ratingChanges = new Map();
+    const commanderProgressByPlayer = new Map();
     if (db) {
       const durationTick = Math.max(0, Math.floor((Date.now() - room.startedAt) / 1000 * TICK_RATE));
       await db.query(
@@ -325,6 +334,7 @@ export function installMultiplayerServer({ server, db }) {
       for (const peer of room.sockets) {
         const result = room.results.get(peer.side);
         const stats = result?.stats || {};
+        const shouldApplyProgress = status === "normal" || status === "disconnect";
         const normalizedStats = {
           troopsInitial: statInt(stats.troopsInitial),
           troopsRemaining: statInt(stats.troopsRemaining),
@@ -348,6 +358,16 @@ export function installMultiplayerServer({ server, db }) {
             peer.player.id,
           ],
         );
+        const commanderProgress = shouldApplyProgress
+          ? await applyCommanderBattleProgress(
+            db,
+            peer.player.id,
+            room.dbMatchId,
+            stats.commanderStats || [],
+            peer.side === winnerSide,
+          )
+          : [];
+        commanderProgressByPlayer.set(peer.player.id, commanderProgress);
       }
       if (winner && (status === "normal" || status === "disconnect")) {
         const [p0, p1] = room.sockets.map(ws => ws.player);
@@ -399,6 +419,7 @@ export function installMultiplayerServer({ server, db }) {
       rating: peer.player.rating,
       stats: resultStats.get(peer.player.id) || null,
       ratingChange: ratingChanges.get(peer.player.id) || null,
+      commanderProgress: commanderProgressByPlayer.get(peer.player.id) || [],
     }));
     room.sockets.forEach((peer) => {
       if (status === "disconnect" && peer.side === winnerSide) {
@@ -413,6 +434,7 @@ export function installMultiplayerServer({ server, db }) {
         my: {
           stats: resultStats.get(peer.player.id) || null,
           ratingChange: ratingChanges.get(peer.player.id) || null,
+          commanderProgress: commanderProgressByPlayer.get(peer.player.id) || [],
         },
       });
       peer.roomId = null;

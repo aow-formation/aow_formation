@@ -79,6 +79,17 @@ export class OnlineClient {
     return this.catalog;
   }
 
+  async recordScenarioClear(scenarioId) {
+    if (!this.token || !scenarioId) return null;
+    const data = await this.request(`/api/scenarios/${encodeURIComponent(scenarioId)}/clear`, {
+      method: "POST",
+      body: {},
+    });
+    this.player = data.player || this.player;
+    this.catalog = data.commanders || this.catalog;
+    return data;
+  }
+
   async saveLoadout(commanders) {
     const data = await this.request("/api/loadout/me", {
       method: "PUT",
