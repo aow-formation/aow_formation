@@ -9,12 +9,18 @@ export class OnlineClient {
     this.authenticated = false;
     this.authWaiters = [];
     this.handlers = new Map();
+    this.isGuest = false;
   }
 
   on(type, handler) {
     const list = this.handlers.get(type) || [];
     list.push(handler);
     this.handlers.set(type, list);
+  }
+
+  off(type, handler) {
+    const list = this.handlers.get(type) || [];
+    this.handlers.set(type, list.filter(h => h !== handler));
   }
 
   emit(type, payload) {
@@ -102,6 +108,7 @@ export class OnlineClient {
   logout() {
     this.token = "";
     this.player = null;
+    this.isGuest = false;
     this.recentMatches = [];
     this.leaderboard = [];
     this.catalog = [];
@@ -112,8 +119,28 @@ export class OnlineClient {
   setSession(token, player) {
     this.token = token;
     this.player = player;
+    this.isGuest = false;
     localStorage.setItem("aowToken", token);
     this.authenticated = false;
+  }
+
+  _attachWsListeners(ws) {
+    ws.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "AUTH_OK") {
+        this.authenticated = true;
+        this.authWaiters.splice(0).forEach(resolve => resolve());
+      }
+      this.emit(message.type, message);
+    });
+    ws.addEventListener("close", () => {
+      this.authenticated = false;
+      this.authWaiters.splice(0).forEach(resolve => resolve());
+      this.emit("DISCONNECTED", {});
+    });
+    ws.addEventListener("error", () => {
+      this.emit("ERROR", { error: "WebSocket connection failed" });
+    });
   }
 
   connect() {
@@ -125,22 +152,20 @@ export class OnlineClient {
     this.ws.addEventListener("open", () => {
       this.send({ type: "AUTH", token: this.token });
     });
-    this.ws.addEventListener("message", (event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === "AUTH_OK") {
-        this.authenticated = true;
-        this.authWaiters.splice(0).forEach(resolve => resolve());
-      }
-      this.emit(message.type, message);
+    this._attachWsListeners(this.ws);
+    return this.ws;
+  }
+
+  connectAsGuest(displayName = "게스트") {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) return this.ws;
+    this.isGuest = true;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    this.authenticated = false;
+    this.ws = new WebSocket(`${protocol}//${location.host}/ws`);
+    this.ws.addEventListener("open", () => {
+      this.send({ type: "AUTH_GUEST", displayName });
     });
-    this.ws.addEventListener("close", () => {
-      this.authenticated = false;
-      this.authWaiters.splice(0).forEach(resolve => resolve());
-      this.emit("DISCONNECTED", {});
-    });
-    this.ws.addEventListener("error", () => {
-      this.emit("ERROR", { error: "WebSocket connection failed" });
-    });
+    this._attachWsListeners(this.ws);
     return this.ws;
   }
 
@@ -152,7 +177,11 @@ export class OnlineClient {
 
   whenAuthenticated() {
     if (this.authenticated) return Promise.resolve();
-    this.connect();
+    if (this.isGuest) {
+      this.connectAsGuest(this.player?.displayName);
+    } else {
+      this.connect();
+    }
     return new Promise((resolve) => {
       this.authWaiters.push(resolve);
     });
@@ -191,5 +220,13 @@ export class OnlineClient {
 
   sendClientLoaded(initialHash, protocol = "thin-relay-scheduled-lockstep") {
     this.send({ type: "CLIENT_LOADED", initialHash, protocol });
+  }
+
+  createPrivateRoom() {
+    this.send({ type: "CREATE_PRIVATE_ROOM" });
+  }
+
+  joinPrivateRoom(code) {
+    this.send({ type: "JOIN_PRIVATE_ROOM", code });
   }
 }

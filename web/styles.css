@@ -1950,6 +1950,17 @@ input[type="range"].adjust-slider {
   color: #e8d060;
 }
 
+.result-guest-notice {
+  text-align: center;
+  padding: 14px 16px;
+  color: #b8a080;
+  font-size: 0.85rem;
+  border: 1px solid #4a3a28;
+  border-radius: 6px;
+  background: rgba(74, 58, 40, 0.25);
+  margin: 8px 0;
+}
+
 .result-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2666,6 +2677,74 @@ input[type="range"].adjust-slider {
   padding: 10px;
   border: 1px solid rgba(184,138,8,0.30);
   background: rgba(0,0,0,0.24);
+}
+
+.online-invite-panel {
+  margin-top: 16px;
+  border-top: 1px solid rgba(184,138,8,0.20);
+  padding-top: 14px;
+}
+
+.online-invite-divider {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #806050;
+  margin-bottom: 10px;
+  letter-spacing: 0.06em;
+}
+
+.online-invite-row {
+  display: flex;
+  justify-content: center;
+}
+
+.online-invite-link-area {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.online-invite-link-input {
+  flex: 1;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(184,138,8,0.35);
+  color: #c8b090;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  font-family: monospace;
+  border-radius: 3px;
+  min-width: 0;
+}
+
+.online-invite-status {
+  font-size: 0.78rem;
+  color: #a09070;
+  margin-top: 8px;
+  text-align: center;
+  min-height: 1.2em;
+}
+
+.online-guest-invite-panel {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(226,187,104,0.30);
+  background: rgba(226,187,104,0.06);
+  border-radius: 4px;
+}
+
+.online-invite-notice {
+  font-size: 0.85rem;
+  color: #e2bb68;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.online-invite-hint {
+  font-size: 0.75rem;
+  color: #806050;
+  text-align: center;
+  margin-top: 8px;
 }
 
 .online-commander {

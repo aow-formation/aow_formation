@@ -321,6 +321,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   let onlinePendingMatch = null;
   let onlineReadySides = [];
   let onlineRematchAfterCancel = false;
+  const pendingInviteCode = new URLSearchParams(location.search).get("invite") || null;
+  let onlineInvitePanel = null;
 
   // 재전투용 저장 데이터
   let savedPlayerGenerals = null;
@@ -5152,6 +5154,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (isOnlineMode()) {
       onlineClient.disconnect();
       disableOnlineRandom();
+      if (game.online?.isGuest) {
+        onlineClient.isGuest = false;
+        onlineClient.player = null;
+      }
       game.online = null;
       game.mode = "quick";
     }
@@ -5678,6 +5684,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       waitingForSimStart: true,
       initialHash: null,
       players: match.players || [],
+      isGuest: Boolean(onlineClient.isGuest),
     };
     game.speedMultiplier = 1;
     game.paused = false;
@@ -6646,12 +6653,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   // ── 전투 결과 화면 ──────────────────────────────────────────────────
   function showBattleResult(won) {
     setTopbarCollapsed(false);
-    const onlineResult = isOnlineMode();
+    const isGuest = isOnlineMode() && Boolean(game.online?.isGuest);
+    const onlineResult = isOnlineMode() && !isGuest;
     const replayBtn = document.getElementById("resultReplay");
     const newBattleBtn = document.getElementById("resultNewBattle");
     const homeBtn = document.getElementById("resultHome");
-    if (replayBtn) replayBtn.hidden = onlineResult;
-    if (newBattleBtn) newBattleBtn.hidden = onlineResult;
+    if (replayBtn) replayBtn.hidden = isOnlineMode();
+    if (newBattleBtn) newBattleBtn.hidden = isOnlineMode();
     if (homeBtn) homeBtn.textContent = onlineResult ? "온라인 로비로" : "홈 화면";
     const verdict = document.getElementById("resultVerdict");
     verdict.textContent = won ? "승 리" : "패 배";
@@ -6716,6 +6724,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (!isOnlineMode()) {
       container.hidden = true;
       container.innerHTML = "";
+      return;
+    }
+    if (game.online?.isGuest) {
+      container.hidden = false;
+      container.innerHTML = `<div class="result-guest-notice">로그인 이후에 게임결과를 저장할 수 있습니다.</div>`;
       return;
     }
     const progress = onlineLastResult?.my?.commanderProgress || [];
@@ -6947,6 +6960,40 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         right.appendChild(onlineOpponentPreview);
         if (onlineResultSummary) right.appendChild(onlineResultSummary);
         right.appendChild(actions);
+      }
+      if (!onlineInvitePanel) {
+        onlineInvitePanel = document.createElement("div");
+        onlineInvitePanel.id = "onlineInvitePanel";
+        onlineInvitePanel.className = "online-invite-panel";
+        onlineInvitePanel.innerHTML = `
+          <div class="online-invite-divider">또는</div>
+          <div class="online-invite-row">
+            <button id="onlineCreateInviteBtn" class="btn-stone" type="button">친구 초대 링크 만들기</button>
+          </div>
+          <div id="onlineInviteLinkArea" class="online-invite-link-area" hidden>
+            <input id="onlineInviteLinkInput" class="online-invite-link-input" readonly />
+            <button id="onlineInviteCopyBtn" class="btn-stone" type="button">복사</button>
+          </div>
+          <div id="onlineInviteStatus" class="online-invite-status"></div>
+        `;
+        matchCard.appendChild(onlineInvitePanel);
+      }
+      if (pendingInviteCode && !onlineClient.token) {
+        let guestPanel = document.getElementById("onlineGuestInvitePanel");
+        if (!guestPanel) {
+          guestPanel = document.createElement("div");
+          guestPanel.id = "onlineGuestInvitePanel";
+          guestPanel.className = "online-guest-invite-panel";
+          guestPanel.innerHTML = `
+            <div class="online-invite-notice">초대 링크로 접속했습니다.</div>
+            <div class="online-actions">
+              <button id="onlineGuestJoinBtn" class="btn-primary" type="button">게스트로 참가</button>
+            </div>
+            <div class="online-invite-hint">로그인하면 전적이 저장됩니다.</div>
+          `;
+          const authCard2 = onlineCardFor(onlineAuthForm);
+          authCard2?.appendChild(guestPanel);
+        }
       }
     }
 
@@ -7972,14 +8019,44 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   async function loadOnlineSession() {
     try {
       await refreshOnlineRecords();
+      if (pendingInviteCode && onlineClient.player) {
+        setOnlinePage("match");
+        setOnlineMatchActionState("searching");
+        setOnlineStatus("초대 링크로 입장 중...");
+        await onlineClient.whenAuthenticated();
+        onlineClient.joinPrivateRoom(pendingInviteCode);
+        return;
+      }
       setOnlinePage(onlineClient.player ? "commanders" : "auth");
-      if (onlineClient.player) setOnlineStatus("빠른 매칭을 시작할 수 있습니다.");
+      if (onlineClient.player) {
+        setOnlineStatus(
+          pendingInviteCode ? "로그인 후 초대 링크로 입장할 수 있습니다." : "빠른 매칭을 시작할 수 있습니다.",
+        );
+      }
     } catch (error) {
       onlineClient.logout();
       renderOnlineProfile();
       renderOnlineRecords();
       setOnlinePage("auth");
       setOnlineStatus(error.message || "온라인 프로필을 불러오지 못했습니다.");
+    }
+  }
+
+  async function enterWithInviteAsGuest() {
+    try {
+      setOnlineStatus("게스트로 연결 중...");
+      onlineClient.connectAsGuest("게스트");
+      await onlineClient.whenAuthenticated();
+      if (!pendingInviteCode) {
+        setOnlineStatus("초대 코드가 없습니다.");
+        return;
+      }
+      setOnlineStatus("방 입장 중...");
+      onlineClient.joinPrivateRoom(pendingInviteCode);
+      setOnlinePage("match");
+      setOnlineMatchActionState("searching");
+    } catch (error) {
+      setOnlineStatus(error.message || "게스트 입장에 실패했습니다.");
     }
   }
 
@@ -7997,6 +8074,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const { username, password } = onlineCredentials();
       await onlineClient.login({ username, password });
       await refreshOnlineRecords();
+      if (pendingInviteCode) {
+        setOnlinePage("match");
+        setOnlineMatchActionState("searching");
+        setOnlineStatus("초대 링크로 입장 중...");
+        await onlineClient.whenAuthenticated();
+        onlineClient.joinPrivateRoom(pendingInviteCode);
+        return;
+      }
       setOnlinePage("commanders");
       setOnlineStatus("로그인되었습니다. 빠른 매칭을 시작할 수 있습니다.");
     } catch (error) {
@@ -8111,6 +8196,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   onlineClient.on("CHECKSUM_OK", (message) => {
     console.info("[online] checksum ok", message);
   });
+  onlineClient.on("PRIVATE_ROOM_CREATED", (message) => {
+    const code = message.code || "";
+    const url = `${location.origin}${location.pathname}?invite=${code}`;
+    const input = document.getElementById("onlineInviteLinkInput");
+    const area = document.getElementById("onlineInviteLinkArea");
+    const status = document.getElementById("onlineInviteStatus");
+    if (input) input.value = url;
+    if (area) area.hidden = false;
+    if (status) status.textContent = "링크를 복사해서 친구에게 공유하세요. (15분 유효)";
+    setOnlineMatchActionState("searching");
+    setOnlineStatus("친구가 링크를 통해 입장하기를 기다리는 중...");
+  });
   onlineClient.on("MATCH_ENDED", (message) => {
     setOnlineStatus(`경기가 종료되었습니다. 결과: ${message.status}`);
     onlineLastResult = message;
@@ -8198,7 +8295,25 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   onlineScreen?.addEventListener("click", async (event) => {
     const id = event.target?.id;
     try {
-      if (id === "onlineSaveLoadoutBtn") {
+      if (id === "onlineGuestJoinBtn") {
+        await enterWithInviteAsGuest();
+      } else if (id === "onlineCreateInviteBtn") {
+        await onlineClient.whenAuthenticated();
+        onlineClient.createPrivateRoom();
+        const btn = document.getElementById("onlineCreateInviteBtn");
+        if (btn) btn.disabled = true;
+        setOnlineStatus("초대 링크 생성 중...");
+      } else if (id === "onlineInviteCopyBtn") {
+        const input = document.getElementById("onlineInviteLinkInput");
+        const url = input?.value || "";
+        if (navigator.share) {
+          await navigator.share({ title: "전략 대전 초대", url });
+        } else {
+          await navigator.clipboard.writeText(url);
+          const btn = document.getElementById("onlineInviteCopyBtn");
+          if (btn) { btn.textContent = "복사됨!"; setTimeout(() => { btn.textContent = "복사"; }, 1800); }
+        }
+      } else if (id === "onlineSaveLoadoutBtn") {
         await saveOnlineLoadout();
       } else if (id === "onlineGoMatchBtn") {
         await saveOnlineLoadout();
@@ -8305,9 +8420,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   // 결과 화면: 홈 화면
   document.getElementById("resultHome").addEventListener("click", () => {
     if (isOnlineMode()) {
+      const wasGuest = Boolean(game.online?.isGuest);
       disableOnlineRandom();
       game.online = null;
       game.mode = "quick";
+      if (wasGuest) {
+        onlineClient.disconnect();
+        onlineClient.isGuest = false;
+        onlineClient.player = null;
+        setScreen("home");
+        return;
+      }
       setScreen("online");
       setOnlinePage(onlineClient.player ? "commanders" : "auth");
       return;
@@ -8324,7 +8447,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     savedTerrain        = game.terrain;
     savedPlayerGenerals = game.playerFormations.map(f => ({ ...f.general }));
     savedEnemyGenerals  = game.enemyFormations.map(f => ({ ...f.general }));
-    setScreen("home");
+    if (pendingInviteCode) {
+      renderOnlineProfile();
+      renderOnlineRecords();
+      setScreen("online");
+      loadOnlineSession();
+    } else {
+      setScreen("home");
+    }
     requestAnimationFrame(tick);
   }
 
