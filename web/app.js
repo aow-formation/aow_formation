@@ -283,6 +283,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   let onlineAuthStatus = null;
   let onlineCommanderPool = null;
   const onlineSyncNotice = document.getElementById("onlineSyncNotice");
+  const enemyTargetTooltip = document.getElementById("enemyTargetTooltip");
+  const enemyTargetNameEl = document.getElementById("enemyTargetName");
+  const enemyTargetBarTrack = document.getElementById("enemyTargetBarTrack");
+  const enemyTargetBarFill = document.getElementById("enemyTargetBarFill");
   const troopAdjustScreen  = document.getElementById("troopAdjustScreen");
   const battleResultScreen = document.getElementById("battleResultScreen");
   const appShell           = document.getElementById("appShell");
@@ -4997,6 +5001,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const targetEnemy = command.targetEnemyId == null ? null
           : onlineOpponentsForSide(side).find(f => f.id === command.targetEnemyId);
         moveFormation(formation, vec(command.tx, command.ty), targetEnemy);
+        if (targetEnemy && side === game.online.side) showEnemyTargetTooltip(targetEnemy);
         break;
       }
       case "SET_SPEED":
@@ -5281,6 +5286,24 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     game.dragState = null;
   });
 
+  // ── 적 진형 이동목표 툴팁 ───────────────────────────────────────────
+  let enemyTargetTooltipTimer = null;
+  function showEnemyTargetTooltip(enemy) {
+    if (!enemy || !enemyTargetTooltip) return;
+    const maxTroops = game.enemyFormations.reduce(
+      (m, f) => Math.max(m, formationInitialTroops(f)), 1);
+    const initial = formationInitialTroops(enemy);
+    const remaining = formationRemainingTroops(enemy);
+    enemyTargetNameEl.textContent = enemy.general.name;
+    enemyTargetBarTrack.style.width = `${(initial / maxTroops) * 180}px`;
+    enemyTargetBarFill.style.width = `${(remaining / Math.max(1, initial)) * 100}%`;
+    enemyTargetTooltip.hidden = false;
+    clearTimeout(enemyTargetTooltipTimer);
+    enemyTargetTooltipTimer = setTimeout(() => {
+      enemyTargetTooltip.hidden = true;
+    }, 5000);
+  }
+
   // ── 이동 명령 헬퍼 (우클릭 / 터치 공용) ─────────────────────────────
   function issueMoveCommand(offsetX, offsetY) {
     if (isScenarioSceneActive()) return;
@@ -5326,6 +5349,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         }
       }
     });
+    if (clickedEnemy) showEnemyTargetTooltip(clickedEnemy);
   }
 
   // ── 터치 컨트롤 ───────────────────────────────────────────────────────
