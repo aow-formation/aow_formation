@@ -3208,6 +3208,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     liveEnemies.forEach((formation, idx) => {
       executeEnemyRole(formation, livePlayers, idx);
     });
+
+    // ── 적군 스킬 자동 발동 ───────────────────────────────────────────
+    liveEnemies.forEach(formation => {
+      if (formation.skillCooldown <= 0 && Math.random() < 0.40) {
+        activateSkill(formation);
+      }
+    });
   }
 
   function applyPositionCorrection() {
@@ -3285,6 +3292,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           : Math.random();
         if (retreatRoll < retreatChance) {
           formation.retreating = true;
+          showRetreatSpeech(formation);
           formation.speed = "FAST";
           formation.followTarget = null;
           formation.target = vec(retreatX, formation.anchor.y);
@@ -4069,6 +4077,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     formation.speechCooldown = game.battleTime + 5.0;
   }
 
+  function showRetreatSpeech(formation) {
+    if (isOnlineMode() || !speechData?.retreat) return;
+    const text = randFrom(speechData.retreat);
+    if (!text) return;
+    formation.speechBubble = { text, expiry: game.battleTime + 2.5 };
+    formation.speechCooldown = game.battleTime + 10.0;
+  }
+
   function getClockHour(fromFormation, toFormation) {
     const fc = formationCenter(fromFormation);
     const tc = formationCenter(toFormation);
@@ -4088,12 +4104,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    game.playerFormations.forEach(formation => {
+    const drawBubble = (formation, bgColor, fgColor) => {
       const b = formation.speechBubble;
       if (!b) return;
       if (now > b.expiry) { formation.speechBubble = null; return; }
 
-      // 페이드 인/아웃
       const age = 2.0 - (b.expiry - now);
       const alpha = Math.min(1, age * 6) * Math.min(1, (b.expiry - now) * 3.5);
       ctx.globalAlpha = alpha;
@@ -4103,19 +4118,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const dh = Math.round(troopRenderHeight(formation.troopType));
       const by = s.y + tileH / 2 - dh - 18;
 
-      // 텍스트 측정
       ctx.font = "bold 12px 'Noto Serif KR', serif";
       const tw = ctx.measureText(b.text).width;
       const pad = 12, bw = tw + pad * 2, bh = 28, br = 9;
       const lx = bx - bw / 2, ty = by - bh;
 
-      // 그림자
       ctx.shadowColor = "rgba(0,0,0,0.30)";
       ctx.shadowBlur = 6;
       ctx.shadowOffsetY = 3;
 
-      // 배경 + 꼬리 (테두리 없음)
-      ctx.fillStyle = "rgba(255, 251, 225, 0.72)";
+      ctx.fillStyle = bgColor;
       ctx.beginPath();
       ctx.moveTo(lx + br, ty);
       ctx.lineTo(lx + bw - br, ty);
@@ -4123,7 +4135,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       ctx.lineTo(lx + bw, ty + bh - br);
       ctx.quadraticCurveTo(lx + bw, ty + bh, lx + bw - br, ty + bh);
       ctx.lineTo(bx + 7, ty + bh);
-      ctx.lineTo(bx,     ty + bh + 10);  // 꼬리 끝
+      ctx.lineTo(bx,     ty + bh + 10);
       ctx.lineTo(bx - 7, ty + bh);
       ctx.lineTo(lx + br, ty + bh);
       ctx.quadraticCurveTo(lx, ty + bh, lx, ty + bh - br);
@@ -4133,10 +4145,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       ctx.fill();
       ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
-      // 텍스트
-      ctx.fillStyle = "#3a2200";
+      ctx.fillStyle = fgColor;
       ctx.fillText(b.text, bx, ty + bh / 2);
-    });
+    };
+
+    game.playerFormations.forEach(f => drawBubble(f, "rgba(255, 251, 225, 0.72)", "#3a2200"));
+    game.enemyFormations.forEach(f => drawBubble(f, "rgba(255, 228, 220, 0.72)", "#4a1200"));
 
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -4190,6 +4204,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           }
         }
       });
+    });
+
+    // 적군 혼란도 상승 말풍선
+    game.enemyFormations.forEach(formation => {
+      if (formation.retreated || formation.retreating) return;
+      if (!formation.units.some(isUnitAlive)) return;
+      if (formation.disorder > 0.6 && !formation.speechDisorderTriggered) {
+        formation.speechDisorderTriggered = true;
+        tryShowSpeech(formation, randFrom(speechData.disorder), "high");
+      } else if (formation.disorder < 0.3) {
+        formation.speechDisorderTriggered = false;
+      }
     });
   }
 
@@ -5973,6 +5999,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             y: formation.anchor.y
           });
           formation.retreating = true;
+          showRetreatSpeech(formation);
           formation.followTarget = null;
           formation.target = vec(target.x, target.y);
           formation.speed = effect.speed || "FAST";
@@ -6333,6 +6360,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const ratio = formationRatio(formation);
       if (ratio <= 0.5) {
         formation.retreating = true;
+        showRetreatSpeech(formation);
         formation.followTarget = null;
         formation.target = vec(MAP_WIDTH, formation.anchor.y);
         formation.speed = "FAST";
@@ -6374,6 +6402,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         if (!formation || formation.retreating || formation.retreated) return;
         if (formationRatio(formation) <= (action.ratio ?? 0.5)) {
           formation.retreating = true;
+          showRetreatSpeech(formation);
           formation.followTarget = null;
           const target = actionTarget(action, formation) || { x: MAP_WIDTH, y: formation.anchor.y };
           formation.target = vec(target.x, target.y);
