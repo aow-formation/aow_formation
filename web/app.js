@@ -4773,6 +4773,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     renderPlayerTargets();
     renderScenarioMarkers();
     renderSpeechBubbles();
+    updateEnemyTargetTooltipPosition();
     if (game.battlePhase !== "live") renderMinimap();
   }
 
@@ -5314,25 +5315,33 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   // ── 적 진형 이동목표 툴팁 ───────────────────────────────────────────
   let enemyTargetTooltipTimer = null;
+  let enemyTargetTooltipEnemy = null;
+
+  function updateEnemyTargetTooltipPosition() {
+    if (!enemyTargetTooltipEnemy || enemyTargetTooltip.hidden) return;
+    const center = formationCenter(enemyTargetTooltipEnemy);
+    const sc = toScreen(center.x, center.y);
+    enemyTargetTooltip.style.left = `${sc.x + 3}px`;
+    enemyTargetTooltip.style.top = `${sc.y + 3}px`;
+  }
+
   function showEnemyTargetTooltip(enemy) {
     if (!enemy || !enemyTargetTooltip) return;
     const maxTroops = game.enemyFormations.reduce(
       (m, f) => Math.max(m, formationInitialTroops(f)), 1);
     const initial = formationInitialTroops(enemy);
     const remaining = formationRemainingTroops(enemy);
-    const center = formationCenter(enemy);
-    const sc = toScreen(center.x, center.y);
-    const CANVAS_PAD = 3;
+    enemyTargetTooltipEnemy = enemy;
     enemyTargetNameEl.textContent = enemy.general.name;
-    enemyTargetBarTrack.style.width = `${(initial / maxTroops) * 140}px`;
+    enemyTargetBarTrack.style.width = `${(initial / maxTroops) * 70}px`;
     enemyTargetBarFill.style.width = `${(remaining / Math.max(1, initial)) * 100}%`;
-    enemyTargetTooltip.style.left = `${sc.x + CANVAS_PAD}px`;
-    enemyTargetTooltip.style.top = `${sc.y + CANVAS_PAD}px`;
     enemyTargetTooltip.style.transform = "translate(-50%, calc(-100% - 16px))";
+    updateEnemyTargetTooltipPosition();
     enemyTargetTooltip.hidden = false;
     clearTimeout(enemyTargetTooltipTimer);
     enemyTargetTooltipTimer = setTimeout(() => {
       enemyTargetTooltip.hidden = true;
+      enemyTargetTooltipEnemy = null;
     }, 5000);
   }
 
@@ -7070,7 +7079,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           </div>
           <div id="onlineInviteStatus" class="online-invite-status"></div>
         `;
-        matchCard.appendChild(onlineInvitePanel);
+        right?.appendChild(onlineInvitePanel);
       }
       if (pendingInviteCode && !onlineClient.token) {
         let guestPanel = document.getElementById("onlineGuestInvitePanel");
