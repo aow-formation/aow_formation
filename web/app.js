@@ -223,12 +223,21 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (game.controlType !== 'touch') setControlType('touch');
   }, { passive: true, once: false });
 
-  window.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
+  function isEscapeKey(event) {
+    return event.key === "Escape" || event.key === "Esc" || event.code === "Escape" ||
+      event.keyCode === 27 || event.which === 27;
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (!isEscapeKey(e)) return;
     if (appShell.hidden) return;
     if (game.battlePhase !== "live") return;
+    const tag = e.target?.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    e.preventDefault();
+    e.stopPropagation();
     setPaused(!game.paused);
-  });
+  }, true);
   const buttons = {
     speed: document.querySelectorAll("[data-speed]"),
     density: document.querySelectorAll("[data-density]"),
@@ -680,6 +689,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const fireSprite = new Image();
   fireSprite.src = './assets/terrain_tiles_v3/objects/fire_spritesheet.png';
   const FIRE_COLS = 4, FIRE_ROWS = 4, FIRE_FRAMES = 16;
+  const remainsSprites = Array.from({ length: 6 }, (_unused, index) => {
+    const image = new Image();
+    image.src = `./assets/terrain_tiles_v3/objects/remains_layer_${String(index + 2).padStart(2, "0")}.png`;
+    return image;
+  });
 
   // ── 유닛 스프라이트시트 ───────────────────────────────────────────────
   const unitWalkSprite = new Image();
@@ -700,6 +714,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   unitIdleBlueSprite.src = './assets/units/ancient_infantry_helmet_idle_1_blue.png';
   const gameSpriteImages = [
     fireSprite,
+    ...remainsSprites,
     unitWalkSprite,
     unitWalkBlueSprite,
     cavalryWalkSprite,
@@ -2368,6 +2383,21 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return Math.round(Math.max(0, value)).toLocaleString();
   }
 
+  function deathTraceType(formation, unit) {
+    const count = remainsSprites.length || 1;
+    if (isOnlineMode()) {
+      return onlineHashNumber([
+        game.online.seed,
+        "remains",
+        formation.worldSide ?? formation.team,
+        formation.id,
+        unit.id,
+        unit.slotIndex,
+      ].join("|")) % count;
+    }
+    return Math.floor(Math.random() * count);
+  }
+
   function applyUnitDamage(targetFormation, unit, amount, attackerFormation = null, options = {}) {
     if (!targetFormation || !unit || amount <= 0 || !isUnitAlive(unit)) return 0;
     const prevDamage = unit.damage;
@@ -2381,8 +2411,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
     if (unit.damage >= capacity && prevDamage < capacity) {
       fillSlotFromBehind(targetFormation, unit);
-      if (!isOnlineMode() && options.trace !== false && game.traces.length < 2000 && !isOnWater(unit)) {
-        game.traces.push({ x: unit.x, y: unit.y, type: Math.floor(Math.random() * 3) });
+      if (options.trace !== false && game.traces.length < 2000 && !isOnWater(unit)) {
+        game.traces.push({ x: unit.x, y: unit.y, type: deathTraceType(targetFormation, unit) });
       }
     }
     return appliedDamage;
@@ -4451,6 +4481,22 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     game.traces.forEach(({ x, y, type }) => {
       const s = toScreen(x, y);
       const cx = s.x, cy = s.y + tileH / 2;
+      const remains = remainsSprites[type % remainsSprites.length];
+      if (remains?.complete && remains.naturalWidth > 0) {
+        const drawW = game.tileW;
+        const drawH = drawW * (remains.naturalHeight / remains.naturalWidth);
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(
+          remains,
+          Math.round(cx - drawW / 2),
+          Math.round(cy - drawH * 0.58),
+          Math.round(drawW),
+          Math.round(drawH),
+        );
+        ctx.restore();
+        return;
+      }
       if (type === 0) {
         // X 형태
         ctx.beginPath();
