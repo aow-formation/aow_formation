@@ -1889,12 +1889,15 @@ input[type="range"].adjust-slider {
 .result-growth-title {
   color: var(--gold-bright);
   font-weight: 900;
+  font-size: 12px;
   text-align: center;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
 }
 
 .result-growth-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 8px;
 }
 
@@ -1902,15 +1905,17 @@ input[type="range"].adjust-slider {
   display: grid;
   grid-template-columns: 46px 1fr;
   gap: 10px;
-  align-items: center;
-  padding: 9px;
-  border: 1px solid rgba(184,138,8,0.25);
-  background: rgba(0,0,0,0.22);
+  align-items: start;
+  padding: 10px;
+  border: 1px solid rgba(184,138,8,0.22);
+  background: rgba(0,0,0,0.28);
+  border-radius: 3px;
 }
 
 .result-growth-card.is-level-up {
-  border-color: rgba(232,208,96,0.82);
-  box-shadow: 0 0 18px rgba(232,208,96,0.18);
+  border-color: rgba(232,208,96,0.75);
+  background: rgba(232,208,96,0.04);
+  box-shadow: 0 0 14px rgba(232,208,96,0.12);
 }
 
 .result-growth-portrait {
@@ -1923,6 +1928,7 @@ input[type="range"].adjust-slider {
   background: rgba(35,26,11,0.78);
   color: var(--gold-bright);
   font-weight: 900;
+  border-radius: 2px;
 }
 
 .result-growth-portrait img {
@@ -1931,23 +1937,150 @@ input[type="range"].adjust-slider {
   object-fit: cover;
 }
 
+/* ─ 카드 메인 영역 ─ */
+.result-growth-main {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.result-growth-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
 .result-growth-name {
   color: var(--gold-bright);
   font-weight: 900;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
-.result-growth-level,
-.result-growth-exp,
-.result-growth-stats,
+.result-growth-lv-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.result-growth-lv {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c8a850;
+}
+
+.result-growth-levelup {
+  font-size: 9px;
+  font-weight: 900;
+  color: #e8d060;
+  background: rgba(232,208,96,0.14);
+  border: 1px solid rgba(232,208,96,0.50);
+  padding: 1px 5px;
+  border-radius: 2px;
+  letter-spacing: 0.06em;
+}
+
+/* ─ EXP 바 ─ */
+.result-growth-exp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.result-growth-expbar {
+  height: 5px;
+  background: rgba(0,0,0,0.5);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid rgba(184,138,8,0.22);
+}
+
+.result-growth-expbar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7a5210, #c89018);
+  border-radius: 3px;
+  transition: width 0.7s ease;
+}
+
+.result-growth-exp-text {
+  font-size: 10px;
+  color: #8a7848;
+  line-height: 1.2;
+}
+
+/* ─ 능력치 변화 ─ */
+.result-growth-stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(184,138,8,0.14);
+}
+
+.rg-stat-row {
+  display: grid;
+  grid-template-columns: 2.4em 2.2em auto 2.2em auto;
+  align-items: center;
+  column-gap: 3px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rg-stat-name {
+  color: #7a6840;
+  font-size: 10px;
+}
+
+.rg-stat-before {
+  color: #5a4e35;
+  text-align: right;
+}
+
+.rg-stat-arrow {
+  color: #4a4030;
+  font-size: 9px;
+  text-align: center;
+}
+
+.rg-stat-after {
+  color: #9a8858;
+  text-align: right;
+  font-weight: 700;
+}
+
+.rg-stat-after.rg-up {
+  color: #e2c860;
+}
+
+.rg-stat-after.rg-dn {
+  color: #c04828;
+}
+
+.rg-stat-diff {
+  font-size: 10px;
+  color: #8ac050;
+  font-style: normal;
+  padding-left: 2px;
+}
+
+.rg-stat-diff.rg-dn {
+  color: #c05030;
+}
+
 .result-growth-empty {
   color: var(--text-dim);
   font-size: 11px;
-  line-height: 1.35;
-}
-
-.result-growth-level strong {
-  margin-left: 6px;
-  color: #e8d060;
+  text-align: center;
+  padding: 8px 0;
 }
 
 .result-guest-notice {

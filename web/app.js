@@ -6743,28 +6743,63 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       return;
     }
     container.hidden = false;
+    const growthStatRow = (label, bVal, aVal) => {
+      if (bVal == null && aVal == null) return "";
+      const b = bVal ?? aVal;
+      const a = aVal ?? bVal;
+      const diff = (a != null && b != null) ? a - b : 0;
+      const cls = diff > 0 ? "rg-up" : diff < 0 ? "rg-dn" : "";
+      const diffBadge = diff > 0
+        ? `<span class="rg-stat-diff">+${diff}</span>`
+        : diff < 0 ? `<span class="rg-stat-diff rg-dn">${diff}</span>` : "";
+      return `
+        <div class="rg-stat-row">
+          <span class="rg-stat-name">${label}</span>
+          <span class="rg-stat-before">${b ?? "-"}</span>
+          <span class="rg-stat-arrow">→</span>
+          <span class="rg-stat-after ${cls}">${a ?? "-"}</span>
+          ${diffBadge}
+        </div>`;
+    };
     container.innerHTML = `
       <div class="result-growth-title">장수 성장</div>
       <div class="result-growth-grid">
         ${progress.map(item => {
           const before = item.statsBefore || {};
           const after = item.statsAfter || {};
+          const levelAfter = item.levelAfter ?? item.levelBefore ?? 0;
+          const isMax = levelAfter >= 50;
+          const expAfter = item.expAfter || 0;
+          const nextReq = item.nextRequiredExp ?? item.requiredExp ?? 0;
+          const expPct = isMax ? 100 : (nextReq > 0 ? Math.min(100, expAfter / nextReq * 100) : 0);
+          const gainedExp = item.gainedExp || 0;
+          const expLabel = isMax
+            ? "MAX"
+            : `${formatTroops(expAfter)} / ${formatTroops(nextReq)}`;
           return `
             <div class="result-growth-card ${item.leveledUp ? "is-level-up" : ""}">
               ${onlinePortraitMarkup(item, "result-growth-portrait")}
               <div class="result-growth-main">
-                <div class="result-growth-name">${escapeHtml(item.name || item.templateId)}</div>
-                <div class="result-growth-level">
-                  Lv ${item.levelBefore} → Lv ${item.levelAfter}
-                  ${item.leveledUp ? `<strong>LEVEL UP</strong>` : ""}
+                <div class="result-growth-header">
+                  <span class="result-growth-name">${escapeHtml(item.name || item.templateId)}</span>
+                  <div class="result-growth-lv-badge">
+                    <span class="result-growth-lv">Lv ${levelAfter}</span>
+                    ${item.leveledUp ? `<span class="result-growth-levelup">LEVEL UP</span>` : ""}
+                  </div>
                 </div>
-                <div class="result-growth-exp">EXP +${formatTroops(item.gainedExp || 0)} · ${formatTroops(item.expAfter || 0)}/${formatTroops(item.nextRequiredExp ?? item.requiredExp ?? 0)}</div>
-                <div class="result-growth-stats">
-                  무력 ${before.power ?? "-"} → ${after.power ?? "-"} · 통솔 ${before.leadership ?? "-"} → ${after.leadership ?? "-"} · 매력 ${before.charm ?? "-"} → ${after.charm ?? "-"}
+                <div class="result-growth-exp-row">
+                  <div class="result-growth-expbar">
+                    <div class="result-growth-expbar-fill" style="width:${expPct.toFixed(1)}%"></div>
+                  </div>
+                  <span class="result-growth-exp-text">${gainedExp > 0 ? `+${formatTroops(gainedExp)} EXP · ` : ""}${expLabel}</span>
+                </div>
+                <div class="result-growth-stats-grid">
+                  ${growthStatRow("무력", before.power, after.power)}
+                  ${growthStatRow("통솔", before.leadership, after.leadership)}
+                  ${growthStatRow("매력", before.charm, after.charm)}
                 </div>
               </div>
-            </div>
-          `;
+            </div>`;
         }).join("")}
       </div>
     `;
@@ -7077,9 +7112,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function onlineCommanderLevelLabel(commander) {
     const level = Number(commander?.level || 0);
-    const expRequired = Number(commander?.expRequired || 0);
-    if (level >= 50) return `Lv ${level} MAX`;
-    return `Lv ${level} · ${formatTroops(commander?.exp || 0)}/${formatTroops(expRequired)}`;
+    return level >= 50 ? `Lv ${level} MAX` : `Lv ${level}`;
   }
 
   function onlineCommanderStatsText(commander) {
