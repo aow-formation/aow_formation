@@ -5294,9 +5294,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       (m, f) => Math.max(m, formationInitialTroops(f)), 1);
     const initial = formationInitialTroops(enemy);
     const remaining = formationRemainingTroops(enemy);
+    const center = formationCenter(enemy);
+    const sc = toScreen(center.x, center.y);
+    const CANVAS_PAD = 3;
     enemyTargetNameEl.textContent = enemy.general.name;
-    enemyTargetBarTrack.style.width = `${(initial / maxTroops) * 180}px`;
+    enemyTargetBarTrack.style.width = `${(initial / maxTroops) * 140}px`;
     enemyTargetBarFill.style.width = `${(remaining / Math.max(1, initial)) * 100}%`;
+    enemyTargetTooltip.style.left = `${sc.x + CANVAS_PAD}px`;
+    enemyTargetTooltip.style.top = `${sc.y + CANVAS_PAD}px`;
+    enemyTargetTooltip.style.transform = "translate(-50%, calc(-100% - 16px))";
     enemyTargetTooltip.hidden = false;
     clearTimeout(enemyTargetTooltipTimer);
     enemyTargetTooltipTimer = setTimeout(() => {
