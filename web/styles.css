@@ -1528,25 +1528,56 @@ kbd {
   }
 
   .home-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: min(500px, 90vw);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(540px, 92vw);
+    gap: 7px;
   }
 
   .home-card {
-    min-height: 128px;
+    min-height: 100px;
+    padding: 7px;
+    gap: 5px;
+  }
+
+  .home-card-image {
+    width: 88%;
+  }
+
+  .home-card-label {
+    font-size: 12px;
+    min-height: 32px;
+  }
+
+  .home-card-label small {
+    font-size: 8px;
   }
 }
 
 @media (max-width: 520px) {
   .home-card-grid {
-    grid-template-columns: 1fr;
-    width: min(300px, 86vw);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(420px, 96vw);
+    gap: 5px;
   }
 
   .home-card {
-    min-height: 150px;
+    min-height: 82px;
+    padding: 5px;
+    gap: 4px;
   }
 
+  .home-card-image {
+    width: 86%;
+  }
+
+  .home-card-label {
+    font-size: 11px;
+    min-height: 28px;
+  }
+
+  .home-card-label small {
+    display: none;
+  }
 }
 
 .home-toast {

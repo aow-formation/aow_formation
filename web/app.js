@@ -4483,10 +4483,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const cx = s.x, cy = s.y + tileH / 2;
       const remains = remainsSprites[type % remainsSprites.length];
       if (remains?.complete && remains.naturalWidth > 0) {
-        const drawW = game.tileW;
+        const drawW = game.tileW * 1.3;
         const drawH = drawW * (remains.naturalHeight / remains.naturalWidth);
         ctx.save();
-        ctx.globalAlpha = 0.5;
+        ctx.globalAlpha = 0.32;
         ctx.drawImage(
           remains,
           Math.round(cx - drawW / 2),
@@ -5369,6 +5369,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const sc = toScreen(center.x, center.y);
     enemyTargetTooltip.style.left = `${sc.x + 3}px`;
     enemyTargetTooltip.style.top = `${sc.y + 3}px`;
+    const initial = formationInitialTroops(enemyTargetTooltipEnemy);
+    const remaining = formationRemainingTroops(enemyTargetTooltipEnemy);
+    enemyTargetBarFill.style.width = `${(remaining / Math.max(1, initial)) * 100}%`;
   }
 
   function showEnemyTargetTooltip(enemy) {
