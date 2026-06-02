@@ -2935,7 +2935,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         if (enemyDist < 0.85) {
           // 근접 공격 (매 프레임 × dt) — 방어력 초과 시에도 최소 5% 피해 보장
           const rawAttack = unitAttack(formation) * attackerBonus * facingMult;
-          const damage = Math.max(rawAttack * 0.05, rawAttack - unitDefense(enemyTarget.formation, enemyTarget.unit) * defenderBonus * guardDefenseMult);
+          const damage = Math.max(1, rawAttack - unitDefense(enemyTarget.formation, enemyTarget.unit) * defenderBonus * guardDefenseMult);
           applyUnitDamage(enemyTarget.formation, enemyTarget.unit, damage * dt, formation);
         } else if (canFormationRangedAttack(formation) && unit.rangedCooldown <= 0) {
           // 원거리 공격 (쿨타임 1초)
