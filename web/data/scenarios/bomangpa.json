@@ -788,8 +788,8 @@
         {
           "id": "enemy_crushed",
           "type": "enemyTotalBelow",
-          "ratio": 0.3,
-          "label": "조조군 전체 병력을 30% 이하로 낮추십시오."
+          "ratio": 0.2,
+          "label": "조조군 전체 병력을 20% 이하로 낮추십시오."
         },
         {
           "id": "zhao_survives",

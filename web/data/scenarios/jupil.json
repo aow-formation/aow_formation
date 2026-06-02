@@ -833,12 +833,12 @@
         {
           "id": "break_goguryeo",
           "type": "any",
-          "label": "고구려 전체 병력을 35% 이하로 낮추거나, 고연수와 후방 수비대를 크게 약화시키십시오.",
+          "label": "고구려 전체 병력을 25% 이하로 낮추거나, 고연수와 후방 수비대를 크게 약화시키십시오.",
           "objectives": [
             {
               "id": "total",
               "type": "enemyTotalBelow",
-              "ratio": 0.35
+              "ratio": 0.25
             },
             {
               "id": "command",
@@ -847,7 +847,7 @@
                 "go_yeon_su",
                 "rear_guard"
               ],
-              "ratio": 0.4
+              "ratio": 0.3
             }
           ]
         },

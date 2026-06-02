@@ -696,8 +696,8 @@
         {
           "id": "destroy_roman_army",
           "type": "enemyTotalBelow",
-          "ratio": 0.2,
-          "label": "로마군 총 병력을 20% 이하로 줄이십시오."
+          "ratio": 0.1,
+          "label": "로마군 총 병력을 10% 이하로 줄이십시오."
         }
       ],
       "ai": {

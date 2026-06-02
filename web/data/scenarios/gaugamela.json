@@ -979,8 +979,8 @@
         {
           "id": "total",
           "type": "enemyTotalBelow",
-          "ratio": 0.35,
-          "label": "페르시아 전체 병력을 35% 이하로 낮추십시오."
+          "ratio": 0.25,
+          "label": "페르시아 전체 병력을 25% 이하로 낮추십시오."
         },
         {
           "id": "guard",
@@ -989,8 +989,8 @@
             "darius_iii",
             "royal_guard"
           ],
-          "ratio": 0.4,
-          "label": "다리우스와 왕실 근위대를 40% 이하로 낮추십시오."
+          "ratio": 0.3,
+          "label": "다리우스와 왕실 근위대를 30% 이하로 낮추십시오."
         }
       ],
       "ai": {

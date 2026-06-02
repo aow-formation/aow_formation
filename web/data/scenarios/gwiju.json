@@ -921,12 +921,12 @@
         {
           "id": "finish_khitan",
           "type": "any",
-          "label": "거란 전체 병력을 25% 이하로 낮추거나 소배압과 주력 부대를 무너뜨리십시오.",
+          "label": "거란 전체 병력을 15% 이하로 낮추거나 소배압과 주력 부대를 무너뜨리십시오.",
           "objectives": [
             {
               "id": "total",
               "type": "enemyTotalBelow",
-              "ratio": 0.25
+              "ratio": 0.15
             },
             {
               "id": "command",
@@ -936,7 +936,7 @@
                 "khitan_vanguard",
                 "khitan_center"
               ],
-              "ratio": 0.3
+              "ratio": 0.2
             }
           ]
         },
