@@ -6955,11 +6955,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
                   </div>
                   <span class="result-growth-exp-text">${gainedExp > 0 ? `+${formatTroops(gainedExp)} EXP · ` : ""}${expLabel}</span>
                 </div>
-                <div class="result-growth-stats-grid">
-                  ${growthStatRow("무력", before.power, after.power)}
-                  ${growthStatRow("통솔", before.leadership, after.leadership)}
-                  ${growthStatRow("매력", before.charm, after.charm)}
-                </div>
               </div>
             </div>`;
         }).join("")}

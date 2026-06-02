@@ -2057,10 +2057,10 @@ input[type="range"].adjust-slider {
 
 .result-growth-card {
   display: grid;
-  grid-template-columns: 46px 1fr;
-  gap: 10px;
-  align-items: start;
-  padding: 10px;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
   border: 1px solid rgba(184,138,8,0.22);
   background: rgba(0,0,0,0.28);
   border-radius: 3px;
@@ -2073,8 +2073,8 @@ input[type="range"].adjust-slider {
 }
 
 .result-growth-portrait {
-  width: 42px;
-  height: 42px;
+  width: 68px;
+  height: 68px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -2110,7 +2110,7 @@ input[type="range"].adjust-slider {
 .result-growth-name {
   color: var(--gold-bright);
   font-weight: 900;
-  font-size: 12px;
+  font-size: 16px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2126,7 +2126,7 @@ input[type="range"].adjust-slider {
 }
 
 .result-growth-lv {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   color: #c8a850;
 }
@@ -2150,7 +2150,7 @@ input[type="range"].adjust-slider {
 }
 
 .result-growth-expbar {
-  height: 5px;
+  height: 7px;
   background: rgba(0,0,0,0.5);
   border-radius: 3px;
   overflow: hidden;
