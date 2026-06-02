@@ -3464,6 +3464,27 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       drawDiamond(chunkCtx, px, py, isBorder ? "#909090" : terrainInfo[tile].color);
     });
 
+    function punchWetlandDots(ctx, canvasW, canvasH, tileX, tileY) {
+      ctx.globalCompositeOperation = "destination-out";
+      const numDots = 2 + tileHash(tileX * 7, tileY * 11) % 4;
+      for (let i = 0; i < numDots; i++) {
+        const rx = (tileHash(tileX * 1031 + i * 997,  tileY * 1013 + i * 983) % 10000) / 10000;
+        const ry = (tileHash(tileX * 1013 + i * 991,  tileY * 1031 + i * 977) % 10000) / 10000;
+        const rr = (tileHash(tileX * 1049 + i * 971,  tileY * 1021 + i * 967) % 10000) / 10000;
+        const dcx = (0.15 + rx * 0.70) * canvasW;
+        const dcy = (0.15 + ry * 0.70) * canvasH;
+        const dr  = (0.08 + rr * 0.18) * game.tileW;
+        const grad = ctx.createRadialGradient(dcx, dcy, 0, dcx, dcy, dr);
+        grad.addColorStop(0,   "rgba(0,0,0,1)");
+        grad.addColorStop(0.6, "rgba(0,0,0,0.8)");
+        grad.addColorStop(1,   "rgba(0,0,0,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(dcx, dcy, dr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
     if (terrainSprites.ready) {
       chunkCtx.imageSmoothingEnabled = true;
       chunkCtx.imageSmoothingQuality = "high";
@@ -3482,8 +3503,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const h  = getTileH() + 0.5;
 
         if (tile === "wetland") {
-          // 강 텍스처를 베이스로 먼저 그린 뒤, 습지 스프라이트에 원형 구멍을 뚫어
-          // 강이 도트 무늬로 비치게 함
           const riverVars = terrainSprites.tiles["river"];
           const riverSp = riverVars?.[tileHash(x + 7, y + 11) % (riverVars?.length || 1)];
           if (riverSp?.naturalWidth) chunkCtx.drawImage(riverSp, px - w / 2, py - 0.25, w, h);
@@ -3491,19 +3510,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           const off = createSurface(w + 1, h + 1);
           const offCtx = off.getContext("2d");
           offCtx.drawImage(sp, 0, 0, w, h);
-          offCtx.globalCompositeOperation = "destination-out";
-          const numDots = 2 + tileHash(x * 7, y * 11) % 4;
-          for (let i = 0; i < numDots; i++) {
-            const rx = (tileHash(x * 1031 + i * 997,  y * 1013 + i * 983) % 10000) / 10000;
-            const ry = (tileHash(x * 1013 + i * 991,  y * 1031 + i * 977) % 10000) / 10000;
-            const rr = (tileHash(x * 1049 + i * 971,  y * 1021 + i * 967) % 10000) / 10000;
-            const dcx = (0.15 + rx * 0.70) * w;
-            const dcy = (0.15 + ry * 0.70) * h;
-            const dr  = (0.08 + rr * 0.18) * game.tileW;
-            offCtx.beginPath();
-            offCtx.arc(dcx, dcy, dr, 0, Math.PI * 2);
-            offCtx.fill();
-          }
+          punchWetlandDots(offCtx, w, h, x, y);
           chunkCtx.drawImage(off, px - w / 2, py - 0.25);
           return;
         }
@@ -3577,6 +3584,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
               tc.drawImage(upperImg, 0, 0, mW, mH);
               tc.globalCompositeOperation = "destination-in";
               tc.drawImage(maskCv, 0, 0, mW, mH);
+              if (bd.upperT === "wetland") punchWetlandDots(tc, mW, mH, x, y);
               chunkCtx.drawImage(tmp, px - w / 2, py, w, h);
             }
           }
