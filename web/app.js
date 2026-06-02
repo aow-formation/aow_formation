@@ -508,13 +508,32 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
   };
 
+  function historicalScenarioClearIds() {
+    if (!onlineClient.token || !Array.isArray(onlineClient.player?.scenarioClears)) return new Set();
+    return new Set(onlineClient.player.scenarioClears.map((clear) =>
+      typeof clear === "string" ? clear : (clear.scenarioId || clear.scenario_id || clear.id)
+    ).filter(Boolean));
+  }
+
+  async function refreshHistoricalScenarioClears() {
+    if (!onlineClient.token) return;
+    try {
+      await onlineClient.loadMe();
+    } catch (error) {
+      console.warn("[online] scenario clear list refresh failed", error);
+    }
+  }
+
   function renderScenarioSelect() {
     if (!scenarioSelectGrid) return;
     scenarioSelectGrid.innerHTML = "";
+    const clearIds = historicalScenarioClearIds();
     HISTORICAL_SCENARIOS.forEach((scenario) => {
+      const cleared = clearIds.has(scenario.id);
       const card = document.createElement("article");
       card.className = "scenario-card";
       card.dataset.enabled = scenario.enabled ? "true" : "false";
+      card.dataset.cleared = cleared ? "true" : "false";
       card.dataset.icon = String(scenario.icon);
       if (scenario.enabled) {
         card.tabIndex = 0;
@@ -552,6 +571,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         }));
       };
       imgLoader.src = fullSrc;
+      if (cleared) {
+        const clearedIcon = document.createElement("img");
+        clearedIcon.className = "scenario-card-cleared-icon";
+        clearedIcon.src = "./assets/ui/scenario_cleared_icon.png";
+        clearedIcon.alt = "";
+        clearedIcon.setAttribute("aria-hidden", "true");
+        clearedIcon.draggable = false;
+        icon.appendChild(clearedIcon);
+      }
 
       const title = document.createElement("h3");
       title.className = "scenario-card-title";
@@ -700,12 +728,53 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   unitWalkSprite.src = './assets/units/ancient_infantry_helmet_walk.png';
   const unitWalkBlueSprite = new Image();
   unitWalkBlueSprite.src = './assets/units/ancient_infantry_helmet_walk_blue.png';
+  const CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES = {
+    E:  ['./assets/units/ancient_cavity_helmet_walk_E.png'],
+    NE: ['./assets/units/ancient_cavity_helmet_walk_NE.png'],
+    N:  ['./assets/units/ancient_cavity_helmet_walk_N.png'],
+    S:  ['./assets/units/ancient_cavity_helmet_walk_S.png'],
+    SE: ['./assets/units/ancient_cavity_helmet_walk_SE.png'],
+  };
+  const CAVALRY_DIRECTION_SOURCE_KEY = {
+    E: 'E',
+    NE: 'NE',
+    N: 'N',
+    NW: 'NE',
+    W: 'E',
+    SW: 'SE',
+    S: 'S',
+    SE: 'SE',
+  };
+  const CAVALRY_DIRECTION_FLIP = {
+    E: false,
+    NE: false,
+    N: false,
+    NW: true,
+    W: true,
+    SW: true,
+    S: false,
+    SE: false,
+  };
+  function createImageWithFallbacks(sources) {
+    const image = new Image();
+    const list = Array.isArray(sources) ? sources : [sources];
+    let index = 0;
+    image.onerror = () => {
+      index += 1;
+      if (index < list.length) image.src = list[index];
+    };
+    image.src = list[0];
+    return image;
+  }
+  const cavalryPlayerDirectionSprites = Object.fromEntries(
+    Object.entries(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES)
+      .map(([direction, sources]) => [direction, createImageWithFallbacks(sources)])
+  );
   const cavalryWalkSprite = new Image();
-  cavalryWalkSprite.src = './assets/units/ancient_cavity_helmet_walk.png';
+  cavalryWalkSprite.src = './assets/units/ancient_cavity_helmet_walk_E.png';
   const cavalryWalkBlueSprite = new Image();
   cavalryWalkBlueSprite.src = './assets/units/ancient_cavity_helmet_walk_blue.png';
-  const cavalryWalkBackSprite = new Image();
-  cavalryWalkBackSprite.src = './assets/units/ancient_cavity_helmet_walk_back.png';
+  const cavalryWalkBackSprite = createImageWithFallbacks(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.N);
   const cavalryWalkBackBlueSprite = new Image();
   cavalryWalkBackBlueSprite.src = './assets/units/ancient_cavity_helmet_walk_back_blue.png';
   const unitIdleSprite = new Image();
@@ -715,6 +784,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const gameSpriteImages = [
     fireSprite,
     ...remainsSprites,
+    ...Object.values(cavalryPlayerDirectionSprites),
     unitWalkSprite,
     unitWalkBlueSprite,
     cavalryWalkSprite,
@@ -748,6 +818,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     cavalry:  { player: [], enemy: [] },
   };
   const pixiWalkBackTex = { cavalry: { player: [], enemy: [] } }; // 기병 후방(우상향) 스프라이트
+  const pixiCavalryDirectionTex = { player: {} };
   const pixiIdleTex  = {
     infantry: { player: null, enemy: null },
     cavalry:  { player: null, enemy: null },
@@ -803,12 +874,20 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       // 유닛 텍스처 로드
       const load = url => PixiAssets.load(url).catch(() => null);
+      const loadFirst = async sources => {
+        const list = Array.isArray(sources) ? sources : [sources];
+        for (const url of list) {
+          const texture = await load(url);
+          if (texture) return texture;
+        }
+        return null;
+      };
       const [wP, wE, cP, cE, cBack, cBackBlue, iP, iE, treeT] = await Promise.all([
         load('./assets/units/ancient_infantry_helmet_walk.png'),
         load('./assets/units/ancient_infantry_helmet_walk_blue.png'),
-        load('./assets/units/ancient_cavity_helmet_walk.png'),
+        loadFirst(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.E),
         load('./assets/units/ancient_cavity_helmet_walk_blue.png'),
-        load('./assets/units/ancient_cavity_helmet_walk_back.png'),
+        loadFirst(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.N),
         load('./assets/units/ancient_cavity_helmet_walk_back_blue.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1_blue.png'),
@@ -832,6 +911,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       pixiWalkTex.cavalry.enemy    = makeFrames(cE, "cavalry");
       pixiWalkBackTex.cavalry.player = makeFrames(cBack, "cavalry");
       pixiWalkBackTex.cavalry.enemy  = makeFrames(cBackBlue, "cavalry");
+      const cavalryDirectionEntries = await Promise.all(
+        Object.entries(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES)
+          .map(async ([direction, sources]) => [direction, await loadFirst(sources)])
+      );
+      cavalryDirectionEntries.forEach(([direction, tex]) => {
+        if (tex) tex.source.scaleMode = 'nearest';
+        pixiCavalryDirectionTex.player[direction] = makeFrames(tex, "cavalry");
+      });
+      if (pixiCavalryDirectionTex.player.E?.length) {
+        pixiWalkTex.cavalry.player = pixiCavalryDirectionTex.player.E;
+      }
       if (iP) pixiIdleTex.infantry.player = iP;
       if (iE) pixiIdleTex.infantry.enemy  = iE;
       pixiIdleTex.cavalry.player = pixiWalkTex.cavalry.player[0] || null;
@@ -2745,6 +2835,41 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return formation.speed !== "SLOW";
   }
 
+  const CAVALRY_VISUAL_DIRECTIONS = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
+
+  function visualDirectionFromVector(vector) {
+    if (!vector) return null;
+    const screenX = vector.x - vector.y;
+    const screenY = vector.x + vector.y;
+    if (len(screenX, screenY) < 0.001) return null;
+    const angle = Math.atan2(screenY, screenX);
+    const step = Math.PI / 4;
+    const index = ((Math.round(angle / step) % 8) + 8) % 8;
+    return CAVALRY_VISUAL_DIRECTIONS[index];
+  }
+
+  function playerCavalryDirectionInfo(direction) {
+    const resolvedDirection = CAVALRY_VISUAL_DIRECTIONS.includes(direction) ? direction : "E";
+    const sourceKey = CAVALRY_DIRECTION_SOURCE_KEY[resolvedDirection] || "E";
+    return {
+      direction: resolvedDirection,
+      sourceKey,
+      flip: !!CAVALRY_DIRECTION_FLIP[resolvedDirection],
+    };
+  }
+
+  function playerCavalryDirectionSprite(direction) {
+    const { sourceKey } = playerCavalryDirectionInfo(direction);
+    const sprite = cavalryPlayerDirectionSprites[sourceKey];
+    return sprite?.naturalWidth > 0 ? sprite : cavalryWalkSprite;
+  }
+
+  function playerCavalryPixiFrames(direction) {
+    const { sourceKey } = playerCavalryDirectionInfo(direction);
+    const frames = pixiCavalryDirectionTex.player[sourceKey];
+    return frames?.length ? frames : pixiWalkTex.cavalry.player;
+  }
+
   function visualFacingLeftFromFormation(formation) {
     return formation.facing.x < -0.05;
   }
@@ -2764,6 +2889,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const facing = normalize(formation.facing || vec());
     const hasFormationFacing = len(facing.x, facing.y) > 0.001;
     const velocityAligned = !hasFormationFacing || (unit.vx * facing.x + unit.vy * facing.y) > 0.02;
+    const velocityFacing = speed > 0.001 ? normalize(vec(unit.vx, unit.vy)) : null;
 
     if (typeof unit.visualFacingLeft !== "boolean") {
       unit.visualFacingLeft = visualFacingLeftFromFormation(formation);
@@ -2779,6 +2905,21 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (speed < MOVE_EXIT) unit.visualMoving = false;
     } else if (speed > MOVE_ENTER) {
       unit.visualMoving = true;
+    }
+
+    if (typeof unit.visualDirection !== "string") {
+      unit.visualDirection = visualDirectionFromVector(hasFormationFacing ? facing : velocityFacing) || "E";
+      unit.visualDirectionChangedAt = -999;
+    }
+
+    const directionVector = hasFormationFacing
+      ? facing
+      : (unit.visualMoving && velocityFacing ? velocityFacing : null);
+    const nextDirection = visualDirectionFromVector(directionVector);
+    if (nextDirection && nextDirection !== unit.visualDirection &&
+        now - (unit.visualDirectionChangedAt ?? -999) >= CHANGE_COOLDOWN) {
+      unit.visualDirection = nextDirection;
+      unit.visualDirectionChangedAt = now;
     }
 
     let nextLeft = unit.visualFacingLeft;
@@ -2816,6 +2957,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       moving: unit.visualMoving,
       facingLeft: unit.visualFacingLeft,
       facingBack: unit.visualMoving && unit.visualFacingBack,
+      direction: unit.visualDirection,
     };
   }
 
@@ -3864,9 +4006,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const visualFacing = updateUnitVisualFacing(formation, unit);
       const moving = visualFacing.moving;
       const facingBack = visualFacing.facingBack;
+      const playerCavalryDirection = troopType === 'cavalry' && formation.team === 'player'
+        ? playerCavalryDirectionInfo(visualFacing.direction)
+        : null;
       if (hasPixiSprites(troopType)) {
-        if (moving) {
-          const fi = Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % troopWalkFrames(troopType);
+        const fi = moving
+          ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % troopWalkFrames(troopType)
+          : 0;
+        if (playerCavalryDirection) {
+          const frames = playerCavalryPixiFrames(playerCavalryDirection.direction);
+          sprite.texture = frames[fi] || pixiIdleTex.cavalry.player;
+        } else if (moving) {
           if (facingBack && troopType === 'cavalry' && pixiWalkBackTex.cavalry[formation.team]?.length > 0) {
             sprite.texture = pixiWalkBackTex.cavalry[formation.team][fi];
           } else {
@@ -3879,7 +4029,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       sprite.x = cx;
       sprite.y = cy;
-      sprite.scale.x = visualFacing.facingLeft ? -spScale : spScale;
+      sprite.scale.x = (playerCavalryDirection ? playerCavalryDirection.flip : visualFacing.facingLeft) ? -spScale : spScale;
       sprite.scale.y = spScale;
       sprite.zIndex  = unit.x + unit.y;
       sprite.visible = true;
@@ -4406,23 +4556,29 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
 
       if (externalUnitLoaded) {
-        const teamSprite = troopType === "cavalry"
-          ? (isFacingBack
-              ? (formation.team === 'enemy'
-                  ? (cavalryWalkBackBlueSprite.naturalWidth > 0 ? cavalryWalkBackBlueSprite : cavalryWalkBlueSprite)
-                  : (cavalryWalkBackSprite.naturalWidth > 0 ? cavalryWalkBackSprite : cavalryWalkSprite))
-              : (formation.team === 'enemy' ? cavalryWalkBlueSprite : cavalryWalkSprite))
-          : formation.team === 'enemy'
-            ? (isMoving && unitWalkBlueSprite.naturalWidth > 0 ? unitWalkBlueSprite : unitIdleBlueSprite)
-            : (isMoving ? unitWalkSprite : unitIdleSprite);
+        const playerCavalryDirection = troopType === "cavalry" && formation.team === "player"
+          ? playerCavalryDirectionInfo(visualFacing.direction)
+          : null;
+        const teamSprite = playerCavalryDirection
+          ? playerCavalryDirectionSprite(playerCavalryDirection.direction)
+          : troopType === "cavalry"
+            ? (isFacingBack
+                ? (formation.team === 'enemy'
+                    ? (cavalryWalkBackBlueSprite.naturalWidth > 0 ? cavalryWalkBackBlueSprite : cavalryWalkBlueSprite)
+                    : (cavalryWalkBackSprite.naturalWidth > 0 ? cavalryWalkBackSprite : cavalryWalkSprite))
+                : (formation.team === 'enemy' ? cavalryWalkBlueSprite : cavalryWalkSprite))
+            : formation.team === 'enemy'
+              ? (isMoving && unitWalkBlueSprite.naturalWidth > 0 ? unitWalkBlueSprite : unitIdleBlueSprite)
+              : (isMoving ? unitWalkSprite : unitIdleSprite);
         const usesWalkSheet = isMoving || troopType === "cavalry";
         const frameW = usesWalkSheet ? teamSprite.naturalWidth / troopWalkFrames(troopType) : teamSprite.naturalWidth;
         const frameH = teamSprite.naturalHeight;
         const sx = usesWalkSheet ? frameIdx * frameW : 0;
         const drawUnitX = cx - drawW / 2;
         const drawUnitY = cy - drawH;
+        const shouldFlip = playerCavalryDirection ? playerCavalryDirection.flip : facingLeft;
         ctx.save();
-        if (facingLeft) {
+        if (shouldFlip) {
           ctx.translate(cx, 0);
           ctx.scale(-1, 1);
           ctx.drawImage(teamSprite, sx, 0, frameW, frameH, -drawW / 2, drawUnitY, drawW, drawH);
@@ -6938,15 +7094,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           const expLabel = isMax
             ? "MAX"
             : `${formatTroops(expAfter)} / ${formatTroops(nextReq)}`;
+          const levelUpIcon = item.leveledUp
+            ? `<img class="result-growth-levelup-icon" src="./assets/ui/levelup_icon.png" alt="" aria-hidden="true" draggable="false" />`
+            : "";
           return `
             <div class="result-growth-card ${item.leveledUp ? "is-level-up" : ""}">
-              ${onlinePortraitMarkup(item, "result-growth-portrait")}
+              ${onlinePortraitMarkup(item, "result-growth-portrait", { overlayHtml: levelUpIcon })}
               <div class="result-growth-main">
+                ${item.leveledUp ? `<div class="result-growth-levelup-row"><span class="result-growth-levelup">LEVEL UP</span></div>` : ""}
                 <div class="result-growth-header">
                   <span class="result-growth-name">${escapeHtml(item.name || item.templateId)}</span>
                   <div class="result-growth-lv-badge">
                     <span class="result-growth-lv">Lv ${levelAfter}</span>
-                    ${item.leveledUp ? `<span class="result-growth-levelup">LEVEL UP</span>` : ""}
                   </div>
                 </div>
                 <div class="result-growth-exp-row">
@@ -7338,11 +7497,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
   }
 
-  function onlinePortraitMarkup(commander, className = "online-loadout-portrait") {
+  function onlinePortraitMarkup(commander, className = "online-loadout-portrait", options = {}) {
+    const overlayHtml = options.overlayHtml || "";
     if (commander?.portrait) {
-      return `<div class="${className} online-portrait-loading" data-online-portrait><img src="${escapeHtml(commander.portrait)}" alt="${escapeHtml(commander.name || "")}" loading="eager" decoding="async" /></div>`;
+      return `<div class="${className} online-portrait-loading" data-online-portrait><img src="${escapeHtml(commander.portrait)}" alt="${escapeHtml(commander.name || "")}" loading="eager" decoding="async" />${overlayHtml}</div>`;
     }
-    return `<div class="${className}">${escapeHtml((commander?.name || "?").slice(0, 1))}</div>`;
+    return `<div class="${className}">${escapeHtml((commander?.name || "?").slice(0, 1))}${overlayHtml}</div>`;
   }
 
   function settleOnlinePortraitLoading(root = onlineScreen) {
@@ -7607,11 +7767,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const selected = selectedSlot >= 0;
     const locked = !onlineCommanderUnlocked(commander);
     const lockMessage = onlineCommanderLockMessage(commander);
+    const lockIcon = locked
+      ? `<img class="online-pool-lock-icon" src="./assets/ui/commander_locked_icon.png" alt="" aria-hidden="true" draggable="false" />`
+      : "";
     return `
       <div class="online-pool-card ${selected ? "is-selected" : ""} ${locked ? "is-locked" : ""}"
         data-online-pool-card="${escapeHtml(commander.id)}" draggable="${selected || locked ? "false" : "true"}"
         ${lockMessage ? `title="${escapeHtml(lockMessage)}"` : ""}>
-        ${onlinePortraitMarkup(commander, "online-pool-portrait")}
+        ${onlinePortraitMarkup(commander, "online-pool-portrait", { overlayHtml: lockIcon })}
         <div class="online-pool-name">${escapeHtml(commander.name)}</div>
         <div class="online-pool-level">${escapeHtml(locked ? "Locked" : `Lv ${commander.level || 0}`)}</div>
       </div>
@@ -8449,6 +8612,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   menuHistoricalScenario?.addEventListener("click", () => {
     renderScenarioSelect();
     setScreen("scenarioSelect");
+    refreshHistoricalScenarioClears().then(renderScenarioSelect);
   });
 
   onlineBackBtn?.addEventListener("click", () => {
