@@ -3480,6 +3480,34 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const px = iso.x - minIsoX, py = iso.y - minIsoY;
         const w  = game.tileW + 1.0;
         const h  = getTileH() + 0.5;
+
+        if (tile === "wetland") {
+          // 강 텍스처를 베이스로 먼저 그린 뒤, 습지 스프라이트에 원형 구멍을 뚫어
+          // 강이 도트 무늬로 비치게 함
+          const riverVars = terrainSprites.tiles["river"];
+          const riverSp = riverVars?.[tileHash(x + 7, y + 11) % (riverVars?.length || 1)];
+          if (riverSp?.naturalWidth) chunkCtx.drawImage(riverSp, px - w / 2, py - 0.25, w, h);
+
+          const off = createSurface(w + 1, h + 1);
+          const offCtx = off.getContext("2d");
+          offCtx.drawImage(sp, 0, 0, w, h);
+          offCtx.globalCompositeOperation = "destination-out";
+          const numDots = 2 + tileHash(x * 7, y * 11) % 4;
+          for (let i = 0; i < numDots; i++) {
+            const rx = (tileHash(x * 1031 + i * 997,  y * 1013 + i * 983) % 10000) / 10000;
+            const ry = (tileHash(x * 1013 + i * 991,  y * 1031 + i * 977) % 10000) / 10000;
+            const rr = (tileHash(x * 1049 + i * 971,  y * 1021 + i * 967) % 10000) / 10000;
+            const dcx = (0.15 + rx * 0.70) * w;
+            const dcy = (0.15 + ry * 0.70) * h;
+            const dr  = (0.08 + rr * 0.18) * game.tileW;
+            offCtx.beginPath();
+            offCtx.arc(dcx, dcy, dr, 0, Math.PI * 2);
+            offCtx.fill();
+          }
+          chunkCtx.drawImage(off, px - w / 2, py - 0.25);
+          return;
+        }
+
         chunkCtx.drawImage(sp, px - w / 2, py - 0.25, w, h);
       });
 
