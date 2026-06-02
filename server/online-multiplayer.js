@@ -5,7 +5,7 @@ import { applyCommanderBattleProgress, getPlayerProfile } from "./online-db.js";
 import { verifyPlayerToken } from "./online-auth.js";
 
 const TICK_RATE = 30;
-const INPUT_DELAY_TICKS = 18;
+const INPUT_DELAY_TICKS = 6;
 const MATCH_START_DELAY_MS = 1500;
 const GUEST_DEFAULT_RATING = 1000;
 const INVITE_EXPIRY_MS = 15 * 60 * 1000;

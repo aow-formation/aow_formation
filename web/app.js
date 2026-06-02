@@ -2099,7 +2099,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function onlineTargetSimulationTick() {
     if (!isOnlineMode() || !game.online.simStarted) return game.online?.simTick || 0;
-    return Math.max(0, onlineNetTick() - (game.online.inputDelayTicks || 10));
+    return Math.max(0, onlineNetTick() - (game.online.inputDelayTicks || 6));
   }
 
   function advanceOnlineSimulationTo(targetTick, maxSteps) {
