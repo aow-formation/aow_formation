@@ -3570,8 +3570,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
           // 레이어 2+3: 상위 지형 + 알파마스크
           if (bd.maskDir === "center") {
-            // center: 마스크 없이 상위 지형 전체
-            chunkCtx.drawImage(upperImg, px - w / 2, py, w, h);
+            // center: 마스크 없이 상위 지형 전체 (습지는 원형 마스크 유지)
+            if (bd.upperT === "wetland") {
+              const tmp = createSurface(w + 1, h + 1);
+              const tc  = tmp.getContext("2d");
+              tc.drawImage(upperImg, 0, 0, w, h);
+              punchWetlandDots(tc, w, h, x, y);
+              chunkCtx.drawImage(tmp, px - w / 2, py);
+            } else {
+              chunkCtx.drawImage(upperImg, px - w / 2, py, w, h);
+            }
           } else if (bd.maskDir) {
             const maskArr = terrainSprites.masks[bd.maskDir];
             const maskCv = maskArr?.length
