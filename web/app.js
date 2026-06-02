@@ -7170,6 +7170,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         `;
         right?.appendChild(onlineInvitePanel);
       }
+      // 매칭 화면 진입 시마다 초대 패널 초기화 (이전 코드 잔존 방지)
+      const createInviteBtn = document.getElementById("onlineCreateInviteBtn");
+      const inviteLinkArea  = document.getElementById("onlineInviteLinkArea");
+      const inviteStatusEl  = document.getElementById("onlineInviteStatus");
+      if (createInviteBtn) createInviteBtn.disabled = false;
+      if (inviteLinkArea)  inviteLinkArea.hidden = true;
+      if (inviteStatusEl)  inviteStatusEl.textContent = "";
+      if (inviteLinkArea) {
+        const inp = document.getElementById("onlineInviteLinkInput");
+        if (inp) inp.value = "";
+      }
       if (pendingInviteCode && !onlineClient.token) {
         let guestPanel = document.getElementById("onlineGuestInvitePanel");
         if (!guestPanel) {
