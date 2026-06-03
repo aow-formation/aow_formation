@@ -2190,7 +2190,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function onlineTargetSimulationTick() {
     if (!isOnlineMode() || !game.online.simStarted) return game.online?.simTick || 0;
-    return Math.max(0, onlineNetTick() - (game.online.inputDelayTicks || 6));
+    return Math.max(0, onlineNetTick() - (game.online.inputDelayTicks || 3));
   }
 
   function advanceOnlineSimulationTo(targetTick, maxSteps) {
@@ -5988,7 +5988,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       side: Number(match.side || 0),
       seed: match.seed,
       tickRate: Number(match.tickRate || 30),
-      inputDelayTicks: Number(match.inputDelayTicks || 10),
+      inputDelayTicks: Number(match.inputDelayTicks || 3),
       receivedAt: performance.now(),
       startedAt: null,
       serverNow: Number(match.serverNow || Date.now()),
@@ -6026,7 +6026,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     game.online.serverNow = serverNow;
     game.online.startedAtClient = performance.now() + (startedAt - serverNow);
     game.online.tickRate = Number(message.tickRate || game.online.tickRate || 30);
-    game.online.inputDelayTicks = Number(message.inputDelayTicks || game.online.inputDelayTicks || 10);
+    game.online.inputDelayTicks = Number(message.inputDelayTicks || game.online.inputDelayTicks || 3);
     game.online.simTick = 0;
     game.online.netTick = 0;
     game.online.lastChecksumTick = 0;
