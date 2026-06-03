@@ -3792,7 +3792,21 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       for (let ty = startY; ty < endY; ty++) {
         for (let tx = startX; tx < endX; tx++) {
           if (game.terrain.tiles[ty][tx] !== "mountain") continue;
-          if (game.terrainRender.ruggedMtn[ty][tx]) continue;
+          const ruggedVal = game.terrainRender.ruggedMtn[ty][tx];
+
+          // 험준산악 테두리/모서리 판별
+          let outsideCount = 0;
+          if (ruggedVal === 2) {
+            const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+            for (const [dy, dx] of dirs) {
+              const ny = ty + dy, nx = tx + dx;
+              if (ny < 0 || ny >= MAP_HEIGHT || nx < 0 || nx >= MAP_WIDTH) { outsideCount++; continue; }
+              if (!game.terrainRender.ruggedMtn[ny][nx]) outsideCount++;
+            }
+            if (outsideCount === 0) continue; // 내부 타일: 나무 없음
+          } else if (ruggedVal !== 0) {
+            continue; // 앵커 타일(=1): 건너뜀
+          }
 
           const iso = isoPoint(tx, ty);
           const cx  = iso.x - minIsoX;
@@ -3802,7 +3816,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xFFFFFFFF; };
 
           const r = rng();
-          const count = r < 0.1 ? 0 : r < 0.4 ? 2 : 1;
+          // 험준산악 테두리: 모서리(2면 이상 노출)는 1~2그루, 테두리(1면 노출)는 0~1그루
+          const count = ruggedVal === 0
+            ? (r < 0.1 ? 0 : r < 0.4 ? 2 : 1)
+            : outsideCount >= 2
+              ? (r < 0.25 ? 0 : r < 0.65 ? 1 : 2)
+              : (r < 0.55 ? 0 : 1);
           for (let i = 0; i < count; i++) {
             let bx, by;
             for (let attempt = 0; attempt < 8; attempt++) {
@@ -3815,9 +3834,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
               }
             }
             if (bx === undefined) { bx = cx; by = cy; }
-            const scale = 0.85 + rng() * 0.30; // ±15% 사이즈 지터
-            const hue = (rng() - 0.5) * 36;   // ±18deg (색상 5% 지터)
-            const sat = 95 + rng() * 10;       // 95%~105% (채도 5% 지터)
+            const scale = 0.85 + rng() * 0.30;
+            const hue = (rng() - 0.5) * 36;
+            const sat = 95 + rng() * 10;
             trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: tx, tileY: ty, scale, hue, sat });
           }
         }
