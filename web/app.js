@@ -3827,12 +3827,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xFFFFFFFF; };
 
           const r = rng();
-          // 남서/남동 외곽(edgeWeight=2): 1~3그루, 2번째·북서/북동(edgeWeight=1): 0~2그루
+          // 험준산악 가장자리: 모든 변 동일하게 0~2그루
           const count = ruggedVal === 0
             ? (r < 0.1 ? 0 : r < 0.4 ? 2 : 1)
-            : edgeWeight >= 2
-              ? (r < 0.15 ? 1 : r < 0.6 ? 2 : 3)
-              : (r < 0.3 ? 0 : r < 0.75 ? 1 : 2);
+            : (r < 0.25 ? 0 : r < 0.65 ? 1 : 2);
           for (let i = 0; i < count; i++) {
             let bx, by;
             for (let attempt = 0; attempt < 8; attempt++) {
