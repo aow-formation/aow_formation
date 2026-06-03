@@ -1990,6 +1990,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         `${worldSide === 0 ? "Blue" : "Red"} ${index + 1}`,
       );
       const formation = createFormation(index, team, general, vec(start.x, start.y + (index - 2) * 10), facing);
+      formation.speed = "NORMAL";
       formation.worldSide = worldSide;
       formation.skillType = normalizeSkillForGeneral(general, general.skillType, general.troopType);
       formation.general.skillType = formation.skillType;
@@ -5932,6 +5933,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const gen = { ...g, kills: 0, losses: 0, alive: true };
       const f = createFormation(i, "player", gen,
         vec(terrain.playerStart.x, terrain.playerStart.y + (i - 2) * 10), vec(1, 0));
+      f.speed = "NORMAL";
       f.skillType = normalizeSkillForGeneral(gen, g.skillType || f.skillType, gen.troopType);
       f.general.skillType = f.skillType;
       initializeFormationSlots(f, false);
@@ -5941,6 +5943,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const gen = { ...g, kills: 0, losses: 0, alive: true };
       const f = createFormation(i, "enemy", gen,
         vec(terrain.enemyStart.x, terrain.enemyStart.y + (i - 2) * 10), vec(-1, 0));
+      f.speed = "NORMAL";
       f.skillType = normalizeSkillForGeneral(gen, g.skillType || f.skillType, gen.troopType);
       f.general.skillType = f.skillType;
       initializeFormationSlots(f, false);
