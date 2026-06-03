@@ -3794,16 +3794,27 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           if (game.terrain.tiles[ty][tx] !== "mountain") continue;
           const ruggedVal = game.terrainRender.ruggedMtn[ty][tx];
 
-          // 험준산악 테두리/모서리 판별
-          let outsideCount = 0;
+          // 험준산악 경계 판별 — 인접 블록 여부와 무관하게 블록 내 상대 위치로 결정
+          let edgeWeight = 0; // 0: 내부(스킵), 1: 북서/북동 변, 2: 남서/남동 외곽 변, 1(2nd): 남서/남동 2번째 행/열
           if (ruggedVal === 2) {
-            const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
-            for (const [dy, dx] of dirs) {
-              const ny = ty + dy, nx = tx + dx;
-              if (ny < 0 || ny >= MAP_HEIGHT || nx < 0 || nx >= MAP_WIDTH) { outsideCount++; continue; }
-              if (!game.terrainRender.ruggedMtn[ny][nx]) outsideCount++;
-            }
-            if (outsideCount === 0) continue; // 내부 타일: 나무 없음
+            const ax = Math.floor(tx / CHUNK_TILES) * CHUNK_TILES;
+            const ay = Math.floor(ty / CHUNK_TILES) * CHUNK_TILES;
+            const relX = tx - ax; // 0..15
+            const relY = ty - ay; // 0..15
+            const C = CHUNK_TILES - 1; // 15
+
+            // 남서(relY 최대)/남동(relX 최대) 방향이 가장 잘 보이는 변 → 2타일 두께
+            const onSW  = relY === C;       // 남서쪽 외곽 변
+            const onSE  = relX === C;       // 남동쪽 외곽 변
+            const onSW2 = relY === C - 1;   // 남서쪽 2번째 행
+            const onSE2 = relX === C - 1;   // 남동쪽 2번째 열
+            const onNW  = relX === 0;       // 북서쪽 변
+            const onNE  = relY === 0;       // 북동쪽 변
+
+            if      (onSW || onSE)          edgeWeight = 2;
+            else if (onSW2 || onSE2)        edgeWeight = 1;
+            else if (onNW  || onNE)         edgeWeight = 1;
+            if (edgeWeight === 0) continue; // 내부 타일: 나무 없음
           } else if (ruggedVal !== 0) {
             continue; // 앵커 타일(=1): 건너뜀
           }
@@ -3816,12 +3827,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xFFFFFFFF; };
 
           const r = rng();
-          // 험준산악 테두리: 모서리(2면 이상 노출)는 1~2그루, 테두리(1면 노출)는 0~1그루
+          // 남서/남동 외곽(edgeWeight=2): 1~3그루, 2번째·북서/북동(edgeWeight=1): 0~2그루
           const count = ruggedVal === 0
             ? (r < 0.1 ? 0 : r < 0.4 ? 2 : 1)
-            : outsideCount >= 2
-              ? (r < 0.25 ? 0 : r < 0.65 ? 1 : 2)
-              : (r < 0.55 ? 0 : 1);
+            : edgeWeight >= 2
+              ? (r < 0.15 ? 1 : r < 0.6 ? 2 : 3)
+              : (r < 0.3 ? 0 : r < 0.75 ? 1 : 2);
           for (let i = 0; i < count; i++) {
             let bx, by;
             for (let attempt = 0; attempt < 8; attempt++) {
