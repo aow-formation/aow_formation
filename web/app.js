@@ -3585,11 +3585,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           minIsoY = Math.min(minIsoY, iso.y + tileH * 0.32 - 2);
           maxIsoY = Math.max(maxIsoY, iso.y + tileH * 0.32 + shadowHeight + 4);
         }
-        if (game.terrainRender.ruggedMtn[y][x] === 1) {
-          // 험준산악 앵커: 상단 가장자리 나무 스프라이트가 캔버스 위로 잘리지 않도록 여유 확보
-          const maxEdgeTreeH = Math.round(game.tileW * 22 / 24 * 1.6);
-          minIsoY = Math.min(minIsoY, iso.y - maxEdgeTreeH);
-        }
       }
     }
 
@@ -3799,20 +3794,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           if (game.terrain.tiles[ty][tx] !== "mountain") continue;
           const ruggedVal = game.terrainRender.ruggedMtn[ty][tx];
 
-          // 험준산악 테두리/모서리 판별 + 외곽 방향 벡터 계산
+          // 험준산악 테두리/모서리 판별
           let outsideCount = 0;
-          let outIsoX = 0, outIsoY = 0;
           if (ruggedVal === 2) {
             const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
             for (const [dy, dx] of dirs) {
               const ny = ty + dy, nx = tx + dx;
-              const isOut = ny < 0 || ny >= MAP_HEIGHT || nx < 0 || nx >= MAP_WIDTH
-                         || !game.terrainRender.ruggedMtn[ny][nx];
-              if (isOut) {
-                outsideCount++;
-                outIsoX += (dx - dy) * game.tileW / 2;
-                outIsoY += (dx + dy) * tileH / 2;
-              }
+              if (ny < 0 || ny >= MAP_HEIGHT || nx < 0 || nx >= MAP_WIDTH) { outsideCount++; continue; }
+              if (!game.terrainRender.ruggedMtn[ny][nx]) outsideCount++;
             }
             if (outsideCount === 0) continue; // 내부 타일: 나무 없음
           } else if (ruggedVal !== 0) {
@@ -3823,46 +3812,29 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           const cx  = iso.x - minIsoX;
           const cy  = iso.y - minIsoY + tileH / 2;
 
-          // 험준산악 가장자리: 외곽 방향으로 0.38타일 치우침
-          let biasX = 0, biasY = 0;
-          if (ruggedVal === 2) {
-            const outLen = Math.sqrt(outIsoX * outIsoX + outIsoY * outIsoY) || 1;
-            biasX = outIsoX / outLen * game.tileW * 0.38;
-            biasY = outIsoY / outLen * tileH * 0.38;
-          }
-
           let s = tileHash(tx, ty) >>> 0;
           const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xFFFFFFFF; };
 
           const r = rng();
-          // 험준산악 테두리: 모서리(2면 이상 노출)는 2~3그루, 테두리(1면 노출)는 1~2그루
+          // 험준산악 테두리: 모서리(2면 이상 노출)는 1~2그루, 테두리(1면 노출)는 0~1그루
           const count = ruggedVal === 0
             ? (r < 0.1 ? 0 : r < 0.4 ? 2 : 1)
             : outsideCount >= 2
-              ? (r < 0.15 ? 1 : r < 0.6 ? 2 : 3)
-              : (r < 0.3 ? 0 : r < 0.75 ? 1 : 2);
+              ? (r < 0.25 ? 0 : r < 0.65 ? 1 : 2)
+              : (r < 0.55 ? 0 : 1);
           for (let i = 0; i < count; i++) {
             let bx, by;
-            // 가장자리 타일: 외곽 방향 치우침 + 작은 분산
-            if (ruggedVal === 2) {
-              bx = cx + biasX + (rng() - 0.5) * game.tileW * 0.45;
-              by = cy + biasY + (rng() - 0.5) * tileH * 0.45;
-            } else {
-              for (let attempt = 0; attempt < 8; attempt++) {
-                const rx = (rng() - 0.5) * game.tileW;
-                const ry = (rng() - 0.5) * tileH;
-                if (Math.abs(rx) / (game.tileW / 2) + Math.abs(ry) / (tileH / 2) <= 1) {
-                  bx = cx + rx;
-                  by = cy + ry;
-                  break;
-                }
+            for (let attempt = 0; attempt < 8; attempt++) {
+              const rx = (rng() - 0.5) * game.tileW;
+              const ry = (rng() - 0.5) * tileH;
+              if (Math.abs(rx) / (game.tileW / 2) + Math.abs(ry) / (tileH / 2) <= 1) {
+                bx = cx + rx;
+                by = cy + ry;
+                break;
               }
-              if (bx === undefined) { bx = cx; by = cy; }
             }
-            // 가장자리 나무는 더 크게 (1.2~1.6배)
-            const scale = ruggedVal === 2
-              ? (1.2 + rng() * 0.4)
-              : (0.85 + rng() * 0.30);
+            if (bx === undefined) { bx = cx; by = cy; }
+            const scale = 0.85 + rng() * 0.30;
             const hue = (rng() - 0.5) * 36;
             const sat = 95 + rng() * 10;
             trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: tx, tileY: ty, scale, hue, sat });
