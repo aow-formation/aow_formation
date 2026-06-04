@@ -88,6 +88,9 @@ function publicPlayer(player, side) {
     displayName: player.displayName,
     emblem: player.emblem,
     rating: player.rating,
+    wins: player.wins || 0,
+    losses: player.losses || 0,
+    draws: player.draws || 0,
     side,
     commanders: player.commanders,
   };
@@ -286,21 +289,27 @@ export function installMultiplayerServer({ server, db }) {
     }
   }
 
-  function handleLeaveMatch(ws) {
-    const room = rooms.get(ws.roomId);
-    if (!room || room.ended || room.matchStarted) return false;
+  function cancelPreStartRoom(room, bySide, reason = "cancelled") {
+    if (!room || room.ended) return false;
     room.ended = true;
     room.sockets.forEach((peer) => {
       send(peer, {
         type: "MATCH_CANCELLED",
         roomId: room.id,
-        bySide: ws.side,
+        bySide,
+        reason,
       });
       peer.roomId = null;
       peer.side = null;
     });
     rooms.delete(room.id);
     return true;
+  }
+
+  function handleLeaveMatch(ws) {
+    const room = rooms.get(ws.roomId);
+    if (!room || room.ended || room.matchStarted) return false;
+    return cancelPreStartRoom(room, ws.side, "leave");
   }
 
   async function handleInput(ws, msg) {
@@ -554,6 +563,10 @@ export function installMultiplayerServer({ server, db }) {
     }
     const room = rooms.get(ws.roomId);
     if (!room || room.ended) return;
+    if (!room.matchStarted) {
+      cancelPreStartRoom(room, ws.side, "disconnect");
+      return;
+    }
     const survivor = room.sockets.find(peer => peer !== ws);
     if (db && ws.player && !ws.player.isGuest) {
       db.query("UPDATE players SET disconnects = disconnects + 1 WHERE id = $1", [ws.player.id])

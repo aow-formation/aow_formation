@@ -474,9 +474,7 @@
           "id": "enemy_lured",
           "type": "enemyInAreaRatio",
           "formationIds": [
-            "xiahou_dun",
-            "cao_vanguard",
-            "yu_jin"
+            "xiahou_dun"
           ],
           "x": 103,
           "y": 57,

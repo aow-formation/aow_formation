@@ -334,6 +334,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   let onlinePendingMatch = null;
   let onlineReadySides = [];
   let onlineRematchAfterCancel = false;
+  let onlineReturnToCommandersAfterCancel = false;
   const pendingInviteCode = new URLSearchParams(location.search).get("invite") || null;
   let onlineInvitePanel = null;
 
@@ -735,6 +736,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     S:  ['./assets/units/ancient_cavity_helmet_walk_S.png'],
     SE: ['./assets/units/ancient_cavity_helmet_walk_SE.png'],
   };
+  const CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES = {
+    E:  ['./assets/units/ancient_cavity_helmet_walk_blue_E.png'],
+    NE: ['./assets/units/ancient_cavity_helmet_walk_blue_NE.png'],
+    N:  ['./assets/units/ancient_cavity_helmet_walk_blue_N.png'],
+    S:  ['./assets/units/ancient_cavity_helmet_walk_blue_S.png'],
+    SE: ['./assets/units/ancient_cavity_helmet_walk_blue_SE.png'],
+  };
   const CAVALRY_DIRECTION_SOURCE_KEY = {
     E: 'E',
     NE: 'NE',
@@ -770,13 +778,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     Object.entries(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES)
       .map(([direction, sources]) => [direction, createImageWithFallbacks(sources)])
   );
+  const cavalryEnemyDirectionSprites = Object.fromEntries(
+    Object.entries(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES)
+      .map(([direction, sources]) => [direction, createImageWithFallbacks(sources)])
+  );
   const cavalryWalkSprite = new Image();
   cavalryWalkSprite.src = './assets/units/ancient_cavity_helmet_walk_E.png';
-  const cavalryWalkBlueSprite = new Image();
-  cavalryWalkBlueSprite.src = './assets/units/ancient_cavity_helmet_walk_blue.png';
+  const cavalryWalkBlueSprite = createImageWithFallbacks(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.E);
   const cavalryWalkBackSprite = createImageWithFallbacks(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.N);
-  const cavalryWalkBackBlueSprite = new Image();
-  cavalryWalkBackBlueSprite.src = './assets/units/ancient_cavity_helmet_walk_back_blue.png';
+  const cavalryWalkBackBlueSprite = createImageWithFallbacks(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.N);
   const unitIdleSprite = new Image();
   unitIdleSprite.src = './assets/units/ancient_infantry_helmet_idle_1.png';
   const unitIdleBlueSprite = new Image();
@@ -785,6 +795,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     fireSprite,
     ...remainsSprites,
     ...Object.values(cavalryPlayerDirectionSprites),
+    ...Object.values(cavalryEnemyDirectionSprites),
     unitWalkSprite,
     unitWalkBlueSprite,
     cavalryWalkSprite,
@@ -818,7 +829,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     cavalry:  { player: [], enemy: [] },
   };
   const pixiWalkBackTex = { cavalry: { player: [], enemy: [] } }; // 기병 후방(우상향) 스프라이트
-  const pixiCavalryDirectionTex = { player: {} };
+  const pixiCavalryDirectionTex = { player: {}, enemy: {} };
   const pixiIdleTex  = {
     infantry: { player: null, enemy: null },
     cavalry:  { player: null, enemy: null },
@@ -886,9 +897,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         load('./assets/units/ancient_infantry_helmet_walk.png'),
         load('./assets/units/ancient_infantry_helmet_walk_blue.png'),
         loadFirst(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.E),
-        load('./assets/units/ancient_cavity_helmet_walk_blue.png'),
+        loadFirst(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.E),
         loadFirst(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.N),
-        load('./assets/units/ancient_cavity_helmet_walk_back_blue.png'),
+        loadFirst(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.N),
         load('./assets/units/ancient_infantry_helmet_idle_1.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1_blue.png'),
         load('./assets/terrain_tiles_v3/objects/trees/tree.png'),
@@ -919,8 +930,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         if (tex) tex.source.scaleMode = 'nearest';
         pixiCavalryDirectionTex.player[direction] = makeFrames(tex, "cavalry");
       });
+      const enemyCavalryDirectionEntries = await Promise.all(
+        Object.entries(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES)
+          .map(async ([direction, sources]) => [direction, await loadFirst(sources)])
+      );
+      enemyCavalryDirectionEntries.forEach(([direction, tex]) => {
+        if (tex) tex.source.scaleMode = 'nearest';
+        pixiCavalryDirectionTex.enemy[direction] = makeFrames(tex, "cavalry");
+      });
       if (pixiCavalryDirectionTex.player.E?.length) {
         pixiWalkTex.cavalry.player = pixiCavalryDirectionTex.player.E;
+      }
+      if (pixiCavalryDirectionTex.enemy.E?.length) {
+        pixiWalkTex.cavalry.enemy = pixiCavalryDirectionTex.enemy.E;
       }
       if (iP) pixiIdleTex.infantry.player = iP;
       if (iE) pixiIdleTex.infantry.enemy  = iE;
@@ -933,6 +955,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
   }
   const FIRST_ROW_DEFENSE_BONUS = 1.5;
+  const RANGED_MIN_DAMAGE = 0.25;
+  const TRACE_MIN_TILE_DISTANCE = 1.0;
 
   function preloadTerrainSprites() {
     const pending = [];
@@ -2489,6 +2513,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return Math.floor(Math.random() * count);
   }
 
+  function canPlaceDeathTrace(x, y) {
+    const minDistSq = TRACE_MIN_TILE_DISTANCE * TRACE_MIN_TILE_DISTANCE;
+    return !game.traces.some((trace) => {
+      const dx = trace.x - x;
+      const dy = trace.y - y;
+      return dx * dx + dy * dy <= minDistSq;
+    });
+  }
+
   function applyUnitDamage(targetFormation, unit, amount, attackerFormation = null, options = {}) {
     if (!targetFormation || !unit || amount <= 0 || !isUnitAlive(unit)) return 0;
     const prevDamage = unit.damage;
@@ -2502,7 +2535,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
     if (unit.damage >= capacity && prevDamage < capacity) {
       fillSlotFromBehind(targetFormation, unit);
-      if (options.trace !== false && game.traces.length < 2000 && !isOnWater(unit)) {
+      if (options.trace !== false && game.traces.length < 2000 && !isOnWater(unit) && canPlaceDeathTrace(unit.x, unit.y)) {
         game.traces.push({ x: unit.x, y: unit.y, type: deathTraceType(targetFormation, unit) });
       }
     }
@@ -2849,7 +2882,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return CAVALRY_VISUAL_DIRECTIONS[index];
   }
 
-  function playerCavalryDirectionInfo(direction) {
+  function cavalryDirectionInfo(direction) {
     const resolvedDirection = CAVALRY_VISUAL_DIRECTIONS.includes(direction) ? direction : "E";
     const sourceKey = CAVALRY_DIRECTION_SOURCE_KEY[resolvedDirection] || "E";
     return {
@@ -2859,16 +2892,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     };
   }
 
-  function playerCavalryDirectionSprite(direction) {
-    const { sourceKey } = playerCavalryDirectionInfo(direction);
-    const sprite = cavalryPlayerDirectionSprites[sourceKey];
-    return sprite?.naturalWidth > 0 ? sprite : cavalryWalkSprite;
+  function cavalryDirectionSprite(team, direction) {
+    const { sourceKey } = cavalryDirectionInfo(direction);
+    const spriteSet = team === "enemy" ? cavalryEnemyDirectionSprites : cavalryPlayerDirectionSprites;
+    const fallback = team === "enemy" ? cavalryWalkBlueSprite : cavalryWalkSprite;
+    const sprite = spriteSet[sourceKey];
+    return sprite?.naturalWidth > 0 ? sprite : fallback;
   }
 
-  function playerCavalryPixiFrames(direction) {
-    const { sourceKey } = playerCavalryDirectionInfo(direction);
-    const frames = pixiCavalryDirectionTex.player[sourceKey];
-    return frames?.length ? frames : pixiWalkTex.cavalry.player;
+  function cavalryPixiFrames(team, direction) {
+    const { sourceKey } = cavalryDirectionInfo(direction);
+    const frames = pixiCavalryDirectionTex[team]?.[sourceKey];
+    return frames?.length ? frames : pixiWalkTex.cavalry[team];
   }
 
   function visualFacingLeftFromFormation(formation) {
@@ -3082,7 +3117,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           applyUnitDamage(enemyTarget.formation, enemyTarget.unit, damage * dt, formation);
         } else if (canFormationRangedAttack(formation) && unit.rangedCooldown <= 0) {
           // 원거리 공격 (쿨타임 1초)
-          const rangedDamage = Math.max(0, rangedAttack(formation) * facingMult
+          const rangedDamage = Math.max(RANGED_MIN_DAMAGE, rangedAttack(formation) * facingMult
             * rangedDefenseDamageMult(enemyTarget.formation)
             - (enemyTarget.formation.troopType === 'cavalry' ? 2 : 0)
             - (enemyTarget.formation.combatOverrides?.rangedDefenseBonus ?? 0));
@@ -3110,7 +3145,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             const rDir = normalize({ x: rangedOnly.unit.x - unit.x, y: rangedOnly.unit.y - unit.y });
             const rDot = formation.facing.x * rDir.x + formation.facing.y * rDir.y;
             const rFacingMult = rDot >= Math.SQRT2 / 2 ? 1.25 : rDot >= 0 ? 1.0 : 0.75;
-            const rdmg = Math.max(0, rangedAttack(formation) * rFacingMult
+            const rdmg = Math.max(RANGED_MIN_DAMAGE, rangedAttack(formation) * rFacingMult
               * rangedDefenseDamageMult(rangedOnly.formation)
               - (rangedOnly.formation.troopType === 'cavalry' ? 2 : 0)
               - (rangedOnly.formation.combatOverrides?.rangedDefenseBonus ?? 0));
@@ -4035,16 +4070,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const visualFacing = updateUnitVisualFacing(formation, unit);
       const moving = visualFacing.moving;
       const facingBack = visualFacing.facingBack;
-      const playerCavalryDirection = troopType === 'cavalry' && formation.team === 'player'
-        ? playerCavalryDirectionInfo(visualFacing.direction)
+      const cavalryDirection = troopType === 'cavalry'
+        ? cavalryDirectionInfo(visualFacing.direction)
         : null;
       if (hasPixiSprites(troopType)) {
         const fi = moving
           ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % troopWalkFrames(troopType)
           : 0;
-        if (playerCavalryDirection) {
-          const frames = playerCavalryPixiFrames(playerCavalryDirection.direction);
-          sprite.texture = frames[fi] || pixiIdleTex.cavalry.player;
+        if (cavalryDirection) {
+          const frames = cavalryPixiFrames(formation.team, cavalryDirection.direction);
+          sprite.texture = frames[fi] || pixiIdleTex.cavalry[formation.team];
         } else if (moving) {
           if (facingBack && troopType === 'cavalry' && pixiWalkBackTex.cavalry[formation.team]?.length > 0) {
             sprite.texture = pixiWalkBackTex.cavalry[formation.team][fi];
@@ -4058,7 +4093,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       sprite.x = cx;
       sprite.y = cy;
-      sprite.scale.x = (playerCavalryDirection ? playerCavalryDirection.flip : visualFacing.facingLeft) ? -spScale : spScale;
+      sprite.scale.x = (cavalryDirection ? cavalryDirection.flip : visualFacing.facingLeft) ? -spScale : spScale;
       sprite.scale.y = spScale;
       sprite.zIndex  = unit.x + unit.y;
       sprite.visible = true;
@@ -4585,11 +4620,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
 
       if (externalUnitLoaded) {
-        const playerCavalryDirection = troopType === "cavalry" && formation.team === "player"
-          ? playerCavalryDirectionInfo(visualFacing.direction)
+        const cavalryDirection = troopType === "cavalry"
+          ? cavalryDirectionInfo(visualFacing.direction)
           : null;
-        const teamSprite = playerCavalryDirection
-          ? playerCavalryDirectionSprite(playerCavalryDirection.direction)
+        const teamSprite = cavalryDirection
+          ? cavalryDirectionSprite(formation.team, cavalryDirection.direction)
           : troopType === "cavalry"
             ? (isFacingBack
                 ? (formation.team === 'enemy'
@@ -4605,7 +4640,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const sx = usesWalkSheet ? frameIdx * frameW : 0;
         const drawUnitX = cx - drawW / 2;
         const drawUnitY = cy - drawH;
-        const shouldFlip = playerCavalryDirection ? playerCavalryDirection.flip : facingLeft;
+        const shouldFlip = cavalryDirection ? cavalryDirection.flip : facingLeft;
         ctx.save();
         if (shouldFlip) {
           ctx.translate(cx, 0);
@@ -4716,7 +4751,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const drawW = game.tileW * 1.3;
         const drawH = drawW * (remains.naturalHeight / remains.naturalWidth);
         ctx.save();
-        ctx.globalAlpha = 0.32;
+        ctx.globalAlpha = 0.7;
         ctx.drawImage(
           remains,
           Math.round(cx - drawW / 2),
@@ -7309,9 +7344,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       let actions = matchCard.querySelector(".online-actions");
       if (!actions) {
         actions = document.createElement("div");
-        actions.className = "online-actions";
+        actions.className = "online-actions online-match-actions";
         matchCard.appendChild(actions);
       }
+      actions.classList.add("online-match-actions");
       onlineReadyBtn = makeOnlineButton("onlineReadyBtn", "게임 시작", "btn-primary");
       onlineReadyBtn.disabled = true;
       onlineBackToCommandersBtn = makeOnlineButton("onlineBackToCommandersBtn", "편성으로");
@@ -7338,20 +7374,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
       if (right) {
         if (anim) right.appendChild(anim);
-        right.appendChild(onlineMatchStatus);
         right.appendChild(onlineOpponentPreview);
         if (onlineResultSummary) right.appendChild(onlineResultSummary);
-        right.appendChild(actions);
       }
+      matchCard.appendChild(onlineMatchStatus);
+      matchCard.appendChild(actions);
       if (!onlineInvitePanel) {
         onlineInvitePanel = document.createElement("div");
         onlineInvitePanel.id = "onlineInvitePanel";
         onlineInvitePanel.className = "online-invite-panel";
         onlineInvitePanel.innerHTML = `
-          <div class="online-invite-divider">또는</div>
-          <div class="online-invite-row">
-            <button id="onlineCreateInviteBtn" class="btn-stone" type="button">친구 초대 링크 만들기</button>
-          </div>
           <div id="onlineInviteLinkArea" class="online-invite-link-area" hidden>
             <input id="onlineInviteLinkInput" class="online-invite-link-input" readonly />
             <button id="onlineInviteCopyBtn" class="btn-stone" type="button">복사</button>
@@ -7360,12 +7392,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         `;
       }
       // 매번 마지막에 append해서 다른 요소들이 앞으로 재배치돼도 항상 맨 아래에 위치
-      right?.appendChild(onlineInvitePanel);
+      matchCard.appendChild(onlineInvitePanel);
       // 매칭 화면 진입 시마다 초대 패널 초기화 (이전 코드 잔존 방지)
-      const createInviteBtn = document.getElementById("onlineCreateInviteBtn");
+      const createInviteBtn = makeOnlineButton("onlineCreateInviteBtn", "친구초대 링크 만들기");
+      if (createInviteBtn && !actions.contains(createInviteBtn)) {
+        actions.insertBefore(createInviteBtn, onlineMatchLogoutBtn || null);
+      }
       const inviteLinkArea  = document.getElementById("onlineInviteLinkArea");
       const inviteStatusEl  = document.getElementById("onlineInviteStatus");
-      if (createInviteBtn) createInviteBtn.disabled = false;
+      if (createInviteBtn) {
+        createInviteBtn.textContent = "친구초대 링크 만들기";
+        createInviteBtn.disabled = false;
+      }
       if (inviteLinkArea)  inviteLinkArea.hidden = true;
       if (inviteStatusEl)  inviteStatusEl.textContent = "";
       if (inviteLinkArea) {
@@ -7762,8 +7800,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const allowedSkills = onlineAllowedSkills(template, troopType);
     const skillType = allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0];
     const maxTroops = onlineLoadoutMaxTroops(index, troopType);
-    const popUsed = onlineLoadoutPopulation(item);
-    const pct = Math.min(100, popUsed / POPULATION_BUDGET * 100).toFixed(1);
     const locked = !onlineCommanderUnlocked(template);
     const lockMessage = onlineCommanderLockMessage(template);
     return `
@@ -7785,9 +7821,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         <div class="adjust-skill-buttons">
           ${allSkillButtons().map(skill => `<button type="button" class="adjust-skill-btn" data-field="skillType" data-value="${escapeHtml(skill)}" data-active="${skill === skillType ? "true" : "false"}" ${allowedSkills.includes(skill) ? "" : "disabled"}>${onlineSkillLabel(skill)}</button>`).join("")}
         </div>
-        <div class="adjust-bar-bg"><div class="adjust-bar-fill player-fill" style="width:${pct}%"></div></div>
-        <div class="adjust-card-val">${Math.round(item.troops).toLocaleString()} <span>명</span></div>
-        <div class="adjust-card-pop">인구 ${formatTroops(popUsed)}</div>
         <div class="adjust-slider-wrap">
           <input data-field="troops" type="range" class="adjust-slider" min="${minTroopsForType(troopType)}" max="${maxTroops}" step="250" value="${Math.round(item.troops)}" />
         </div>
@@ -8201,7 +8234,31 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
   }
 
-  function renderOnlineMatchPanel() {
+  function onlineMatchProfileMarkup(player) {
+    if (!player) return "";
+    return `
+      <div class="online-profile-summary">
+        <div class="online-profile-name">${escapeHtml(player.displayName || "Guest")}</div>
+        <div class="online-profile-record">Rating ${player.rating ?? 0} · ${Number(player.wins || 0)}승 ${Number(player.losses || 0)}패 ${Number(player.draws || 0)}무</div>
+      </div>
+    `;
+  }
+
+  function onlineMatchRosterMarkup(commanders = []) {
+    if (!commanders.length) {
+      return `<div class="online-status online-match-empty-roster">표시할 장수 편성이 없습니다.</div>`;
+    }
+    return commanders.map((commander) => `
+      <div class="online-match-card">
+        ${onlinePortraitMarkup(commander, "online-match-card-portrait")}
+        <div class="online-match-card-name">${escapeHtml(commander.name)}</div>
+        <div class="online-match-card-level">${onlineCommanderLevelLabel(commander)}</div>
+        <div class="online-match-card-troop">${escapeHtml(troopTypeInfo(commander.troopType)?.label || commander.troopType)} ${formatTroops(commander.troops || 0)}</div>
+      </div>
+    `).join("");
+  }
+
+  function renderOnlineMatchPanelLegacy() {
     ensureOnlineUiScaffold();
     const player = onlineClient.player;
     if (onlineMatchPlayerInfo) {
@@ -8234,7 +8291,34 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
   }
 
+  function renderOnlineMatchPanel() {
+    ensureOnlineUiScaffold();
+    const player = onlineClient.player;
+    if (onlineMatchPlayerInfo) {
+      onlineMatchPlayerInfo.innerHTML = onlineMatchProfileMarkup(player);
+    }
+    if (onlineMatchRoster) {
+      onlineMatchRoster.innerHTML = onlineMatchRosterMarkup(player?.commanders || []);
+      settleOnlinePortraitLoading(onlineMatchRoster);
+    }
+    if (onlineOpponentPreview) {
+      const opponent = onlinePendingMatch?.players?.find(playerInfo => playerInfo.side !== onlinePendingMatch.side);
+      onlineOpponentPreview.hidden = !opponent;
+      onlineOpponentPreview.innerHTML = opponent ? `
+        <div class="online-profile">
+          ${onlineMatchProfileMarkup(opponent)}
+        </div>
+        <div class="online-match-roster online-match-roster--opponent">
+          ${onlineMatchRosterMarkup(opponent.commanders || [])}
+        </div>
+      ` : "";
+      if (opponent) settleOnlinePortraitLoading(onlineOpponentPreview);
+    }
+  }
+
   function setOnlineMatchActionState(state) {
+    const matchCard = onlineCardFor(onlineMatchStatus);
+    if (matchCard) matchCard.dataset.matchState = state;
     if (onlineQueueBtn) {
       onlineQueueBtn.hidden = state !== "matched";
       onlineQueueBtn.textContent = "재매칭";
@@ -8247,12 +8331,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
     const anim = onlineScreen?.querySelector(".online-search-anim");
     if (anim) anim.hidden = state !== "searching";
+    const inviteLinkArea = document.getElementById("onlineInviteLinkArea");
+    const inviteStatusEl = document.getElementById("onlineInviteStatus");
+    const hasInviteContent = (inviteLinkArea && !inviteLinkArea.hidden) || Boolean(inviteStatusEl?.textContent?.trim());
+    if (onlineInvitePanel) onlineInvitePanel.hidden = state !== "searching" || !hasInviteContent;
+    const createInviteBtn = document.getElementById("onlineCreateInviteBtn");
+    if (createInviteBtn) createInviteBtn.hidden = state !== "searching";
   }
 
   async function beginOnlineMatchmaking() {
     onlinePendingMatch = null;
     onlineReadySides = [];
     onlineRematchAfterCancel = false;
+    onlineReturnToCommandersAfterCancel = false;
     onlineLastResult = null;
     renderOnlineResultSummary();
     setOnlinePage("match");
@@ -8522,12 +8613,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       onlineReadyBtn.disabled = false;
       onlineReadyBtn.textContent = "게임 시작";
     }
-    setOnlineStatus(`매칭 완료: ${opponent?.displayName || "상대"}. 양쪽 모두 게임 시작을 눌러야 전투가 시작됩니다.`);
+    setOnlineStatus("매칭 완료. 양쪽 모두 게임 시작을 눌러야 전투가 시작됩니다.");
     return;
-    setOnlineStatus(
-      `매칭 완료: ${opponent?.displayName || "상대"} · seed ${message.seed} · side ${message.side}. 전투 동기화 연결 준비 완료.`,
-    );
-    enterOnlineBattle(message);
   });
   onlineClient.on("READY_STATE", (message) => {
     onlineReadySides = message.readySides || [];
@@ -8566,10 +8653,29 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       hideOnlineSyncNotice();
     }, 3000);
   });
-  onlineClient.on("MATCH_CANCELLED", () => {
+  onlineClient.on("MATCH_CANCELLED", (message = {}) => {
+    const previousMatch = onlinePendingMatch;
+    const mySide = previousMatch?.side;
+    const cancelledByMe = message?.bySide === mySide;
     onlinePendingMatch = null;
     onlineReadySides = [];
     setOnlineMatchActionState("idle");
+    renderOnlineMatchPanel();
+    if (onlineReturnToCommandersAfterCancel || cancelledByMe) {
+      onlineReturnToCommandersAfterCancel = false;
+      onlineRematchAfterCancel = false;
+      setOnlinePage("commanders");
+      setOnlineStatus("편성 화면으로 돌아왔습니다.");
+      return;
+    }
+    if (onlineRematchAfterCancel || previousMatch) {
+      onlineRematchAfterCancel = false;
+      setOnlineStatus("상대가 떠났습니다. 다시 매칭을 시작합니다...");
+      beginOnlineMatchmaking().catch(error => setOnlineStatus(error.message || "재매칭을 시작하지 못했습니다."));
+      return;
+    }
+    setOnlineStatus("매칭이 취소되었습니다.");
+    return;
     if (onlineRematchAfterCancel) {
       onlineRematchAfterCancel = false;
       beginOnlineMatchmaking().catch(error => setOnlineStatus(error.message || "재매칭을 시작하지 못했습니다."));
@@ -8597,6 +8703,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const status = document.getElementById("onlineInviteStatus");
     if (input) input.value = url;
     if (area) area.hidden = false;
+    if (onlineInvitePanel) onlineInvitePanel.hidden = false;
     if (status) status.textContent = "링크를 복사해서 친구에게 공유하세요. (15분 유효)";
     setOnlineMatchActionState("searching");
     setOnlineStatus("친구가 링크를 통해 입장하기를 기다리는 중...");
@@ -8670,6 +8777,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       setOnlineStatus("서버에 연결 중...");
       if (onlinePendingMatch) {
         onlineRematchAfterCancel = true;
+        onlineReturnToCommandersAfterCancel = false;
         setOnlineStatus("재매칭을 준비합니다...");
         onlineClient.leaveMatch();
         return;
@@ -8718,6 +8826,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       } else if (id === "onlineRecordsBackBtn") {
         setOnlinePage(onlinePreviousPage === "match" ? "match" : "commanders");
       } else if (id === "onlineBackToCommandersBtn") {
+        onlineReturnToCommandersAfterCancel = true;
+        onlineRematchAfterCancel = false;
         onlineClient.leaveQueue();
         if (onlinePendingMatch) onlineClient.leaveMatch();
         onlinePendingMatch = null;
