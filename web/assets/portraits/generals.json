@@ -102,18 +102,6 @@
     "portrait": "assets/portraits/zhao_yun.png"
   },
   {
-    "name": "황충",
-    "country": "촉한",
-    "era": "삼국시대",
-    "power": 91,
-    "leadership": 82,
-    "charm": 79,
-    "portrait": "assets/portraits/huang_zhong.png",
-    "optionalSkills": [
-      "archery"
-    ]
-  },
-  {
     "name": "마초",
     "country": "촉한",
     "era": "삼국시대",
@@ -121,30 +109,6 @@
     "leadership": 84,
     "charm": 82,
     "portrait": "assets/portraits/ma_chao.png"
-  },
-  {
-    "name": "강유",
-    "country": "촉한",
-    "era": "삼국시대",
-    "power": 86,
-    "leadership": 91,
-    "charm": 84,
-    "portrait": "assets/portraits/jiang_wei.png",
-    "optionalSkills": [
-      "archery"
-    ]
-  },
-  {
-    "name": "육손",
-    "country": "오",
-    "era": "삼국시대",
-    "power": 72,
-    "leadership": 95,
-    "charm": 86,
-    "portrait": "assets/portraits/lu_xun.png",
-    "optionalSkills": [
-      "fire"
-    ]
   },
   {
     "name": "장료",
@@ -163,33 +127,6 @@
     "leadership": 74,
     "charm": 73,
     "portrait": "assets/portraits/xu_chu.png"
-  },
-  {
-    "name": "전위",
-    "country": "위",
-    "era": "삼국시대",
-    "power": 95,
-    "leadership": 72,
-    "charm": 76,
-    "portrait": "assets/portraits/dian_wei.png"
-  },
-  {
-    "name": "등애",
-    "country": "위",
-    "era": "삼국시대",
-    "power": 83,
-    "leadership": 92,
-    "charm": 78,
-    "portrait": "assets/portraits/deng_ai.png"
-  },
-  {
-    "name": "종회",
-    "country": "위",
-    "era": "삼국시대",
-    "power": 71,
-    "leadership": 88,
-    "charm": 80,
-    "portrait": "assets/portraits/zhong_hui.png"
   },
   {
     "name": "항우",
@@ -389,15 +326,6 @@
     "portrait": "assets/portraits/caesar.png"
   },
   {
-    "name": "알렉산드로스",
-    "country": "마케도니아",
-    "era": "헬레니즘 시대",
-    "power": 95,
-    "leadership": 98,
-    "charm": 94,
-    "portrait": "assets/portraits/alexander.png"
-  },
-  {
     "name": "아틸라",
     "country": "훈",
     "era": "고대 말기",
@@ -420,5 +348,29 @@
     "optionalSkills": [
       "archery"
     ]
+  },
+  {
+    "name": "샤를마뉴",
+    "country": "프랑크 제국",
+    "era": "중세 유럽",
+    "power": 83,
+    "leadership": 95,
+    "charm": 88
+  },
+  {
+    "name": "잔다르크",
+    "country": "프랑스 왕국",
+    "era": "백년전쟁",
+    "power": 74,
+    "leadership": 89,
+    "charm": 96
+  },
+  {
+    "name": "티무르",
+    "country": "티무르 제국",
+    "era": "중세 중앙아시아",
+    "power": 91,
+    "leadership": 93,
+    "charm": 80
   }
 ]
