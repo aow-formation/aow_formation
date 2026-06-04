@@ -1579,6 +1579,11 @@ kbd {
 }
 
 .home-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  z-index: 100;
   padding: 10px 22px;
   background: rgba(20,15,5,0.92);
   border: 1px solid var(--border-mid);
@@ -1586,6 +1591,8 @@ kbd {
   color: var(--text-dim);
   font-size: 13px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .home-footer {
