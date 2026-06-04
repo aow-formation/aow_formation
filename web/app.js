@@ -7358,8 +7358,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           </div>
           <div id="onlineInviteStatus" class="online-invite-status"></div>
         `;
-        right?.appendChild(onlineInvitePanel);
       }
+      // 매번 마지막에 append해서 다른 요소들이 앞으로 재배치돼도 항상 맨 아래에 위치
+      right?.appendChild(onlineInvitePanel);
       // 매칭 화면 진입 시마다 초대 패널 초기화 (이전 코드 잔존 방지)
       const createInviteBtn = document.getElementById("onlineCreateInviteBtn");
       const inviteLinkArea  = document.getElementById("onlineInviteLinkArea");
