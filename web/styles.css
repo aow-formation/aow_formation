@@ -3092,6 +3092,61 @@ input[type="range"].adjust-slider {
   margin-top: 8px;
 }
 
+/* 매칭 화면 카드 뷰 */
+.online-match-roster {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.online-match-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 10px;
+  border: 1px solid rgba(184,138,8,0.28);
+  background: rgba(0,0,0,0.24);
+  text-align: center;
+}
+
+.online-match-card-portrait {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(226,187,104,0.34);
+  background: rgba(35,26,11,0.78);
+  color: var(--gold-bright);
+  font-size: 16px;
+  font-weight: 900;
+  overflow: hidden;
+}
+
+.online-match-card-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.online-match-card-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.online-match-card-level {
+  font-size: 10px;
+  color: var(--gold-bright);
+}
+
+.online-match-card-troop {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
 .online-commander {
   display: grid;
   grid-template-columns: 42px 1fr auto;

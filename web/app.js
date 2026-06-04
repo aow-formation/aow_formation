@@ -7290,7 +7290,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (!onlineMatchRoster) {
         onlineMatchRoster = document.createElement("div");
         onlineMatchRoster.id = "onlineMatchRoster";
-        onlineMatchRoster.className = "online-commanders online-match-roster";
+        onlineMatchRoster.className = "online-match-roster";
         matchCard.insertBefore(onlineMatchRoster, onlineMatchStatus);
       }
       if (!matchCard.querySelector(".online-search-anim")) {
@@ -8214,15 +8214,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
     if (onlineMatchRoster) {
       const commanders = player?.commanders || [];
-      onlineMatchRoster.innerHTML = commanders.map((commander, index) => `
-        <div class="online-commander">
-          ${onlinePortraitMarkup(commander, "online-commander-portrait")}
-          <div>
-            <div class="online-commander-name">${escapeHtml(commander.name)}</div>
-            <div class="online-commander-meta">${onlineCommanderLevelLabel(commander)}</div>
-            <div class="online-commander-meta">${commander.troopType} · ${formatTroops(commander.troops || 0)} · ${onlineSkillLabel(commander.skillType)}</div>
-          </div>
-          <div class="online-commander-meta">${onlineCommanderStatsText(commander)}</div>
+      onlineMatchRoster.innerHTML = commanders.map((commander) => `
+        <div class="online-match-card">
+          ${onlinePortraitMarkup(commander, "online-match-card-portrait")}
+          <div class="online-match-card-name">${escapeHtml(commander.name)}</div>
+          <div class="online-match-card-level">${onlineCommanderLevelLabel(commander)}</div>
+          <div class="online-match-card-troop">${escapeHtml(troopTypeInfo(commander.troopType)?.label || commander.troopType)} ${formatTroops(commander.troops || 0)}</div>
         </div>
       `).join("");
       settleOnlinePortraitLoading(onlineMatchRoster);
