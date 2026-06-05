@@ -712,7 +712,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const TERRAIN_ASSET    = { river:"river", wetland:"river_bank", plain:"dirt", grassland:"plain", road:"road", mountain:"forest_floor" };
   const V3 = "./assets/terrain_tiles_v3/";
 
-  const terrainSprites = { tiles: {}, masks: {}, dirt: [], plainGrass: [], forestFloor: [], objects: [], tree: null, ruggedMtn: null, ready: false };
+  const terrainSprites = { tiles: {}, masks: {}, dirt: [], plainGrass: [], forestFloor: [], objects: [], buildings: [], tree: null, ruggedMtn: [], ready: false };
 
   // ── 화공 스프라이트시트 ───────────────────────────────────────────────
   const fireSprite = new Image();
@@ -968,9 +968,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     for (let n = 0; n < 12; n++) terrainSprites.forestFloor.push(loadImg(`${V3}base_3x3/forest_floor/forest_floor_${String(n).padStart(2,"0")}.png`));
     // 나무 오브젝트
     terrainSprites.tree    = loadImg(`${V3}objects/trees/tree.png`);
-    terrainSprites.ruggedMtn = loadImg(`${V3}base_3x3/mountain/mountain_forest_16.png`);
+    terrainSprites.ruggedMtn = [
+      loadImg(`${V3}base_3x3/mountain/mountain_0006_레이어-1.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0005_레이어-2.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0004_레이어-3.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0003_레이어-4.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0002_레이어-5.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0001_레이어-6.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0000_레이어-7.png`),
+    ];
     for (let n = 0; n < 16; n += 1)
       terrainSprites.objects.push(loadImg(`./assets/objects/object_sheet_tiles/object_${String(n).padStart(2, "0")}.png`));
+    for (let n = 0; n < 9; n += 1)
+      terrainSprites.buildings.push(loadImg(`./assets/objects/building_tiles/building_${String(n).padStart(2, "0")}.png`));
 
     // 1×1 center 타일 — 지형별 다중 variant 배열
     // 파일: {asset}_center.png + {asset}_center_00.png ~ {asset}_center_05.png (총 7종)
@@ -1161,22 +1171,113 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         minimapCtx.fillStyle = isBorder[y][x] ? "#909090" : terrainInfo[terrain.tiles[y][x]].color;
         minimapCtx.fillRect(x, y, 1, 1);
       }
-    // 험준산악 16×16 감지 — 청크 정렬 제한 (단일 청크 내에 완전히 들어오는 블록만)
+    // 험준산악 8×8 감지 — 청크 정렬 제한 (단일 청크 내에 완전히 들어오는 블록만)
+    const RUGGED_MTN_SIZE = 8;
     const ruggedMtn = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
-    for (let y = 0; y < MAP_HEIGHT - 15; y++) {
-      for (let x = 0; x < MAP_WIDTH - 15; x++) {
-        if (ruggedMtn[y][x]) continue;
-        if (Math.floor(x / CHUNK_TILES) !== Math.floor((x + 15) / CHUNK_TILES)) continue;
-        if (Math.floor(y / CHUNK_TILES) !== Math.floor((y + 15) / CHUNK_TILES)) continue;
+    const ruggedMtnVariant = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
+    const ruggedMtnEdge = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
+    const ruggedCandidates = [];
+    const ruggedCandidateMap = new Map();
+    for (let y = 0; y <= MAP_HEIGHT - RUGGED_MTN_SIZE; y++) {
+      for (let x = 0; x <= MAP_WIDTH - RUGGED_MTN_SIZE; x++) {
+        if (Math.floor(x / CHUNK_TILES) !== Math.floor((x + RUGGED_MTN_SIZE - 1) / CHUNK_TILES)) continue;
+        if (Math.floor(y / CHUNK_TILES) !== Math.floor((y + RUGGED_MTN_SIZE - 1) / CHUNK_TILES)) continue;
         let ok = true;
-        for (let dy = 0; dy < 16 && ok; dy++)
-          for (let dx = 0; dx < 16 && ok; dx++)
+        for (let dy = 0; dy < RUGGED_MTN_SIZE && ok; dy++)
+          for (let dx = 0; dx < RUGGED_MTN_SIZE && ok; dx++)
             if (terrain.tiles[y + dy][x + dx] !== "mountain") ok = false;
-        if (ok && Math.random() < 0.5) {
-          ruggedMtn[y][x] = 1;
-          for (let dy = 0; dy < 16; dy++)
-            for (let dx = 0; dx < 16; dx++)
-              if (dy || dx) ruggedMtn[y + dy][x + dx] = 2;
+        if (!ok) continue;
+        const key = y * MAP_WIDTH + x;
+        const lowNoise = (tileHash(Math.floor(x / 24) * 193 + 17, Math.floor(y / 24) * 389 + 29) % 10000) / 10000;
+        const localNoise = (tileHash(x * 53 + 101, y * 97 + 307) % 10000) / 10000;
+        const candidate = { x, y, key, score: lowNoise * 0.78 + localNoise * 0.22 };
+        ruggedCandidates.push(candidate);
+        ruggedCandidateMap.set(key, candidate);
+      }
+    }
+
+    const hasRuggedNearby = (x, y, radius) => {
+      const x0 = Math.max(0, x - radius);
+      const y0 = Math.max(0, y - radius);
+      const x1 = Math.min(MAP_WIDTH - 1, x + RUGGED_MTN_SIZE + radius);
+      const y1 = Math.min(MAP_HEIGHT - 1, y + RUGGED_MTN_SIZE + radius);
+      for (let ty = y0; ty <= y1; ty++)
+        for (let tx = x0; tx <= x1; tx++)
+          if (ruggedMtn[ty][tx]) return true;
+      return false;
+    };
+
+    const canPlaceRugged = (x, y) => {
+      const candidate = ruggedCandidateMap.get(y * MAP_WIDTH + x);
+      if (!candidate) return false;
+      for (let dy = 0; dy < RUGGED_MTN_SIZE; dy++)
+        for (let dx = 0; dx < RUGGED_MTN_SIZE; dx++)
+          if (ruggedMtn[y + dy][x + dx]) return false;
+      return true;
+    };
+
+    const placeRugged = (x, y) => {
+      const ruggedVariant = tileHash(x * 211 + 19, y * 331 + 43) % 7;
+      ruggedMtn[y][x] = 1;
+      ruggedMtnVariant[y][x] = ruggedVariant;
+      for (let dy = 0; dy < RUGGED_MTN_SIZE; dy++)
+        for (let dx = 0; dx < RUGGED_MTN_SIZE; dx++) {
+          const ty = y + dy;
+          const tx = x + dx;
+          if (dy || dx) ruggedMtn[ty][tx] = 2;
+          ruggedMtnEdge[ty][tx] = (dy === RUGGED_MTN_SIZE - 1 || dx === RUGGED_MTN_SIZE - 1)
+            ? 2
+            : (dy === RUGGED_MTN_SIZE - 2 || dx === RUGGED_MTN_SIZE - 2 || dy === 0 || dx === 0) ? 1 : 0;
+        }
+    };
+
+    const neighborOffsets = [
+      [ RUGGED_MTN_SIZE, 0], [-RUGGED_MTN_SIZE, 0],
+      [0,  RUGGED_MTN_SIZE], [0, -RUGGED_MTN_SIZE],
+      [ RUGGED_MTN_SIZE,  RUGGED_MTN_SIZE], [-RUGGED_MTN_SIZE, -RUGGED_MTN_SIZE],
+      [ RUGGED_MTN_SIZE, -RUGGED_MTN_SIZE], [-RUGGED_MTN_SIZE,  RUGGED_MTN_SIZE],
+    ];
+    ruggedCandidates.forEach((candidate) => {
+      const neighborCount = neighborOffsets.reduce((sum, [dx, dy]) =>
+        sum + (ruggedCandidateMap.has((candidate.y + dy) * MAP_WIDTH + candidate.x + dx) ? 1 : 0), 0);
+      candidate.score += neighborCount * 0.045;
+    });
+    ruggedCandidates.sort((a, b) => b.score - a.score);
+
+    const maxClusters = Math.max(1, Math.floor(ruggedCandidates.length / 120));
+    let clusterCount = 0;
+    for (const seed of ruggedCandidates) {
+      if (clusterCount >= maxClusters) break;
+      if (seed.score < 0.58) continue;
+      if (hasRuggedNearby(seed.x, seed.y, RUGGED_MTN_SIZE)) continue;
+      if (!canPlaceRugged(seed.x, seed.y)) continue;
+
+      const targetBlocks = 2 + (tileHash(seed.x * 43 + 5, seed.y * 59 + 11) % 4);
+      const placed = [];
+      placeRugged(seed.x, seed.y);
+      placed.push(seed);
+      clusterCount += 1;
+
+      for (let i = 0; i < placed.length && placed.length < targetBlocks; i++) {
+        const base = placed[i];
+        const neighbors = neighborOffsets
+          .map(([dx, dy]) => ruggedCandidateMap.get((base.y + dy) * MAP_WIDTH + base.x + dx))
+          .filter(Boolean)
+          .sort((a, b) => (b.score - a.score) || ((tileHash(a.x, a.y) % 1000) - (tileHash(b.x, b.y) % 1000)));
+        for (const next of neighbors) {
+          if (placed.length >= targetBlocks) break;
+          if (!canPlaceRugged(next.x, next.y)) continue;
+          placeRugged(next.x, next.y);
+          placed.push(next);
+        }
+      }
+    }
+
+    if (!clusterCount) {
+      for (const candidate of ruggedCandidates) {
+        if (canPlaceRugged(candidate.x, candidate.y)) {
+          placeRugged(candidate.x, candidate.y);
+          break;
         }
       }
     }
@@ -1190,7 +1291,65 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
     }
 
-    return { isBorder, borderData, block, variant, ruggedMtn, objectMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false, chunkPixiReady: false };
+    const buildingMap = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
+    /*
+    const canUseBuildingFootprint = (x, y) => {
+      if (x + 1 >= MAP_WIDTH || y + 1 >= MAP_HEIGHT) return false;
+      for (let dy = 0; dy < 2; dy += 1) {
+        for (let dx = 0; dx < 2; dx += 1) {
+          const tx = x + dx;
+          const ty = y + dy;
+          if (terrain.tiles[ty][tx] !== "plain" || isBorder[ty][tx] || objectMap[ty][tx]) return false;
+        }
+      }
+      return true;
+    };
+    const canPlaceBuilding = (x, y) => {
+      if (!canUseBuildingFootprint(x, y)) return false;
+      for (let ay = Math.max(0, y - 1); ay <= y + 1 && ay < MAP_HEIGHT; ay += 1) {
+        for (let ax = Math.max(0, x - 1); ax <= x + 1 && ax < MAP_WIDTH; ax += 1) {
+          if (buildingMap[ay][ax]) return false;
+        }
+      }
+      return true;
+    };
+    const buildingCandidates = [];
+    for (let y = 0; y < MAP_HEIGHT - 1; y++) {
+      for (let x = 0; x < MAP_WIDTH - 1; x++) {
+        if (!canUseBuildingFootprint(x, y)) continue;
+        buildingCandidates.push({ x, y, h: tileHash(x + 719, y + 1543) });
+      }
+    }
+    buildingCandidates.sort((a, b) => (b.h - a.h) || (a.y - b.y) || (a.x - b.x));
+    const buildingClusterCount = buildingCandidates.length ? 1 + (tileHash(MAP_WIDTH + 719, MAP_HEIGHT + 1543) % 2) : 0;
+    const buildingSeeds = [];
+    for (const candidate of buildingCandidates) {
+      if (buildingSeeds.length >= buildingClusterCount) break;
+      if (buildingSeeds.some(seed => Math.hypot(seed.x - candidate.x, seed.y - candidate.y) < 24)) continue;
+      buildingSeeds.push(candidate);
+    }
+    const placeBuildingCluster = (seed) => {
+      const targetCount = 6 + (tileHash(seed.x + 811, seed.y + 1619) % 10);
+      const clusterCandidates = buildingCandidates
+        .map(candidate => {
+          const dist = Math.hypot(candidate.x - seed.x, candidate.y - seed.y);
+          const scatter = (tileHash(candidate.x + seed.x * 3, candidate.y + seed.y * 5) % 1000) / 1000;
+          return { ...candidate, dist, score: dist + scatter * 2.5 };
+        })
+        .filter(candidate => candidate.dist <= 24)
+        .sort((a, b) => a.score - b.score);
+      let placed = 0;
+      for (const candidate of clusterCandidates) {
+        if (placed >= targetCount) break;
+        if (!canPlaceBuilding(candidate.x, candidate.y)) continue;
+        buildingMap[candidate.y][candidate.x] = 1 + ((candidate.h >>> 8) % 9);
+        placed += 1;
+      }
+    };
+    buildingSeeds.forEach(placeBuildingCluster);
+    */
+
+    return { isBorder, borderData, block, variant, ruggedMtn, ruggedMtnVariant, ruggedMtnEdge, objectMap, buildingMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false, chunkPixiReady: false };
   }
 
   function chooseNames() {
@@ -3043,9 +3202,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         return len(slot.x - u.x, slot.y - u.y) >= POSITION_DEFENSE_THRESHOLD;
       }).length;
       const outRatio = outOfPositionCount / alive.length;
-      const distMult = 1 + outRatio * 8.0;
-      const accumRate = 0.001 * terrainMult * distMult * (1 - formation.general.charm / 100 * 0.5);
-      formation.disorderAccum = Math.min(1, formation.disorderAccum + accumRate * dt);
+      if (outRatio > 0.02) {
+        const distMult = 1 + outRatio * 8.0;
+        const accumRate = 0.001 * terrainMult * distMult * (1 - formation.general.charm / 100 * 0.5);
+        formation.disorderAccum = Math.min(1, formation.disorderAccum + accumRate * dt);
+      } else {
+        const charmRecovery = Math.max(0, (formation.general.charm - 50) / 50);
+        const recoveryRate = 0.0005 * charmRecovery;
+        formation.disorderAccum = Math.max(0, formation.disorderAccum - recoveryRate * dt);
+      }
     }
     formation.disorder = Math.min(1, survivalDisorder + formation.disorderAccum);
 
@@ -3248,6 +3413,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       // 오브젝트 타일 통과 차단: 타일 중심에서 강한 반발력
       {
         const objMap = game.terrainRender.objectMap;
+        const buildingMap = game.terrainRender.buildingMap;
         const OBJ_R = 1.0;
         for (let dy = -2; dy <= 2; dy++) {
           for (let dx = -2; dx <= 2; dx++) {
@@ -3260,6 +3426,23 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
               const t = (OBJ_R - d) / OBJ_R;
               unit.vx += (ex / d) * t * t * 16.0 * dt;
               unit.vy += (ey / d) * t * t * 16.0 * dt;
+            }
+          }
+        }
+        if (buildingMap) {
+          const BUILDING_R = 1.45;
+          for (let dy = -3; dy <= 3; dy++) {
+            for (let dx = -3; dx <= 3; dx++) {
+              const tx = clamp(Math.floor(unit.x) + dx, 0, MAP_WIDTH - 1);
+              const ty = clamp(Math.floor(unit.y) + dy, 0, MAP_HEIGHT - 1);
+              if (!buildingMap[ty][tx]) continue;
+              const ex = unit.x - (tx + 1.0), ey = unit.y - (ty + 1.0);
+              const d = len(ex, ey);
+              if (d < BUILDING_R && d > 0.001) {
+                const t = (BUILDING_R - d) / BUILDING_R;
+                unit.vx += (ex / d) * t * t * 18.0 * dt;
+                unit.vy += (ey / d) * t * t * 18.0 * dt;
+              }
             }
           }
         }
@@ -3782,17 +3965,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
 
     // Pass 3A: 험준산악 — 청크 정렬 보장, 단일 청크 내 안전 렌더링
-    const ruggedImg = terrainSprites.ruggedMtn;
-    if (ruggedImg?.naturalWidth) {
+    const ruggedSprites = terrainSprites.ruggedMtn;
+    if (ruggedSprites?.length) {
       chunkCtx.imageSmoothingEnabled = true;
       chunkCtx.imageSmoothingQuality = "high";
       tiles.forEach(([, x, y]) => {
         if (game.terrainRender.ruggedMtn[y][x] !== 1) return;
+        const ruggedImg = ruggedSprites[game.terrainRender.ruggedMtnVariant?.[y]?.[x] % ruggedSprites.length];
+        if (!ruggedImg?.naturalWidth) return;
         const iso = isoPoint(x, y);
         const px  = iso.x - minIsoX;
         const py  = iso.y - minIsoY;
-        const w   = game.tileW * 16;
-        const h   = tileH * 16;
+        const w   = game.tileW * 8;
+        const h   = tileH * 8;
         chunkCtx.drawImage(ruggedImg, px - w / 2, py, w, h);
       });
     }
@@ -3818,6 +4003,24 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
 
     // Pass 3: 나무 — 캔버스 드로잉 + 월드 좌표 수집 (Y정렬 분리 시 활용)
+    const buildingSprites = terrainSprites.buildings;
+    if (buildingSprites?.length && game.terrainRender.buildingMap) {
+      chunkCtx.imageSmoothingEnabled = true;
+      chunkCtx.imageSmoothingQuality = "high";
+      tiles.forEach(([, x, y]) => {
+        const buildingIndex = game.terrainRender.buildingMap[y][x] - 1;
+        if (buildingIndex < 0) return;
+        const buildingImg = buildingSprites[buildingIndex % buildingSprites.length];
+        if (!buildingImg?.naturalWidth) return;
+        const iso = isoPoint(x + 1, y + 1);
+        const px = iso.x - minIsoX;
+        const py = iso.y - minIsoY;
+        const w = game.tileW * 2;
+        const h = Math.round(w * buildingImg.naturalHeight / buildingImg.naturalWidth);
+        chunkCtx.drawImage(buildingImg, px - w / 2, py + tileH * 0.5 - h, w, h);
+      });
+    }
+
     const trees = [];
     const treeImg = terrainSprites.tree;
     if (treeImg?.naturalWidth) {
@@ -3849,6 +4052,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             if      (onSW || onSE)          edgeWeight = 2;
             else if (onSW2 || onSE2)        edgeWeight = 1;
             else if (onNW  || onNE)         edgeWeight = 1;
+            edgeWeight = game.terrainRender.ruggedMtnEdge?.[ty]?.[tx] ?? edgeWeight;
             if (edgeWeight === 0) continue; // 내부 타일: 나무 없음
           } else if (ruggedVal !== 0) {
             continue; // 앵커 타일(=1): 건너뜀
