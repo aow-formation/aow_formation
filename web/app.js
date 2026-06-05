@@ -3665,7 +3665,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         }
         if (!formation.followTarget) return;
         const alive = formation.followTarget.units.some(isUnitAlive);
-        if (!alive) { formation.followTarget = null; return; }
+        if (!alive) {
+          if (enemyTargetTooltipEnemy === formation.followTarget) {
+            enemyTargetTooltip.hidden = true;
+            enemyTargetTooltipEnemy = null;
+            clearTimeout(enemyTargetTooltipTimer);
+          }
+          formation.followTarget = null;
+          formation.target = null;
+          formation.targetSetTime = -999;
+          return;
+        }
         formation.target = formationCenter(formation.followTarget);
       });
 
@@ -4540,6 +4550,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const center = formationCenter(f);
       return effectiveDistance(center.x, center.y, unit.x, unit.y) <= 60;
     });
+  }
+
+  function isEnemyFormationVisible(formation) {
+    if (!formation || formation.team !== "enemy") return false;
+    if (game.battlePhase !== "live") return true;
+    return formation.units.some((unit) => isUnitAlive(unit) && isEnemyVisible(unit));
   }
 
   // ── 말풍선 시스템 ────────────────────────────────────────────────────
@@ -5699,14 +5715,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   endBattleBtn.addEventListener("click", () => {
     if (isOnlineMode()) {
+      if (game.battlePhase === "live" && !game.online?.resultSubmitted) {
+        submitOnlineResult(false);
+      }
+      game.battlePhase = "ended";
+      showBattleResult(false);
       onlineClient.disconnect();
-      disableOnlineRandom();
       if (game.online?.isGuest) {
         onlineClient.isGuest = false;
         onlineClient.player = null;
       }
-      game.online = null;
-      game.mode = "quick";
+      return;
     }
     setScreen("home");
   });
@@ -5871,6 +5890,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     let minDist = 8.0;
     for (const f of game.enemyFormations) {
       if (!f.units.some(isUnitAlive)) continue;
+      if (!isEnemyFormationVisible(f)) continue;
       const center = formationCenter(f);
       const d = len(center.x - tile.x, center.y - tile.y);
       if (d < minDist) { minDist = d; clickedEnemy = f; }
@@ -7246,6 +7266,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const replayBtn = document.getElementById("resultReplay");
     const newBattleBtn = document.getElementById("resultNewBattle");
     const homeBtn = document.getElementById("resultHome");
+    if (battleResultScreen) battleResultScreen.dataset.online = isOnlineMode() ? "true" : "false";
     if (replayBtn) replayBtn.hidden = isOnlineMode();
     if (newBattleBtn) newBattleBtn.hidden = isOnlineMode();
     if (homeBtn) homeBtn.textContent = onlineResult ? "온라인 로비로" : "홈 화면";
@@ -7306,7 +7327,104 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return container;
   }
 
+  function renderBattleResultOnlineCommanderCards() {
+    const container = battleResultProgressContainer();
+    if (!container) return;
+    if (!isOnlineMode()) {
+      container.hidden = true;
+      container.innerHTML = "";
+      return;
+    }
+    container.hidden = false;
+    const progress = onlineLastResult?.my?.commanderProgress || [];
+    const progressBySlot = new Map();
+    const progressByTemplate = new Map();
+    progress.forEach((item, index) => {
+      if (Number.isInteger(item.slotIndex)) progressBySlot.set(item.slotIndex, item);
+      if (item.templateId) progressByTemplate.set(item.templateId, item);
+      progressBySlot.set(index, item);
+    });
+    const pending = !onlineLastResult;
+    const guest = Boolean(game.online?.isGuest);
+    const cards = game.playerFormations.map((formation, index) => {
+      const templateId = formation.general.templateId || formation.general.id || formation.general.name;
+      const progressItem = progressBySlot.get(index) || progressByTemplate.get(templateId) || null;
+      return {
+        ...formation.general,
+        ...progressItem,
+        templateId,
+        name: progressItem?.name || formation.general.name,
+        portrait: progressItem?.portrait || formation.general.portrait,
+        slotIndex: index,
+        battleKills: Math.round(Math.max(0, formation.general.kills || 0)),
+        battleLosses: Math.round(Math.max(0, formation.general.losses || 0)),
+        battleRemaining: Math.round(formationRemainingTroops(formation)),
+        levelAfter: progressItem?.levelAfter ?? formation.general.level ?? 0,
+        expAfter: progressItem?.expAfter ?? formation.general.exp ?? 0,
+        gainedExp: progressItem?.gainedExp ?? 0,
+        nextRequiredExp: progressItem?.nextRequiredExp ?? progressItem?.requiredExp ?? 0,
+        leveledUp: Boolean(progressItem?.leveledUp),
+        hasProgress: Boolean(progressItem),
+      };
+    });
+    if (!cards.length) {
+      container.innerHTML = `<div class="result-growth-title">장수 결과</div><div class="result-growth-empty">표시할 아군 장수 정보가 없습니다.</div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="result-growth-title">장수 결과</div>
+      <div class="result-growth-grid">
+        ${cards.map(item => {
+          const levelAfter = item.levelAfter ?? item.levelBefore ?? 0;
+          const isMax = levelAfter >= 50;
+          const expAfter = item.expAfter || 0;
+          const nextReq = item.nextRequiredExp ?? item.requiredExp ?? 0;
+          const expPct = isMax ? 100 : (nextReq > 0 ? Math.min(100, expAfter / nextReq * 100) : 0);
+          const gainedExp = item.gainedExp || 0;
+          const expLabel = isMax ? "MAX" : `${formatTroops(expAfter)} / ${formatTroops(nextReq)}`;
+          const note = guest
+            ? "게스트 경기는 장수 경험치가 저장되지 않습니다."
+            : pending
+              ? "장수 성장 집계 중입니다."
+              : item.hasProgress
+                ? (gainedExp > 0 ? "이번 경기 경험치가 반영되었습니다." : "이번 경기에서 반영되는 경험치가 없습니다.")
+                : "이번 경기에서 반영되는 경험치가 없습니다.";
+          const levelUpIcon = item.leveledUp
+            ? `<img class="result-growth-levelup-icon" src="./assets/ui/levelup_icon.png" alt="" aria-hidden="true" draggable="false" />`
+            : "";
+          return `
+            <div class="result-growth-card ${item.leveledUp ? "is-level-up" : ""}">
+              ${onlinePortraitMarkup(item, "result-growth-portrait", { overlayHtml: levelUpIcon })}
+              <div class="result-growth-main">
+                ${item.leveledUp ? `<div class="result-growth-levelup-row"><span class="result-growth-levelup">LEVEL UP</span></div>` : ""}
+                <div class="result-growth-header">
+                  <span class="result-growth-name">${escapeHtml(item.name || item.templateId)}</span>
+                  <div class="result-growth-lv-badge">
+                    <span class="result-growth-lv">Lv ${levelAfter}</span>
+                  </div>
+                </div>
+                <div class="result-growth-exp-row">
+                  <div class="result-growth-expbar">
+                    <div class="result-growth-expbar-fill" style="width:${expPct.toFixed(1)}%"></div>
+                  </div>
+                  <span class="result-growth-exp-text">${gainedExp > 0 ? `+${formatTroops(gainedExp)} EXP · ` : ""}${expLabel}</span>
+                </div>
+                <div class="result-growth-battle-stats">
+                  <div class="result-growth-battle-stat"><span>격파</span><strong>${formatTroops(item.battleKills)}</strong></div>
+                  <div class="result-growth-battle-stat"><span>손실</span><strong>${formatTroops(item.battleLosses)}</strong></div>
+                  <div class="result-growth-battle-stat"><span>잔여</span><strong>${formatTroops(item.battleRemaining)}</strong></div>
+                </div>
+                <div class="result-growth-note">${escapeHtml(note)}</div>
+              </div>
+            </div>`;
+        }).join("")}
+      </div>
+    `;
+    settleOnlinePortraitLoading(container);
+  }
+
   function renderBattleResultOnlineProgress() {
+    return renderBattleResultOnlineCommanderCards();
     const container = battleResultProgressContainer();
     if (!container) return;
     if (!isOnlineMode()) {
