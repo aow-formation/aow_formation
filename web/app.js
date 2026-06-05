@@ -7485,6 +7485,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     recentCard?.classList.add("online-page-card", "online-records-card", "online-card--wide");
     leaderboardCard?.classList.add("online-page-card", "online-records-card");
 
+    const commanderTitle = commanderCard?.querySelector("h3");
+    if (commanderTitle) commanderTitle.textContent = "출전장수";
+
     if (authCard && !onlineAuthStatus) {
       onlineAuthStatus = document.createElement("div");
       onlineAuthStatus.id = "onlineAuthStatus";
@@ -7505,14 +7508,25 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         actions.className = "online-actions online-loadout-actions";
         commanderCard.appendChild(actions);
       }
+      let loadoutHint = commanderCard.querySelector(".online-loadout-action-hint");
+      if (!loadoutHint) {
+        loadoutHint = document.createElement("div");
+        loadoutHint.className = "online-loadout-action-hint";
+        loadoutHint.textContent = "전투에 출전할 장수 5명을 설정해주세요.";
+        commanderCard.insertBefore(loadoutHint, actions);
+      }
       onlineRecordsBtn = makeOnlineButton("onlineRecordsBtn", "전적/랭킹");
       onlineSaveLoadoutBtn = makeOnlineButton("onlineSaveLoadoutBtn", "편성 저장");
       onlineGoMatchBtn = makeOnlineButton("onlineGoMatchBtn", "매칭 화면으로", "btn-primary");
       onlineLogoutBtn = onlineLogoutBtn || makeOnlineButton("onlineLogoutBtn", "로그아웃");
       onlineLogoutBtn.hidden = false;
-      [onlineRecordsBtn, onlineSaveLoadoutBtn, onlineGoMatchBtn].forEach((button) => {
+      [onlineSaveLoadoutBtn, onlineGoMatchBtn].forEach((button) => {
         if (!actions.contains(button)) actions.appendChild(button);
       });
+      if (onlineRecordsBtn) {
+        onlineRecordsBtn.hidden = true;
+        if (actions.contains(onlineRecordsBtn)) actions.removeChild(onlineRecordsBtn);
+      }
       if (onlineSaveLoadoutBtn) {
         onlineSaveLoadoutBtn.hidden = true;
         if (actions.contains(onlineSaveLoadoutBtn)) actions.removeChild(onlineSaveLoadoutBtn);
