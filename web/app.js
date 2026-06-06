@@ -882,6 +882,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   unitIdleSprite.src = './assets/units/ancient_infantry_helmet_idle_1.png';
   const unitIdleBlueSprite = new Image();
   unitIdleBlueSprite.src = './assets/units/ancient_infantry_helmet_idle_1_blue.png';
+  const unitDamageEffectSprite = new Image();
+  unitDamageEffectSprite.src = './assets/units/demage.png';
   const gameSpriteImages = [
     fireSprite,
     ...remainsSprites,
@@ -895,8 +897,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     cavalryWalkBackBlueSprite,
     unitIdleSprite,
     unitIdleBlueSprite,
+    unitDamageEffectSprite,
   ];
   const UNIT_WALK_FRAMES = 5;
+  const UNIT_DAMAGE_EFFECT_FRAMES = 5;
+  const UNIT_DAMAGE_EFFECT_DURATION = 0.38;
   const UNIT_WALK_SCALE = 0.85;
   const FIRST_ROW_BONUS_DIVISOR = 50;
   const FOG_BLUR_STRENGTH = 14;
@@ -915,6 +920,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   let pixiFogVision  = null; // 영구 재사용 Graphics (vision erase)
   let pixiFogScene   = null; // 영구 재사용 Container
   const pixiUnitSprites = new Map(); // unit.id → PixiSprite
+  const pixiDamageEffectSprites = new Map();
   const pixiWalkTex  = {
     infantry: { player: [], enemy: [] },
     cavalry:  { player: [], enemy: [] },
@@ -925,6 +931,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     infantry: { player: null, enemy: null },
     cavalry:  { player: null, enemy: null },
   };
+  const pixiDamageEffectTex = [];
   let pixiReady      = false;
   let pixiTerrainCtr = null;
   let pixiTreeCtr    = null;
@@ -984,7 +991,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         }
         return null;
       };
-      const [wP, wE, cP, cE, cBack, cBackBlue, iP, iE, treeT] = await Promise.all([
+      const [wP, wE, cP, cE, cBack, cBackBlue, iP, iE, treeT, dmgT] = await Promise.all([
         load('./assets/units/ancient_infantry_helmet_walk.png'),
         load('./assets/units/ancient_infantry_helmet_walk_blue.png'),
         loadFirst(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.E),
@@ -994,6 +1001,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         load('./assets/units/ancient_infantry_helmet_idle_1.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1_blue.png'),
         load('./assets/terrain_tiles_v3/objects/trees/tree.png'),
+        load('./assets/units/demage.png'),
       ]);
       pixiTreeTex = treeT;
       // 픽셀아트: 모든 유닛 텍스처에 nearest-neighbor 보간 설정
@@ -1039,6 +1047,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (iE) pixiIdleTex.infantry.enemy  = iE;
       pixiIdleTex.cavalry.player = pixiWalkTex.cavalry.player[0] || null;
       pixiIdleTex.cavalry.enemy  = pixiWalkTex.cavalry.enemy[0] || null;
+      if (dmgT) {
+        dmgT.source.scaleMode = 'nearest';
+        const fw = dmgT.width / UNIT_DAMAGE_EFFECT_FRAMES;
+        pixiDamageEffectTex.splice(0, pixiDamageEffectTex.length, ...Array.from({ length: UNIT_DAMAGE_EFFECT_FRAMES }, (_, i) =>
+          new Texture({ source: dmgT.source, frame: new PixiRect(i * fw, 0, fw, dmgT.height) })
+        ));
+      }
 
       pixiReady = true;
     } catch (e) {
@@ -1852,6 +1867,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         vx: 0,
         vy: 0,
         damage: 0,
+        damageEffectTimer: 0,
         capacity,
         slotIndex: i,
         slotLocal: vec(),
@@ -2794,6 +2810,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (prevDamage >= capacity) return 0;
     const appliedDamage = Math.min(amount, capacity - prevDamage);
     unit.damage = Math.min(capacity, prevDamage + appliedDamage);
+    if (options.meleeEffect === true && appliedDamage > 0 && (unit.damageEffectTimer || 0) <= 0) {
+      unit.damageEffectTimer = UNIT_DAMAGE_EFFECT_DURATION;
+    }
     targetFormation.general.losses += appliedDamage;
     if (attackerFormation && attackerFormation !== targetFormation) {
       attackerFormation.general.kills += appliedDamage;
@@ -3385,7 +3404,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           // 근접 공격 (매 프레임 × dt) — 방어력 초과 시에도 최소 5% 피해 보장
           const rawAttack = unitAttack(formation) * attackerBonus * facingMult;
           const damage = Math.max(1, rawAttack - unitDefense(enemyTarget.formation, enemyTarget.unit) * defenderBonus * guardDefenseMult);
-          applyUnitDamage(enemyTarget.formation, enemyTarget.unit, damage * dt, formation);
+          applyUnitDamage(enemyTarget.formation, enemyTarget.unit, damage * dt, formation, { meleeEffect: true });
         } else if (canFormationRangedAttack(formation) && unit.rangedCooldown <= 0) {
           // 원거리 공격 (쿨타임 1초)
           const rangedDamage = Math.max(RANGED_MIN_DAMAGE, rangedAttack(formation) * facingMult
@@ -3764,6 +3783,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       };
 
       const allFormations = orderedAllFormations();
+      allFormations.forEach((formation) => {
+        formation.units.forEach((unit) => {
+          if ((unit.damageEffectTimer || 0) > 0) {
+            unit.damageEffectTimer = Math.max(0, unit.damageEffectTimer - dt);
+          }
+        });
+      });
       allFormations.forEach((formation) => {
         if (!formation.retreated && formation.units.some(isUnitAlive) && reachedRetreatEdge(formation, formation.team)) {
           formation.retreated = true;
@@ -4346,6 +4372,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     pixiGlowGfx.clear();
 
     const visibleIds = new Set();
+    const visibleDamageEffectIds = new Set();
 
     visible.forEach(({ formation, unit }, depth) => {
       visibleIds.add(unit.id);
@@ -4420,6 +4447,32 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       sprite.scale.y = spScale;
       sprite.zIndex  = unit.x + unit.y;
       sprite.visible = true;
+
+      const effectTimer = unit.damageEffectTimer || 0;
+      const effectFrame = effectTimer > 0 && pixiDamageEffectTex.length
+        ? Math.min(UNIT_DAMAGE_EFFECT_FRAMES - 1, Math.floor((1 - effectTimer / UNIT_DAMAGE_EFFECT_DURATION) * UNIT_DAMAGE_EFFECT_FRAMES))
+        : -1;
+      let effectSprite = pixiDamageEffectSprites.get(unit.id);
+      if (effectFrame >= 0) {
+        if (!effectSprite) {
+          effectSprite = new PixiSprite();
+          effectSprite.anchor.set(0.5, 1);
+          pixiUnitCtr.addChild(effectSprite);
+          pixiDamageEffectSprites.set(unit.id, effectSprite);
+        }
+        const effectTex = pixiDamageEffectTex[effectFrame];
+        const effectScale = effectTex ? (dh * 1.08) / effectTex.height : spScale;
+        effectSprite.texture = effectTex;
+        effectSprite.x = cx;
+        effectSprite.y = cy;
+        effectSprite.scale.set(effectScale);
+        effectSprite.zIndex = unit.x + unit.y + 0.02;
+        effectSprite.alpha = 0.5;
+        effectSprite.visible = true;
+        visibleDamageEffectIds.add(unit.id);
+      } else if (effectSprite) {
+        effectSprite.visible = false;
+      }
     });
 
     // 살아있지만 현재 비가시 유닛은 hide (destroy 안 함 — 다시 보일 수 있음)
@@ -4434,6 +4487,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         sprite.destroy();
         pixiUnitSprites.delete(id);
       } else if (!visibleIds.has(id)) {
+        sprite.visible = false;
+      }
+    }
+    for (const [id, sprite] of pixiDamageEffectSprites) {
+      if (!aliveIds.has(id)) {
+        sprite.destroy();
+        pixiDamageEffectSprites.delete(id);
+      } else if (!visibleDamageEffectIds.has(id)) {
         sprite.visible = false;
       }
     }
@@ -4981,6 +5042,27 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         ctx.restore();
       } else {
         ctx.drawImage(sprite, drawX, drawY, drawW, drawH);
+      }
+      if ((unit.damageEffectTimer || 0) > 0 && unitDamageEffectSprite.naturalWidth > 0) {
+        const effectFrameW = unitDamageEffectSprite.naturalWidth / UNIT_DAMAGE_EFFECT_FRAMES;
+        const effectFrameH = unitDamageEffectSprite.naturalHeight;
+        const effectFrame = Math.min(
+          UNIT_DAMAGE_EFFECT_FRAMES - 1,
+          Math.floor((1 - unit.damageEffectTimer / UNIT_DAMAGE_EFFECT_DURATION) * UNIT_DAMAGE_EFFECT_FRAMES)
+        );
+        const effectDrawH = drawH * 1.08;
+        const effectDrawW = effectDrawH * (effectFrameW / effectFrameH);
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(
+          unitDamageEffectSprite,
+          effectFrame * effectFrameW, 0, effectFrameW, effectFrameH,
+          Math.round(cx - effectDrawW / 2),
+          Math.round(cy - effectDrawH),
+          Math.round(effectDrawW),
+          Math.round(effectDrawH)
+        );
+        ctx.restore();
       }
     });
     ctx.imageSmoothingEnabled = true;
@@ -7399,7 +7481,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     } else if (isScenarioDefeat) {
       if (replayBtn) replayBtn.hidden = true;
       if (newBattleBtn) newBattleBtn.hidden = true;
-      if (homeBtn) homeBtn.hidden = true;
+      if (homeBtn) {
+        homeBtn.hidden = false;
+        homeBtn.textContent = "시나리오 선택";
+      }
       if (confirmBtn) confirmBtn.hidden = true;
       if (retryBtn) retryBtn.hidden = false;
       if (scenarioHeader) scenarioHeader.hidden = false;
@@ -9467,9 +9552,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   });
 
   // 결과 화면: 홈 화면
-  document.getElementById("resultHome").addEventListener("click", () => {
-    if (isOnlineMode()) {
-      const wasGuest = Boolean(game.online?.isGuest);
+    document.getElementById("resultHome").addEventListener("click", () => {
+      if (isOnlineMode()) {
+        const wasGuest = Boolean(game.online?.isGuest);
       disableOnlineRandom();
       game.online = null;
       game.mode = "quick";
@@ -9482,6 +9567,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
       setScreen("online");
       setOnlinePage(onlineClient.player ? "commanders" : "auth");
+      return;
+    }
+    if (isHistoricalMode()) {
+      game.scenarioData = null;
+      game.mode = "quick";
+      renderScenarioSelect();
+      setScreen("scenarioSelect");
+      refreshHistoricalScenarioClears().then(renderScenarioSelect);
       return;
     }
     setScreen("home");

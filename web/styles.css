@@ -2495,6 +2495,11 @@ input[type="range"].adjust-slider {
   height: 104px;
 }
 
+.battle-result-screen[data-online="false"] .result-growth-card {
+  width: 66%;
+  justify-self: center;
+}
+
 .battle-result-screen[data-online="false"] .result-growth-battle-stats {
   grid-template-columns: 1fr;
   gap: 5px;
