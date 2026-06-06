@@ -7264,11 +7264,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const isGuest = isOnlineMode() && Boolean(game.online?.isGuest);
     const onlineResult = isOnlineMode() && !isGuest;
     const isScenarioVictory = isHistoricalMode() && won;
+    const isScenarioDefeat  = isHistoricalMode() && !won;
     const replayBtn = document.getElementById("resultReplay");
     const newBattleBtn = document.getElementById("resultNewBattle");
     const homeBtn = document.getElementById("resultHome");
     if (battleResultScreen) battleResultScreen.dataset.online = isOnlineMode() ? "true" : "false";
     const confirmBtn = document.getElementById("resultConfirm");
+    const retryBtn = document.getElementById("resultScenarioRetry");
     const scenarioHeader = document.getElementById("resultScenarioHeader");
 
     if (isScenarioVictory) {
@@ -7276,7 +7278,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (newBattleBtn) newBattleBtn.hidden = true;
       if (homeBtn) homeBtn.hidden = true;
       if (confirmBtn) confirmBtn.hidden = false;
+      if (retryBtn) retryBtn.hidden = true;
       if (scenarioHeader) scenarioHeader.hidden = false;
+    } else if (isScenarioDefeat) {
+      if (replayBtn) replayBtn.hidden = true;
+      if (newBattleBtn) newBattleBtn.hidden = true;
+      if (homeBtn) homeBtn.hidden = true;
+      if (confirmBtn) confirmBtn.hidden = true;
+      if (retryBtn) retryBtn.hidden = false;
+      if (scenarioHeader) scenarioHeader.hidden = true;
     } else {
       if (replayBtn) replayBtn.hidden = isOnlineMode();
       if (newBattleBtn) newBattleBtn.hidden = isOnlineMode();
@@ -7285,6 +7295,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         homeBtn.textContent = onlineResult ? "온라인 로비로" : "홈 화면";
       }
       if (confirmBtn) confirmBtn.hidden = true;
+      if (retryBtn) retryBtn.hidden = true;
       if (scenarioHeader) scenarioHeader.hidden = true;
     }
 
@@ -9305,6 +9316,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     renderScenarioSelect();
     setScreen("scenarioSelect");
     refreshHistoricalScenarioClears().then(renderScenarioSelect);
+  });
+
+  // 결과 화면: 시나리오 패배 재전투 → 해당 시나리오 처음부터
+  document.getElementById("resultScenarioRetry").addEventListener("click", () => {
+    enterHistoricalScenario(game.scenarioData?.id);
   });
 
   function start() {
