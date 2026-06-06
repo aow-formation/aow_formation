@@ -302,11 +302,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const homeBg             = document.querySelector(".home-bg");
   const gameLoadingScreen  = document.getElementById("gameLoadingScreen");
   const gameLoadingBg      = document.getElementById("gameLoadingBg");
-  const gameLoadingScenarioMeta = document.getElementById("gameLoadingScenarioMeta");
-  const gameLoadingBattleTitle = document.getElementById("gameLoadingBattleTitle");
-  const gameLoadingBattleEra = document.getElementById("gameLoadingBattleEra");
-  const gameLoadingPlayerForce = document.getElementById("gameLoadingPlayerForce");
-  const gameLoadingEnemyForce = document.getElementById("gameLoadingEnemyForce");
+  const gameLoadingScenarioPanel   = document.getElementById("gameLoadingScenarioPanel");
+  const gameLoadingPanelTitle      = document.getElementById("gameLoadingPanelTitle");
+  const gameLoadingPanelEra        = document.getElementById("gameLoadingPanelEra");
+  const gameLoadingPlayerForceName = document.getElementById("gameLoadingPlayerForceName");
+  const gameLoadingPlayerForcePeriod = document.getElementById("gameLoadingPlayerForcePeriod");
+  const gameLoadingEnemyForceName  = document.getElementById("gameLoadingEnemyForceName");
+  const gameLoadingEnemyForcePeriod = document.getElementById("gameLoadingEnemyForcePeriod");
+  const gameLoadingPlayerRoster    = document.getElementById("gameLoadingPlayerRoster");
+  const gameLoadingEnemyRoster     = document.getElementById("gameLoadingEnemyRoster");
   const menuOnlineBattle = document.getElementById("menuOnlineBattle");
   const menuHistoricalScenario = document.getElementById("menuHistoricalScenario");
   const scenarioHud = document.getElementById("scenarioHud");
@@ -476,35 +480,45 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       title: "가우가멜라 전투",
       era: "BC 331",
       player: "마케도니아",
+      playerPeriod: "BC 808 – BC 168",
       enemy: "페르시아",
+      enemyPeriod: "BC 550 – BC 330",
       background: "./assets/background/scenario_maps/gaugamela_map.png"
     },
     cannae: {
       title: "칸나에 전투",
       era: "BC 216",
       player: "카르타고",
+      playerPeriod: "BC 814 – BC 146",
       enemy: "로마",
+      enemyPeriod: "BC 753 – AD 476",
       background: "./assets/background/scenario_maps/cannae_map.png"
     },
     bomangpa: {
       title: "박망파 전투",
       era: "AD 202",
       player: "유비군",
+      playerPeriod: "AD 221 – AD 263",
       enemy: "조조군",
+      enemyPeriod: "AD 220 – AD 265",
       background: "./assets/background/scenario_maps/bomangpa_map.png"
     },
     gwiju: {
       title: "귀주대첩",
       era: "AD 1019",
       player: "고려",
+      playerPeriod: "AD 918 – AD 1392",
       enemy: "거란",
+      enemyPeriod: "AD 916 – AD 1125",
       background: "./assets/background/scenario_maps/gwiju_map.png"
     },
     jupil: {
       title: "주필산 전투",
       era: "AD 645",
       player: "당군",
+      playerPeriod: "AD 618 – AD 907",
       enemy: "고구려군",
+      enemyPeriod: "BC 37 – AD 668",
       background: "./assets/background/scenario_maps/jupil_map.png"
     }
   };
@@ -620,19 +634,47 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   let _gameLoadingMinElapsed = false;
 
   function applyGameLoadingScenarioMeta(meta = null) {
-    if (!gameLoadingScreen || !gameLoadingBg || !gameLoadingScenarioMeta) return;
+    if (!gameLoadingScreen || !gameLoadingBg || !gameLoadingScenarioPanel) return;
     if (!meta) {
       gameLoadingScreen.classList.remove("is-scenario");
-      gameLoadingScenarioMeta.hidden = true;
+      gameLoadingScenarioPanel.hidden = true;
       return;
     }
     gameLoadingScreen.classList.add("is-scenario");
-    gameLoadingScenarioMeta.hidden = false;
+    gameLoadingScenarioPanel.hidden = false;
     gameLoadingBg.style.backgroundImage = `url('${meta.background}')`;
-    if (gameLoadingBattleTitle) gameLoadingBattleTitle.textContent = meta.title;
-    if (gameLoadingBattleEra) gameLoadingBattleEra.textContent = meta.era;
-    if (gameLoadingPlayerForce) gameLoadingPlayerForce.textContent = meta.player;
-    if (gameLoadingEnemyForce) gameLoadingEnemyForce.textContent = meta.enemy;
+    if (gameLoadingPanelTitle) gameLoadingPanelTitle.textContent = meta.title;
+    if (gameLoadingPanelEra) gameLoadingPanelEra.textContent = meta.era;
+    if (gameLoadingPlayerForceName) gameLoadingPlayerForceName.textContent = meta.player;
+    if (gameLoadingPlayerForcePeriod) gameLoadingPlayerForcePeriod.textContent = meta.playerPeriod || "";
+    if (gameLoadingEnemyForceName) gameLoadingEnemyForceName.textContent = meta.enemy;
+    if (gameLoadingEnemyForcePeriod) gameLoadingEnemyForcePeriod.textContent = meta.enemyPeriod || "";
+    if (gameLoadingPlayerRoster) gameLoadingPlayerRoster.innerHTML = "";
+    if (gameLoadingEnemyRoster) gameLoadingEnemyRoster.innerHTML = "";
+  }
+
+  function updateGameLoadingScenarioRoster(playerFormations, enemyFormations) {
+    if (!gameLoadingScenarioPanel || gameLoadingScenarioPanel.hidden) return;
+    const cardMarkup = (formations) => formations.map(f => {
+      const gen = f.general || {};
+      const troopLabel = troopTypeInfo(gen.troopType)?.label || gen.troopType || "";
+      const troops = formatTroops(gen.troops || 0);
+      return `
+        <div class="gl-roster-card">
+          ${onlinePortraitMarkup(gen, "gl-roster-portrait")}
+          <div class="gl-roster-name">${escapeHtml(gen.name || "")}</div>
+          <div class="gl-roster-troop">${escapeHtml(troopLabel)} ${troops}</div>
+        </div>
+      `;
+    }).join("");
+    if (gameLoadingPlayerRoster) {
+      gameLoadingPlayerRoster.innerHTML = cardMarkup(playerFormations);
+      settleOnlinePortraitLoading(gameLoadingPlayerRoster);
+    }
+    if (gameLoadingEnemyRoster) {
+      gameLoadingEnemyRoster.innerHTML = cardMarkup(enemyFormations);
+      settleOnlinePortraitLoading(gameLoadingEnemyRoster);
+    }
   }
 
   function showGameLoadingScreen(meta = null) {
@@ -6356,6 +6398,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       showBattleLoadingMask();
       const { scenario, terrain } = await loadScenarioBundle(id);
       applyHistoricalScenario(scenario, terrain);
+      updateGameLoadingScenarioRoster(game.playerFormations, game.enemyFormations);
       setScreen("battle");
       centerCameraOn(formationCenter(game.playerFormations[0]));
       refreshHud();

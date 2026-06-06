@@ -1246,12 +1246,156 @@ kbd {
 }
 
 .game-loading-screen.is-scenario .game-loading-text {
+  display: none;
+}
+
+/* ── 시나리오 로딩 패널 (새 디자인) ── */
+.game-loading-progress-bar {
   position: absolute;
-  left: 50%;
-  bottom: clamp(36px, 4.5vh, 50px);
-  transform: translateX(-50%);
-  font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 3;
+  background: rgba(184,138,8,0.18);
+  overflow: hidden;
+}
+.game-loading-progress-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -45%;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #e2bb68, transparent);
+  animation: gl-progress-slide 1.5s ease-in-out infinite;
+}
+@keyframes gl-progress-slide {
+  0%   { left: -45%; }
+  100% { left: 100%; }
+}
+
+.game-loading-scenario-panel {
+  position: relative;
+  z-index: 2;
+  width: min(820px, 94vw);
+  background: rgba(8, 6, 3, 0.86);
+  border: 1px solid rgba(184,138,8,0.30);
+  border-radius: 4px;
+  padding: 22px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.85);
+}
+.game-loading-scenario-panel[hidden] { display: none; }
+
+.game-loading-panel-header {
+  text-align: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(184,138,8,0.22);
+}
+.game-loading-panel-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: clamp(1.25rem, 2.4vw, 1.9rem);
+  font-weight: 700;
+  color: #ffd37a;
+  letter-spacing: 0.06em;
+}
+.game-loading-panel-era {
+  font-size: 0.82rem;
+  color: #a08050;
+  margin-top: 5px;
   letter-spacing: 0.12em;
+}
+
+.game-loading-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.game-loading-force-col { min-width: 0; }
+.game-loading-force-col--enemy { text-align: right; }
+
+.game-loading-force-info {
+  margin-bottom: 10px;
+}
+.game-loading-force-info--right { text-align: right; }
+
+.game-loading-force-name {
+  font-family: 'Noto Serif KR', serif;
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  font-weight: 700;
+  color: #f0dfb0;
+  line-height: 1.2;
+}
+.game-loading-force-period {
+  font-size: 0.76rem;
+  color: #806848;
+  margin-top: 4px;
+  letter-spacing: 0.06em;
+}
+
+.game-loading-roster {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.game-loading-roster--enemy {
+  direction: rtl;
+}
+.game-loading-roster--enemy .gl-roster-card {
+  direction: ltr;
+}
+
+.gl-roster-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 3px 7px;
+  border: 1px solid rgba(184,138,8,0.28);
+  background: rgba(0,0,0,0.24);
+  text-align: center;
+  min-width: 0;
+}
+.gl-roster-portrait {
+  width: 44px;
+  height: 88px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(226,187,104,0.34);
+  background: rgba(35,26,11,0.78);
+  color: var(--gold-bright);
+  font-size: 15px;
+  font-weight: 900;
+  overflow: hidden;
+}
+.gl-roster-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+.gl-roster-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.gl-roster-troop {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+@media (max-width: 560px) {
+  .game-loading-columns { grid-template-columns: 1fr; }
+  .game-loading-force-col--enemy { text-align: left; }
+  .game-loading-force-info--right { text-align: left; }
+  .game-loading-roster--enemy { direction: ltr; }
+  .game-loading-roster { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 .game-loading-scenario-meta {

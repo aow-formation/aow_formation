@@ -442,19 +442,28 @@
 
     <div id="gameLoadingScreen" class="game-loading-screen" style="display:none">
       <div class="game-loading-bg" id="gameLoadingBg"></div>
+      <div id="gameLoadingProgressBar" class="game-loading-progress-bar"></div>
       <span class="game-loading-text">로딩중..</span>
-      <div id="gameLoadingScenarioMeta" class="game-loading-scenario-meta" hidden>
-        <div class="game-loading-side">
-          <span>아군</span>
-          <strong id="gameLoadingPlayerForce"></strong>
+      <div id="gameLoadingScenarioPanel" class="game-loading-scenario-panel" hidden>
+        <div class="game-loading-panel-header">
+          <div id="gameLoadingPanelTitle" class="game-loading-panel-title"></div>
+          <div id="gameLoadingPanelEra" class="game-loading-panel-era"></div>
         </div>
-        <div class="game-loading-battle">
-          <strong id="gameLoadingBattleTitle"></strong>
-          <span id="gameLoadingBattleEra"></span>
-        </div>
-        <div class="game-loading-side game-loading-side-enemy">
-          <span>적군</span>
-          <strong id="gameLoadingEnemyForce"></strong>
+        <div class="game-loading-columns">
+          <div class="game-loading-force-col">
+            <div class="game-loading-force-info">
+              <div id="gameLoadingPlayerForceName" class="game-loading-force-name"></div>
+              <div id="gameLoadingPlayerForcePeriod" class="game-loading-force-period"></div>
+            </div>
+            <div id="gameLoadingPlayerRoster" class="game-loading-roster"></div>
+          </div>
+          <div class="game-loading-force-col game-loading-force-col--enemy">
+            <div class="game-loading-force-info game-loading-force-info--right">
+              <div id="gameLoadingEnemyForceName" class="game-loading-force-name"></div>
+              <div id="gameLoadingEnemyForcePeriod" class="game-loading-force-period"></div>
+            </div>
+            <div id="gameLoadingEnemyRoster" class="game-loading-roster game-loading-roster--enemy"></div>
+          </div>
         </div>
       </div>
     </div>
