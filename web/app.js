@@ -7263,15 +7263,35 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     setTopbarCollapsed(false);
     const isGuest = isOnlineMode() && Boolean(game.online?.isGuest);
     const onlineResult = isOnlineMode() && !isGuest;
+    const isScenarioVictory = isHistoricalMode() && won;
     const replayBtn = document.getElementById("resultReplay");
     const newBattleBtn = document.getElementById("resultNewBattle");
     const homeBtn = document.getElementById("resultHome");
     if (battleResultScreen) battleResultScreen.dataset.online = isOnlineMode() ? "true" : "false";
-    if (replayBtn) replayBtn.hidden = isOnlineMode();
-    if (newBattleBtn) newBattleBtn.hidden = isOnlineMode();
-    if (homeBtn) homeBtn.textContent = onlineResult ? "온라인 로비로" : "홈 화면";
+    const confirmBtn = document.getElementById("resultConfirm");
+    const scenarioHeader = document.getElementById("resultScenarioHeader");
+
+    if (isScenarioVictory) {
+      if (replayBtn) replayBtn.hidden = true;
+      if (newBattleBtn) newBattleBtn.hidden = true;
+      if (homeBtn) homeBtn.hidden = true;
+      if (confirmBtn) confirmBtn.hidden = false;
+      if (scenarioHeader) scenarioHeader.hidden = false;
+    } else {
+      if (replayBtn) replayBtn.hidden = isOnlineMode();
+      if (newBattleBtn) newBattleBtn.hidden = isOnlineMode();
+      if (homeBtn) {
+        homeBtn.hidden = false;
+        homeBtn.textContent = onlineResult ? "온라인 로비로" : "홈 화면";
+      }
+      if (confirmBtn) confirmBtn.hidden = true;
+      if (scenarioHeader) scenarioHeader.hidden = true;
+    }
+
     const verdict = document.getElementById("resultVerdict");
-    verdict.textContent = won ? "승 리" : "패 배";
+    verdict.textContent = isScenarioVictory
+      ? `${game.scenarioData.name} 승리`
+      : won ? "승 리" : "패 배";
     verdict.className   = `result-verdict ${won ? "victory" : "defeat"}`;
 
     document.getElementById("resultTime").textContent =
@@ -9276,6 +9296,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       return;
     }
     setScreen("home");
+  });
+
+  // 결과 화면: 시나리오 승리 확인 → 시나리오 선택화면으로
+  document.getElementById("resultConfirm").addEventListener("click", () => {
+    game.scenarioData = null;
+    game.mode = "quick";
+    renderScenarioSelect();
+    setScreen("scenarioSelect");
+    refreshHistoricalScenarioClears().then(renderScenarioSelect);
   });
 
   function start() {

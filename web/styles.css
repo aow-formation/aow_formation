@@ -1965,12 +1965,51 @@ input[type="range"].adjust-slider {
   gap: 22px;
 }
 
+.result-scenario-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  justify-content: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-dark);
+}
+.result-scenario-icon {
+  font-size: 28px;
+  line-height: 1;
+  color: var(--gold-bright);
+  filter: drop-shadow(0 0 8px rgba(232,208,96,0.6));
+}
+.result-scenario-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+}
+.result-scenario-type-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.result-scenario-success-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #1a2a10;
+  background: linear-gradient(135deg, #a8d060 0%, #6ca820 100%);
+  border-radius: 3px;
+  padding: 2px 10px;
+  box-shadow: 0 1px 6px rgba(100,180,30,0.4);
+}
+
 .result-verdict {
   text-align: center;
   font-family: "Cinzel", "Noto Serif KR", serif;
-  font-size: clamp(32px, 5vw, 52px);
+  font-size: clamp(28px, 4.5vw, 48px);
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-shadow: 0 2px 12px rgba(0,0,0,0.8), 0 0 40px currentColor;
 }
 
