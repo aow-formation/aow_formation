@@ -302,11 +302,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const homeBg             = document.querySelector(".home-bg");
   const gameLoadingScreen  = document.getElementById("gameLoadingScreen");
   const gameLoadingBg      = document.getElementById("gameLoadingBg");
+  const gameLoadingProgressBar = document.getElementById("gameLoadingProgressBar");
+  const gameLoadingScenarioProgressBar = document.getElementById("gameLoadingScenarioProgressBar");
   const gameLoadingScenarioPanel   = document.getElementById("gameLoadingScenarioPanel");
   const gameLoadingPanelTitle      = document.getElementById("gameLoadingPanelTitle");
   const gameLoadingPanelEra        = document.getElementById("gameLoadingPanelEra");
+  const gameLoadingPlayerFactionIcon = document.getElementById("gameLoadingPlayerFactionIcon");
   const gameLoadingPlayerForceName = document.getElementById("gameLoadingPlayerForceName");
   const gameLoadingPlayerForcePeriod = document.getElementById("gameLoadingPlayerForcePeriod");
+  const gameLoadingEnemyFactionIcon  = document.getElementById("gameLoadingEnemyFactionIcon");
   const gameLoadingEnemyForceName  = document.getElementById("gameLoadingEnemyForceName");
   const gameLoadingEnemyForcePeriod = document.getElementById("gameLoadingEnemyForcePeriod");
   const gameLoadingPlayerRoster    = document.getElementById("gameLoadingPlayerRoster");
@@ -475,6 +479,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
   ];
 
+  function historicalScenarioIconSrc(id) {
+    const scenario = HISTORICAL_SCENARIOS.find(item => item.id === id);
+    const iconIndex = Number.isInteger(scenario?.icon) ? scenario.icon : 0;
+    return `./assets/ui/${String(iconIndex + 1).padStart(2, '0')}.jpg`;
+  }
+
   const SCENARIO_LOADING_META = {
     gaugamela: {
       title: "가우가멜라 전투",
@@ -483,7 +493,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       playerPeriod: "BC 808 – BC 168",
       enemy: "페르시아",
       enemyPeriod: "BC 550 – BC 330",
-      background: "./assets/background/scenario_maps/gaugamela_map.png"
+      background: "./assets/background/scenario_maps/gaugamela_map.png",
+      playerFactionIcon: "./assets/factions/macedon.png",
+      enemyFactionIcon: "./assets/factions/persia.png"
     },
     cannae: {
       title: "칸나에 전투",
@@ -492,7 +504,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       playerPeriod: "BC 814 – BC 146",
       enemy: "로마",
       enemyPeriod: "BC 753 – AD 476",
-      background: "./assets/background/scenario_maps/cannae_map.png"
+      background: "./assets/background/scenario_maps/cannae_map.png",
+      playerFactionIcon: "./assets/factions/carthage.png",
+      enemyFactionIcon: "./assets/factions/rome.png"
     },
     bomangpa: {
       title: "박망파 전투",
@@ -501,7 +515,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       playerPeriod: "AD 221 – AD 263",
       enemy: "위",
       enemyPeriod: "AD 220 – AD 265",
-      background: "./assets/background/scenario_maps/bomangpa_map.png"
+      background: "./assets/background/scenario_maps/bomangpa_map.png",
+      playerFactionIcon: "./assets/factions/shu_han.png",
+      enemyFactionIcon: "./assets/factions/cao_wei.png"
     },
     gwiju: {
       title: "귀주대첩",
@@ -510,7 +526,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       playerPeriod: "AD 918 – AD 1392",
       enemy: "거란",
       enemyPeriod: "AD 916 – AD 1125",
-      background: "./assets/background/scenario_maps/gwiju_map.png"
+      background: "./assets/background/scenario_maps/gwiju_map.png",
+      playerFactionIcon: "./assets/factions/goryeo.png",
+      enemyFactionIcon: "./assets/factions/khitan.png"
     },
     jupil: {
       title: "주필산 전투",
@@ -519,7 +537,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       playerPeriod: "AD 618 – AD 907",
       enemy: "고구려",
       enemyPeriod: "BC 37 – AD 668",
-      background: "./assets/background/scenario_maps/jupil_map.png"
+      background: "./assets/background/scenario_maps/jupil_map.png",
+      playerFactionIcon: "./assets/factions/tang.png",
+      enemyFactionIcon: "./assets/factions/goguryeo.png"
     }
   };
 
@@ -635,33 +655,56 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   function applyGameLoadingScenarioMeta(meta = null) {
     if (!gameLoadingScreen || !gameLoadingBg || !gameLoadingScenarioPanel) return;
+    const setFactionIcon = (iconEl, src, label) => {
+      if (!iconEl) return;
+      if (!src) {
+        iconEl.hidden = true;
+        iconEl.removeAttribute("src");
+        iconEl.alt = "";
+        return;
+      }
+      iconEl.hidden = false;
+      iconEl.src = src;
+      iconEl.alt = label || "";
+    };
     if (!meta) {
       gameLoadingScreen.classList.remove("is-scenario");
       gameLoadingScenarioPanel.hidden = true;
+      setFactionIcon(gameLoadingPlayerFactionIcon, null, "");
+      setFactionIcon(gameLoadingEnemyFactionIcon, null, "");
       return;
     }
     gameLoadingScreen.classList.add("is-scenario");
     gameLoadingScenarioPanel.hidden = false;
-    gameLoadingBg.style.backgroundImage = `url('${meta.background}')`;
+    gameLoadingBg.style.backgroundImage = "none";
     if (gameLoadingPanelTitle) gameLoadingPanelTitle.textContent = meta.title;
     if (gameLoadingPanelEra) gameLoadingPanelEra.textContent = meta.era;
+    setFactionIcon(gameLoadingPlayerFactionIcon, meta.playerFactionIcon, meta.player);
     if (gameLoadingPlayerForceName) gameLoadingPlayerForceName.textContent = meta.player;
     if (gameLoadingPlayerForcePeriod) gameLoadingPlayerForcePeriod.textContent = meta.playerPeriod || "";
+    setFactionIcon(gameLoadingEnemyFactionIcon, meta.enemyFactionIcon, meta.enemy);
     if (gameLoadingEnemyForceName) gameLoadingEnemyForceName.textContent = meta.enemy;
     if (gameLoadingEnemyForcePeriod) gameLoadingEnemyForcePeriod.textContent = meta.enemyPeriod || "";
     if (gameLoadingPlayerRoster) gameLoadingPlayerRoster.innerHTML = "";
     if (gameLoadingEnemyRoster) gameLoadingEnemyRoster.innerHTML = "";
   }
 
+  function gameLoadingPortraitMarkup(commander) {
+    if (commander?.portrait) {
+      return `<div class="gl-roster-portrait"><img src="${escapeHtml(commander.portrait)}" alt="${escapeHtml(commander.name || "")}" loading="eager" decoding="async" /></div>`;
+    }
+    return `<div class="gl-roster-portrait">${escapeHtml((commander?.name || "?").slice(0, 1))}</div>`;
+  }
+
   function updateGameLoadingScenarioRoster(playerFormations, enemyFormations) {
     if (!gameLoadingScenarioPanel || gameLoadingScenarioPanel.hidden) return;
-    const cardMarkup = (formations) => formations.map(f => {
-      const gen = f.general || {};
+    const cardMarkup = (formations = []) => formations.map(f => {
+      const gen = f.general || f || {};
       const troopLabel = troopTypeInfo(gen.troopType)?.label || gen.troopType || "";
       const troops = formatTroops(gen.troops || 0);
       return `
         <div class="gl-roster-card">
-          ${onlinePortraitMarkup(gen, "gl-roster-portrait")}
+          ${gameLoadingPortraitMarkup(gen)}
           <div class="gl-roster-name">${escapeHtml(gen.name || "")}</div>
           <div class="gl-roster-troop">${escapeHtml(troopLabel)} ${troops}</div>
         </div>
@@ -669,11 +712,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }).join("");
     if (gameLoadingPlayerRoster) {
       gameLoadingPlayerRoster.innerHTML = cardMarkup(playerFormations);
-      settleOnlinePortraitLoading(gameLoadingPlayerRoster);
     }
     if (gameLoadingEnemyRoster) {
       gameLoadingEnemyRoster.innerHTML = cardMarkup(enemyFormations);
-      settleOnlinePortraitLoading(gameLoadingEnemyRoster);
     }
   }
 
@@ -689,11 +730,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       gameLoadingBg.style.backgroundImage = `url('./assets/background/${bgKey}')`;
     }
     gameLoadingScreen.style.display = "flex";
+    const minLoadingMs = meta ? 5000 : 2000;
+    [gameLoadingProgressBar, gameLoadingScenarioProgressBar].forEach((bar) => {
+      if (!bar) return;
+      bar.style.setProperty("--game-loading-duration", `${minLoadingMs}ms`);
+      bar.classList.remove("is-running");
+      void bar.offsetWidth;
+      bar.classList.add("is-running");
+    });
     _gameLoadingHideTimer = setTimeout(() => {
       _gameLoadingHideTimer = null;
       _gameLoadingMinElapsed = true;
       tryHideGameLoadingScreen();
-    }, 2000);
+    }, minLoadingMs);
   }
 
   function tryHideGameLoadingScreen() {
@@ -1335,8 +1384,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
     const buildingMap = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
     /*
+    const BUILDING_EDGE_MARGIN = 10;
     const canUseBuildingFootprint = (x, y) => {
       if (x + 1 >= MAP_WIDTH || y + 1 >= MAP_HEIGHT) return false;
+      if (x < BUILDING_EDGE_MARGIN || y < BUILDING_EDGE_MARGIN) return false;
+      if (x + 1 >= MAP_WIDTH - BUILDING_EDGE_MARGIN || y + 1 >= MAP_HEIGHT - BUILDING_EDGE_MARGIN) return false;
       for (let dy = 0; dy < 2; dy += 1) {
         for (let dx = 0; dx < 2; dx += 1) {
           const tx = x + dx;
@@ -1363,7 +1415,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
     }
     buildingCandidates.sort((a, b) => (b.h - a.h) || (a.y - b.y) || (a.x - b.x));
-    const buildingClusterCount = buildingCandidates.length ? 1 + (tileHash(MAP_WIDTH + 719, MAP_HEIGHT + 1543) % 2) : 0;
+    const buildingClusterCount = buildingCandidates.length >= 2 ? 2 : buildingCandidates.length;
     const buildingSeeds = [];
     for (const candidate of buildingCandidates) {
       if (buildingSeeds.length >= buildingClusterCount) break;
@@ -1384,7 +1436,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       for (const candidate of clusterCandidates) {
         if (placed >= targetCount) break;
         if (!canPlaceBuilding(candidate.x, candidate.y)) continue;
-        buildingMap[candidate.y][candidate.x] = 1 + ((candidate.h >>> 8) % 9);
+        const variantRoll = (candidate.h >>> 8) % 100;
+        const buildingVariant = variantRoll < 35
+          ? 0
+          : 1 + ((candidate.h >>> 16) % 8);
+        buildingMap[candidate.y][candidate.x] = 1 + buildingVariant;
         placed += 1;
       }
     };
@@ -1986,13 +2042,21 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     };
   }
 
-  async function loadScenarioBundle(id) {
+  async function loadScenarioDefinition(id) {
     const scenarioRes = await fetch(`./data/scenarios/${id}.json`);
     if (!scenarioRes.ok) throw new Error(`Scenario not found: ${id}`);
-    const scenario = await scenarioRes.json();
+    return scenarioRes.json();
+  }
+
+  async function loadScenarioTerrain(scenario) {
     const terrainRes = await fetch(scenario.terrain);
     if (!terrainRes.ok) throw new Error(`Scenario terrain not found: ${scenario.terrain}`);
-    const terrain = normalizeScenarioTerrain(await terrainRes.json());
+    return normalizeScenarioTerrain(await terrainRes.json());
+  }
+
+  async function loadScenarioBundle(id) {
+    const scenario = await loadScenarioDefinition(id);
+    const terrain = await loadScenarioTerrain(scenario);
     return { scenario, terrain };
   }
 
@@ -3472,9 +3536,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           }
         }
         if (buildingMap) {
-          const BUILDING_R = 1.45;
-          for (let dy = -3; dy <= 3; dy++) {
-            for (let dx = -3; dx <= 3; dx++) {
+          const BUILDING_R = 2.35;
+          for (let dy = -4; dy <= 4; dy++) {
+            for (let dx = -4; dx <= 4; dx++) {
               const tx = clamp(Math.floor(unit.x) + dx, 0, MAP_WIDTH - 1);
               const ty = clamp(Math.floor(unit.y) + dy, 0, MAP_HEIGHT - 1);
               if (!buildingMap[ty][tx]) continue;
@@ -3482,8 +3546,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
               const d = len(ex, ey);
               if (d < BUILDING_R && d > 0.001) {
                 const t = (BUILDING_R - d) / BUILDING_R;
-                unit.vx += (ex / d) * t * t * 18.0 * dt;
-                unit.vy += (ey / d) * t * t * 18.0 * dt;
+                unit.vx += (ex / d) * t * t * 42.0 * dt;
+                unit.vy += (ey / d) * t * t * 42.0 * dt;
               }
             }
           }
@@ -4059,6 +4123,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (buildingSprites?.length && game.terrainRender.buildingMap) {
       chunkCtx.imageSmoothingEnabled = true;
       chunkCtx.imageSmoothingQuality = "high";
+      const prevAlpha = chunkCtx.globalAlpha;
+      chunkCtx.globalAlpha = 0.8;
       tiles.forEach(([, x, y]) => {
         const buildingIndex = game.terrainRender.buildingMap[y][x] - 1;
         if (buildingIndex < 0) return;
@@ -4071,6 +4137,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const h = Math.round(w * buildingImg.naturalHeight / buildingImg.naturalWidth);
         chunkCtx.drawImage(buildingImg, px - w / 2, py + tileH * 0.5 - h, w, h);
       });
+      chunkCtx.globalAlpha = prevAlpha;
     }
 
     const trees = [];
@@ -6396,9 +6463,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     try {
       showGameLoadingScreen(SCENARIO_LOADING_META[id] || null);
       showBattleLoadingMask();
-      const { scenario, terrain } = await loadScenarioBundle(id);
+      const scenario = await loadScenarioDefinition(id);
+      updateGameLoadingScenarioRoster(scenario.player?.formations || [], scenario.enemy?.formations || []);
+      const terrain = await loadScenarioTerrain(scenario);
       applyHistoricalScenario(scenario, terrain);
-      updateGameLoadingScenarioRoster(game.playerFormations, game.enemyFormations);
       setScreen("battle");
       centerCameraOn(formationCenter(game.playerFormations[0]));
       refreshHud();
@@ -7315,6 +7383,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const confirmBtn = document.getElementById("resultConfirm");
     const retryBtn = document.getElementById("resultScenarioRetry");
     const scenarioHeader = document.getElementById("resultScenarioHeader");
+    const scenarioIcon = document.getElementById("resultScenarioIcon");
+    const scenarioResultBadge = scenarioHeader?.querySelector(".result-scenario-success-badge");
+
+    const localBattleResult = !isOnlineMode();
+    if (battleResultScreen) battleResultScreen.dataset.cardResult = (isOnlineMode() || localBattleResult) ? "true" : "false";
 
     if (isScenarioVictory) {
       if (replayBtn) replayBtn.hidden = true;
@@ -7329,7 +7402,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (homeBtn) homeBtn.hidden = true;
       if (confirmBtn) confirmBtn.hidden = true;
       if (retryBtn) retryBtn.hidden = false;
-      if (scenarioHeader) scenarioHeader.hidden = true;
+      if (scenarioHeader) scenarioHeader.hidden = false;
     } else {
       if (replayBtn) replayBtn.hidden = isOnlineMode();
       if (newBattleBtn) newBattleBtn.hidden = isOnlineMode();
@@ -7347,6 +7420,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       ? `${game.scenarioData.name} 승리`
       : won ? "승 리" : "패 배";
     verdict.className   = `result-verdict ${won ? "victory" : "defeat"}`;
+    if (isHistoricalMode()) {
+      verdict.textContent = `${game.scenarioData?.name || ""} ${won ? "승리" : "패배"}`.trim();
+      if (scenarioIcon) {
+        scenarioIcon.src = historicalScenarioIconSrc(game.scenarioData?.id);
+        scenarioIcon.alt = game.scenarioData?.name || "";
+      }
+      if (scenarioResultBadge) {
+        scenarioResultBadge.textContent = won ? "성공" : "실패";
+        scenarioResultBadge.classList.toggle("is-failed", !won);
+      }
+    }
 
     document.getElementById("resultTime").textContent =
       game.battleTime.toFixed(1);
@@ -7383,7 +7467,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     document.getElementById("resultEnemyRemaining").textContent =
       formatTroops(eRemain);
 
-    renderBattleResultOnlineProgress();
+    renderBattleResultCommanderCards();
     setScreen("battleResult");
   }
 
@@ -7495,6 +7579,57 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       </div>
     `;
     settleOnlinePortraitLoading(container);
+  }
+
+  function renderBattleResultQuickCommanderCards() {
+    const container = battleResultProgressContainer();
+    if (!container) return;
+    if (isOnlineMode()) {
+      container.hidden = true;
+      container.innerHTML = "";
+      return;
+    }
+    container.hidden = false;
+    const cards = game.playerFormations.map((formation, index) => ({
+      ...formation.general,
+      slotIndex: index,
+      battleKills: Math.round(Math.max(0, formation.general.kills || 0)),
+      battleLosses: Math.round(Math.max(0, formation.general.losses || 0)),
+      battleRemaining: Math.round(formationRemainingTroops(formation)),
+    }));
+    if (!cards.length) {
+      container.innerHTML = `<div class="result-growth-title">장수별 전투 결과</div><div class="result-growth-empty">표시할 장수 결과가 없습니다.</div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="result-growth-title">장수별 전투 결과</div>
+      <div class="result-growth-grid">
+        ${cards.map(item => `
+          <div class="result-growth-card is-battle-only">
+            ${onlinePortraitMarkup(item, "result-growth-portrait")}
+            <div class="result-growth-main">
+              <div class="result-growth-header">
+                <span class="result-growth-name">${escapeHtml(item.name || `Commander ${item.slotIndex + 1}`)}</span>
+              </div>
+              <div class="result-growth-battle-stats">
+                <div class="result-growth-battle-stat"><span>격파</span><strong>${formatTroops(item.battleKills)}</strong></div>
+                <div class="result-growth-battle-stat"><span>손실</span><strong>${formatTroops(item.battleLosses)}</strong></div>
+                <div class="result-growth-battle-stat"><span>잔여</span><strong>${formatTroops(item.battleRemaining)}</strong></div>
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+    settleOnlinePortraitLoading(container);
+  }
+
+  function renderBattleResultCommanderCards() {
+    if (isOnlineMode()) {
+      renderBattleResultOnlineCommanderCards();
+      return;
+    }
+    renderBattleResultQuickCommanderCards();
   }
 
   function renderBattleResultOnlineProgress() {

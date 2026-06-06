@@ -175,7 +175,7 @@
     <div id="battleResultScreen" class="screen-overlay battle-result-screen" hidden>
       <div class="result-panel">
         <div id="resultScenarioHeader" class="result-scenario-header" hidden>
-          <div class="result-scenario-icon">⚔</div>
+          <img id="resultScenarioIcon" class="result-scenario-icon" src="./assets/ui/01.jpg" alt="" aria-hidden="true" draggable="false" />
           <div class="result-scenario-labels">
             <span class="result-scenario-type-badge">역사 시나리오</span>
             <span class="result-scenario-success-badge">성공</span>
@@ -448,10 +448,12 @@
         <div class="game-loading-panel-header">
           <div id="gameLoadingPanelTitle" class="game-loading-panel-title"></div>
           <div id="gameLoadingPanelEra" class="game-loading-panel-era"></div>
+          <div id="gameLoadingScenarioProgressBar" class="game-loading-scenario-progress-bar"></div>
         </div>
         <div class="game-loading-columns">
           <div class="game-loading-force-col">
             <div class="game-loading-force-info">
+              <img id="gameLoadingPlayerFactionIcon" class="game-loading-faction-icon" alt="" aria-hidden="true" draggable="false" hidden />
               <div id="gameLoadingPlayerForceName" class="game-loading-force-name"></div>
               <div id="gameLoadingPlayerForcePeriod" class="game-loading-force-period"></div>
             </div>
@@ -459,6 +461,7 @@
           </div>
           <div class="game-loading-force-col game-loading-force-col--enemy">
             <div class="game-loading-force-info game-loading-force-info--right">
+              <img id="gameLoadingEnemyFactionIcon" class="game-loading-faction-icon" alt="" aria-hidden="true" draggable="false" hidden />
               <div id="gameLoadingEnemyForceName" class="game-loading-force-name"></div>
               <div id="gameLoadingEnemyForcePeriod" class="game-loading-force-period"></div>
             </div>

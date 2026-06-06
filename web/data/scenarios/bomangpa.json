@@ -454,7 +454,7 @@
           {
             "id": "retreat_point",
             "label": "조운 후퇴점",
-            "x": 73,
+            "x": 80,
             "y": 74,
             "radius": 10
           }
@@ -465,7 +465,7 @@
           "id": "zhao_falls_back",
           "type": "formationAtArea",
           "formationId": "zhao_yun",
-          "x": 73,
+          "x": 80,
           "y": 74,
           "radius": 10,
           "label": "조운을 후퇴점까지 물리십시오."
