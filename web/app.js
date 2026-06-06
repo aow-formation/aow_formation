@@ -497,9 +497,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     bomangpa: {
       title: "박망파 전투",
       era: "AD 202",
-      player: "유비군",
+      player: "촉",
       playerPeriod: "AD 221 – AD 263",
-      enemy: "조조군",
+      enemy: "위",
       enemyPeriod: "AD 220 – AD 265",
       background: "./assets/background/scenario_maps/bomangpa_map.png"
     },
@@ -515,9 +515,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     jupil: {
       title: "주필산 전투",
       era: "AD 645",
-      player: "당군",
+      player: "당",
       playerPeriod: "AD 618 – AD 907",
-      enemy: "고구려군",
+      enemy: "고구려",
       enemyPeriod: "BC 37 – AD 668",
       background: "./assets/background/scenario_maps/jupil_map.png"
     }
