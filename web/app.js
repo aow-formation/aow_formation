@@ -2794,6 +2794,20 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return Math.floor(Math.random() * count);
   }
 
+  function deathTraceFlip(formation, unit) {
+    if (isOnlineMode()) {
+      return onlineHashNumber([
+        game.online.seed,
+        "remainsFlip",
+        formation.worldSide ?? formation.team,
+        formation.id,
+        unit.id,
+        unit.slotIndex,
+      ].join("|")) % 2 === 0;
+    }
+    return Math.random() < 0.5;
+  }
+
   function canPlaceDeathTrace(x, y) {
     const minDistSq = TRACE_MIN_TILE_DISTANCE * TRACE_MIN_TILE_DISTANCE;
     return !game.traces.some((trace) => {
@@ -2820,7 +2834,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (unit.damage >= capacity && prevDamage < capacity) {
       fillSlotFromBehind(targetFormation, unit);
       if (options.trace !== false && game.traces.length < 2000 && !isOnWater(unit) && canPlaceDeathTrace(unit.x, unit.y)) {
-        game.traces.push({ x: unit.x, y: unit.y, type: deathTraceType(targetFormation, unit) });
+        game.traces.push({ x: unit.x, y: unit.y, type: deathTraceType(targetFormation, unit), flip: deathTraceFlip(targetFormation, unit) });
       }
     }
     return appliedDamage;
@@ -5154,7 +5168,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     ctx.strokeStyle = "rgba(55, 25, 15, 0.65)";
     ctx.fillStyle   = "rgba(55, 25, 15, 0.60)";
     ctx.lineWidth = 1;
-    game.traces.forEach(({ x, y, type }) => {
+    game.traces.forEach(({ x, y, type, flip }) => {
       const s = toScreen(x, y);
       const cx = s.x, cy = s.y + tileH / 2;
       const remains = remainsSprites[type % remainsSprites.length];
@@ -5163,13 +5177,25 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const drawH = drawW * (remains.naturalHeight / remains.naturalWidth);
         ctx.save();
         ctx.globalAlpha = 0.7;
-        ctx.drawImage(
-          remains,
-          Math.round(cx - drawW / 2),
-          Math.round(cy - drawH * 0.58),
-          Math.round(drawW),
-          Math.round(drawH),
-        );
+        if (flip) {
+          ctx.translate(cx, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            remains,
+            Math.round(-drawW / 2),
+            Math.round(cy - drawH * 0.58),
+            Math.round(drawW),
+            Math.round(drawH),
+          );
+        } else {
+          ctx.drawImage(
+            remains,
+            Math.round(cx - drawW / 2),
+            Math.round(cy - drawH * 0.58),
+            Math.round(drawW),
+            Math.round(drawH),
+          );
+        }
         ctx.restore();
         return;
       }
