@@ -73,6 +73,15 @@ export class OnlineClient {
     return this.player;
   }
 
+  async updateProfile({ displayName, emblem }) {
+    const data = await this.request("/api/profile/me", {
+      method: "PUT",
+      body: { displayName, emblem },
+    });
+    this.player = data.player || this.player;
+    return this.player;
+  }
+
   async loadLeaderboard() {
     const data = await this.request("/api/leaderboard");
     this.leaderboard = data.players || [];

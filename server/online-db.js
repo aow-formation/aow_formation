@@ -1180,6 +1180,25 @@ export async function savePlayerLoadout(db, playerId, commanders) {
   }
 }
 
+export async function updatePlayerProfile(db, playerId, { displayName, emblem } = {}) {
+  if (db?.mode === "memory" && db.state) {
+    const player = db.state.players.get(playerId);
+    if (!player) throw new Error("Player not found.");
+    if (displayName !== undefined) player.display_name = displayName;
+    if (emblem !== undefined) player.emblem = emblem;
+    return getPlayerProfile(db, playerId);
+  }
+
+  await db.query(
+    `UPDATE players SET
+      display_name = COALESCE($2, display_name),
+      emblem = COALESCE($3, emblem)
+     WHERE id = $1`,
+    [playerId, displayName ?? null, emblem ?? null],
+  );
+  return getPlayerProfile(db, playerId);
+}
+
 export async function getPlayerProfile(db, playerId) {
   const playerResult = await db.query(
     `SELECT id, username, display_name AS "displayName", emblem, rating,

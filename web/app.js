@@ -279,9 +279,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const onlineLeaderboard = document.getElementById("onlineLeaderboard");
   const onlineQueueBtn = document.getElementById("onlineQueueBtn");
   const onlineLeaveQueueBtn = document.getElementById("onlineLeaveQueueBtn");
+  const onlineProfileEditOverlay = document.getElementById("onlineProfileEditOverlay");
+  const onlineProfileEditName = document.getElementById("onlineProfileEditName");
+  const onlineProfileEditEmblemGrid = document.getElementById("onlineProfileEditEmblemGrid");
+  const onlineProfileEditStatus = document.getElementById("onlineProfileEditStatus");
+  const onlineProfileEditSaveBtn = document.getElementById("onlineProfileEditSaveBtn");
+  const onlineProfileEditCancelBtn = document.getElementById("onlineProfileEditCancelBtn");
+  let onlineProfileEditSelectedEmblem = null;
   let onlineSaveLoadoutBtn = null;
   let onlineGoMatchBtn = null;
   let onlineRecordsBtn = null;
+  let onlineProfileEditBtn = null;
   let onlineRecordsBackBtn = null;
   let onlineMatchLogoutBtn = null;
   let onlineBackToCommandersBtn = null;
@@ -542,6 +550,33 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       enemyFactionIcon: "./assets/factions/goguryeo.png"
     }
   };
+
+  const FACTION_EMBLEM_OPTIONS = [
+    { id: "macedon", label: "마케도니아", icon: "./assets/factions/macedon.png" },
+    { id: "persia", label: "페르시아", icon: "./assets/factions/persia.png" },
+    { id: "carthage", label: "카르타고", icon: "./assets/factions/carthage.png" },
+    { id: "rome", label: "로마", icon: "./assets/factions/rome.png" },
+    { id: "shu_han", label: "촉", icon: "./assets/factions/shu_han.png" },
+    { id: "cao_wei", label: "위", icon: "./assets/factions/cao_wei.png" },
+    { id: "goryeo", label: "고려", icon: "./assets/factions/goryeo.png" },
+    { id: "khitan", label: "거란", icon: "./assets/factions/khitan.png" },
+    { id: "tang", label: "당", icon: "./assets/factions/tang.png" },
+    { id: "goguryeo", label: "고구려", icon: "./assets/factions/goguryeo.png" },
+  ];
+
+  function factionEmblemOption(emblemId) {
+    return FACTION_EMBLEM_OPTIONS.find((option) => option.id === emblemId) || FACTION_EMBLEM_OPTIONS[0];
+  }
+
+  function randomFactionEmblemId() {
+    const index = Math.floor(Math.random() * FACTION_EMBLEM_OPTIONS.length);
+    return FACTION_EMBLEM_OPTIONS[index].id;
+  }
+
+  function factionEmblemMarkup(emblemId, className = "online-profile-emblem") {
+    const option = factionEmblemOption(emblemId);
+    return `<img class="${className}" src="${option.icon}" alt="${escapeHtml(option.label)}" />`;
+  }
 
   function historicalScenarioClearIds() {
     if (!onlineClient.token || !Array.isArray(onlineClient.player?.scenarioClears)) return new Set();
@@ -7986,11 +8021,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         commanderCard.insertBefore(loadoutHint, actions);
       }
       onlineRecordsBtn = makeOnlineButton("onlineRecordsBtn", "전적/랭킹");
+      onlineProfileEditBtn = makeOnlineButton("onlineProfileEditBtn", "프로필 수정");
       onlineSaveLoadoutBtn = makeOnlineButton("onlineSaveLoadoutBtn", "편성 저장");
       onlineGoMatchBtn = makeOnlineButton("onlineGoMatchBtn", "매칭 화면으로", "btn-primary");
       onlineLogoutBtn = onlineLogoutBtn || makeOnlineButton("onlineLogoutBtn", "로그아웃");
       onlineLogoutBtn.hidden = false;
-      [onlineSaveLoadoutBtn, onlineGoMatchBtn].forEach((button) => {
+      [onlineProfileEditBtn, onlineSaveLoadoutBtn, onlineGoMatchBtn].forEach((button) => {
         if (!actions.contains(button)) actions.appendChild(button);
       });
       if (onlineRecordsBtn) {
@@ -8926,8 +8962,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (!player) return "";
     return `
       <div class="online-profile-summary">
-        <div class="online-profile-name">${escapeHtml(player.displayName || "Guest")}</div>
-        <div class="online-profile-record">Rating ${player.rating ?? 0} · ${Number(player.wins || 0)}승 ${Number(player.losses || 0)}패 ${Number(player.draws || 0)}무</div>
+        ${factionEmblemMarkup(player.emblem)}
+        <div class="online-profile-text">
+          <div class="online-profile-name">${escapeHtml(player.displayName || "Guest")}</div>
+          <div class="online-profile-record">Rating ${player.rating ?? 0} · ${Number(player.wins || 0)}승 ${Number(player.losses || 0)}패 ${Number(player.draws || 0)}무</div>
+        </div>
       </div>
     `;
   }
@@ -9047,9 +9086,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       onlineProfile.hidden = !player;
       onlineProfile.innerHTML = player ? `
         <div class="online-profile-summary">
-          <div class="online-profile-name">${escapeHtml(player.displayName)}</div>
-          <div class="online-profile-record">
-            Rating ${player.rating} · ${player.wins}승 ${player.losses}패 ${player.draws}무
+          ${factionEmblemMarkup(player.emblem)}
+          <div class="online-profile-text">
+            <div class="online-profile-name">${escapeHtml(player.displayName)}</div>
+            <div class="online-profile-record">
+              Rating ${player.rating} · ${player.wins}승 ${player.losses}패 ${player.draws}무
+            </div>
           </div>
         </div>
       ` : "";
@@ -9072,6 +9114,52 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           <div class="online-commander-meta">${commander.power}/${commander.leadership}/${commander.charm}</div>
         </div>
       `).join("") : `<div class="online-status">로그인하면 계정에 귀속된 장수 5명이 표시됩니다.</div>`;
+    }
+  }
+
+  function renderOnlineProfileEditEmblemGrid() {
+    if (!onlineProfileEditEmblemGrid) return;
+    onlineProfileEditEmblemGrid.innerHTML = FACTION_EMBLEM_OPTIONS.map((option) => `
+      <div class="online-profile-edit-emblem-option${option.id === onlineProfileEditSelectedEmblem ? " is-selected" : ""}" data-emblem-id="${escapeHtml(option.id)}" title="${escapeHtml(option.label)}">
+        <img src="${option.icon}" alt="${escapeHtml(option.label)}" />
+      </div>
+    `).join("");
+    onlineProfileEditEmblemGrid.querySelectorAll(".online-profile-edit-emblem-option").forEach((node) => {
+      node.addEventListener("click", () => {
+        onlineProfileEditSelectedEmblem = node.dataset.emblemId;
+        renderOnlineProfileEditEmblemGrid();
+      });
+    });
+  }
+
+  function openOnlineProfileEditPanel() {
+    const player = onlineClient.player;
+    if (!player || !onlineProfileEditOverlay) return;
+    onlineProfileEditSelectedEmblem = factionEmblemOption(player.emblem).id;
+    if (onlineProfileEditName) onlineProfileEditName.value = player.displayName || "";
+    if (onlineProfileEditStatus) onlineProfileEditStatus.textContent = "";
+    renderOnlineProfileEditEmblemGrid();
+    onlineProfileEditOverlay.hidden = false;
+  }
+
+  function closeOnlineProfileEditPanel() {
+    if (onlineProfileEditOverlay) onlineProfileEditOverlay.hidden = true;
+  }
+
+  async function saveOnlineProfileEdit() {
+    const displayName = onlineProfileEditName?.value.trim() || "";
+    if (displayName.length < 2) {
+      if (onlineProfileEditStatus) onlineProfileEditStatus.textContent = "표시명은 2자 이상이어야 합니다.";
+      return;
+    }
+    try {
+      if (onlineProfileEditStatus) onlineProfileEditStatus.textContent = "저장 중...";
+      await onlineClient.updateProfile({ displayName, emblem: onlineProfileEditSelectedEmblem });
+      renderOnlineProfile();
+      closeOnlineProfileEditPanel();
+      setOnlineStatus("프로필이 수정되었습니다.");
+    } catch (error) {
+      if (onlineProfileEditStatus) onlineProfileEditStatus.textContent = error.message || "프로필 수정에 실패했습니다.";
     }
   }
 
@@ -9265,7 +9353,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     try {
       setOnlineStatus("계정 생성 중...");
       const { username, password, displayName } = onlineCredentials();
-      await onlineClient.register({ username, password, displayName });
+      await onlineClient.register({ username, password, displayName, emblem: randomFactionEmblemId() });
       await refreshOnlineRecords();
       setOnlinePage("commanders");
       setOnlineStatus("계정이 생성되었습니다. 기본 장수 5명이 지급되었습니다.");
@@ -9482,6 +9570,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     onlineClient.leaveQueue();
   });
 
+  onlineProfileEditSaveBtn?.addEventListener("click", () => {
+    saveOnlineProfileEdit();
+  });
+  onlineProfileEditCancelBtn?.addEventListener("click", () => {
+    closeOnlineProfileEditPanel();
+  });
+  onlineProfileEditOverlay?.addEventListener("click", (event) => {
+    if (event.target === onlineProfileEditOverlay) closeOnlineProfileEditPanel();
+  });
+
   onlineScreen?.addEventListener("click", async (event) => {
     const id = event.target?.id;
     try {
@@ -9511,6 +9609,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       } else if (id === "onlineRecordsBtn") {
         await refreshOnlineRecords();
         setOnlinePage("records");
+      } else if (id === "onlineProfileEditBtn") {
+        openOnlineProfileEditPanel();
       } else if (id === "onlineRecordsBackBtn") {
         setOnlinePage(onlinePreviousPage === "match" ? "match" : "commanders");
       } else if (id === "onlineBackToCommandersBtn") {

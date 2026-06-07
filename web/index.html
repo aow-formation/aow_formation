@@ -140,6 +140,25 @@
           </section>
         </div>
       </div>
+
+      <div id="onlineProfileEditOverlay" class="online-profile-edit-overlay" hidden>
+        <div class="online-profile-edit-panel">
+          <h2 class="online-profile-edit-title">프로필 수정</h2>
+          <label class="online-profile-edit-field">
+            <span>표시명</span>
+            <input id="onlineProfileEditName" maxlength="32" />
+          </label>
+          <div class="online-profile-edit-field">
+            <span>상징 아이콘</span>
+            <div id="onlineProfileEditEmblemGrid" class="online-profile-edit-emblem-grid"></div>
+          </div>
+          <div id="onlineProfileEditStatus" class="online-profile-edit-status"></div>
+          <div class="online-actions online-profile-edit-actions">
+            <button id="onlineProfileEditSaveBtn" class="btn-primary" type="button">저장</button>
+            <button id="onlineProfileEditCancelBtn" class="btn-stone" type="button">취소</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="troopAdjustScreen" class="screen-overlay troop-adjust-screen" hidden>

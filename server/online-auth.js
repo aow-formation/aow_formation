@@ -10,6 +10,7 @@ import {
   grantStarterCommanders,
   recordScenarioClear,
   savePlayerLoadout,
+  updatePlayerProfile,
 } from "./online-db.js";
 
 const usernameSchema = z.string()
@@ -39,6 +40,15 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   username: usernameSchema,
   password: z.string().min(1).max(72),
+});
+
+const profileUpdateSchema = z.object({
+  displayName: z.string()
+    .trim()
+    .min(2, "표시명은 2자 이상이어야 합니다.")
+    .max(32, "표시명은 32자 이하여야 합니다.")
+    .optional(),
+  emblem: z.string().trim().max(32).optional(),
 });
 
 const loadoutSchema = z.object({
@@ -174,6 +184,24 @@ export function installAuthRoutes(app, db) {
   app.get("/api/profile/me", authMiddleware(db), async (req, res) => {
     const recentMatches = await getPlayerRecentMatches(db, req.player.id, 10);
     res.json({ ok: true, player: req.player, recentMatches });
+  });
+
+  app.put("/api/profile/me", authMiddleware(db), async (req, res) => {
+    const parsed = profileUpdateSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      res.status(400).json({
+        ok: false,
+        error: parsed.error.issues[0]?.message || "Invalid profile data",
+        issues: parsed.error.issues,
+      });
+      return;
+    }
+    try {
+      const player = await updatePlayerProfile(db, req.player.id, parsed.data);
+      res.json({ ok: true, player });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message || "Profile update failed" });
+    }
   });
 
   app.get("/api/profile/:id", async (req, res) => {
