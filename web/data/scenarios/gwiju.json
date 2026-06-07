@@ -604,15 +604,6 @@
       "onComplete": {
         "effects": [
           {
-            "type": "areaDamage",
-            "team": "enemy",
-            "x": 98,
-            "y": 38,
-            "w": 52,
-            "h": 88,
-            "damage": 45
-          },
-          {
             "type": "setDisorder",
             "team": "enemy",
             "value": 0.75
@@ -643,18 +634,6 @@
             "values": {
               "meleeAttackMult": 1.3
             }
-          },
-          {
-            "type": "route",
-            "team": "enemy",
-            "formationIds": [
-              "khitan_vanguard",
-              "khitan_center",
-              "khitan_rear",
-              "khitan_horse_archers",
-              "so_bae_ap"
-            ],
-            "speed": "FAST"
           }
         ]
       },
@@ -745,12 +724,6 @@
           "side": "enemy",
           "portrait": "assets/portraits/so_bae_ap.png",
           "text": "후퇴로를 열어라! 강을 벗어나야 한다!"
-        },
-        {
-          "speaker": "강감찬",
-          "side": "player",
-          "portrait": "assets/portraits/gang_gamchan.png",
-          "text": "후퇴가 아니라 붕괴다. 몰아쳐라!"
         }
       ],
       "briefing": {
@@ -807,6 +780,22 @@
           "label": "고려 기병 1부대 이상을 50% 이상 유지하십시오."
         }
       ],
+      "onComplete": {
+        "effects": [
+          {
+            "type": "route",
+            "team": "enemy",
+            "formationIds": [
+              "khitan_vanguard",
+              "khitan_center",
+              "khitan_rear",
+              "khitan_horse_archers",
+              "so_bae_ap"
+            ],
+            "speed": "FAST"
+          }
+        ]
+      },
       "ai": {
         "actions": [
           {
@@ -888,25 +877,7 @@
           "speaker": "강감찬",
           "side": "player",
           "portrait": "assets/portraits/gang_gamchan.png",
-          "text": "끝까지 추격하라. 다시는 고려의 강을 넘보지 못하게 하라."
-        },
-        {
-          "speaker": "김종현",
-          "side": "player",
-          "portrait": "assets/portraits/kim_jong_hyeon.png",
-          "text": "선봉은 흩어졌고 중군도 무너졌습니다."
-        },
-        {
-          "speaker": "강감찬",
-          "side": "player",
-          "portrait": "assets/portraits/gang_gamchan.png",
-          "text": "오늘의 승리는 병사의 칼뿐 아니라, 기다림이 만든 것이다."
-        },
-        {
-          "speaker": "조원",
-          "side": "player",
-          "portrait": "assets/portraits/jo_won.png",
-          "text": "귀주 벌판이 적의 퇴로를 삼키고 있습니다!"
+          "text": "끝까지 추격하라. 다시는 고려를 넘보지 못하게 하라."
         }
       ],
       "briefing": {
