@@ -441,7 +441,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       id: "bomangpa",
       no: "03",
       title: "매복 - 박망파 전투",
-      year: "202",
+      year: "AD 202",
       icon: 2,
       enabled: true
     },
@@ -449,7 +449,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       id: "kalka",
       no: "04",
       title: "거짓 후퇴 - 칼카강 전투",
-      year: "1223",
+      year: "AD 1223",
       icon: 3,
       enabled: false
     },
@@ -457,7 +457,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       id: "gwiju",
       no: "05",
       title: "수공 - 귀주 대첩",
-      year: "1018",
+      year: "AD 1018",
       icon: 4,
       enabled: true
     },
@@ -465,7 +465,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       id: "jupil",
       no: "06",
       title: "우회 - 주필산 전투",
-      year: "645",
+      year: "AD 645",
       icon: 5,
       enabled: true
     },
@@ -473,7 +473,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       id: "yiling",
       no: "07",
       title: "화공 - 이릉 대첩",
-      year: "222",
+      year: "AD 222",
       icon: 6,
       enabled: false
     },
@@ -481,7 +481,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       id: "tours",
       no: "08",
       title: "방진 - 투르 푸아티에 전투",
-      year: "732",
+      year: "AD 732",
       icon: 1,
       enabled: false
     }
@@ -7570,7 +7570,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (homeBtn) homeBtn.hidden = true;
       if (confirmBtn) confirmBtn.hidden = false;
       if (retryBtn) retryBtn.hidden = true;
-      if (scenarioHeader) scenarioHeader.hidden = false;
+      if (scenarioHeader) scenarioHeader.hidden = true;
     } else if (isScenarioDefeat) {
       if (replayBtn) replayBtn.hidden = true;
       if (newBattleBtn) newBattleBtn.hidden = true;
@@ -7580,7 +7580,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
       if (confirmBtn) confirmBtn.hidden = true;
       if (retryBtn) retryBtn.hidden = false;
-      if (scenarioHeader) scenarioHeader.hidden = false;
+      if (scenarioHeader) scenarioHeader.hidden = true;
     } else {
       if (replayBtn) replayBtn.hidden = isOnlineMode();
       if (newBattleBtn) newBattleBtn.hidden = isOnlineMode();

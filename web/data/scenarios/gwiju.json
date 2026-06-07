@@ -65,7 +65,7 @@
         "leadership": 86,
         "charm": 76,
         "skillType": "kihap",
-        "portrait": "assets/portraits/kim_yusin.png",
+        "portrait": "assets/portraits/kim_jong_hyeon.png",
         "position": {
           "x": 39,
           "y": 8
@@ -86,7 +86,7 @@
         "leadership": 82,
         "charm": 72,
         "skillType": "kihap",
-        "portrait": "assets/portraits/gyebaek.png",
+        "portrait": "assets/portraits/jo_won.png",
         "position": {
           "x": 50,
           "y": 21
@@ -113,7 +113,7 @@
         "combatOverrides": {
           "rangedAttackMult": 1.2
         },
-        "portrait": "assets/portraits/huang_zhong.png",
+        "portrait": "assets/portraits/goryeo_archer_captain.png",
         "position": {
           "x": 13,
           "y": 9
@@ -270,7 +270,7 @@
         {
           "speaker": "김종현",
           "side": "player",
-          "portrait": "assets/portraits/kim_yusin.png",
+          "portrait": "assets/portraits/kim_jong_hyeon.png",
           "text": "그렇다면 강을 끼고 싸워야 합니다."
         },
         {
@@ -282,7 +282,7 @@
         {
           "speaker": "고려 궁병대장",
           "side": "player",
-          "portrait": "assets/portraits/huang_zhong.png",
+          "portrait": "assets/portraits/goryeo_archer_captain.png",
           "text": "적 선봉이 도하 지점으로 접근하고 있습니다."
         },
         {
@@ -425,7 +425,7 @@
         {
           "speaker": "조원",
           "side": "player",
-          "portrait": "assets/portraits/gyebaek.png",
+          "portrait": "assets/portraits/jo_won.png",
           "text": "장군, 적 선봉이 이미 강을 건너고 있습니다. 지금 치면 어떻겠습니까?"
         },
         {
@@ -437,7 +437,7 @@
         {
           "speaker": "김종현",
           "side": "player",
-          "portrait": "assets/portraits/kim_yusin.png",
+          "portrait": "assets/portraits/kim_jong_hyeon.png",
           "text": "중군까지 강에 들어와야 합니까?"
         },
         {
@@ -470,7 +470,7 @@
             "id": "flood_zone",
             "type": "rect",
             "label": "수공 피해 구역",
-            "x": 114,
+            "x": 107,
             "y": 44,
             "w": 20,
             "h": 71
@@ -481,7 +481,7 @@
         {
           "id": "enemy_in_river",
           "type": "enemyInAreaRatio",
-          "x": 114,
+          "x": 107,
           "y": 44,
           "w": 20,
           "h": 71,
@@ -566,7 +566,7 @@
         {
           "speaker": "고려 궁병대장",
           "side": "player",
-          "portrait": "assets/portraits/huang_zhong.png",
+          "portrait": "assets/portraits/goryeo_archer_captain.png",
           "camera": {
             "x": 116,
             "y": 82
@@ -725,7 +725,7 @@
         {
           "speaker": "김종현",
           "side": "player",
-          "portrait": "assets/portraits/kim_yusin.png",
+          "portrait": "assets/portraits/kim_jong_hyeon.png",
           "text": "적의 말이 혼란에 빠졌습니다. 지금 돌격하면 무너집니다!"
         },
         {
@@ -737,7 +737,7 @@
         {
           "speaker": "조원",
           "side": "player",
-          "portrait": "assets/portraits/gyebaek.png",
+          "portrait": "assets/portraits/jo_won.png",
           "text": "고려의 말발굽이 저들을 강 밖으로 몰아낼 것입니다!"
         },
         {
@@ -764,7 +764,7 @@
             "id": "pursuit_line",
             "type": "rect",
             "label": "기병 돌격선",
-            "x": 151,
+            "x": 109,
             "y": 62,
             "w": 20,
             "h": 44
@@ -779,7 +779,7 @@
             "kim_jonghyeon",
             "jo_won"
           ],
-          "x": 151,
+          "x": 109,
           "y": 62,
           "w": 20,
           "h": 44,
@@ -881,7 +881,7 @@
         {
           "speaker": "고려 궁병대장",
           "side": "player",
-          "portrait": "assets/portraits/huang_zhong.png",
+          "portrait": "assets/portraits/goryeo_archer_captain.png",
           "text": "적의 깃발이 무너졌습니다!"
         },
         {
@@ -893,7 +893,7 @@
         {
           "speaker": "김종현",
           "side": "player",
-          "portrait": "assets/portraits/kim_yusin.png",
+          "portrait": "assets/portraits/kim_jong_hyeon.png",
           "text": "선봉은 흩어졌고 중군도 무너졌습니다."
         },
         {
@@ -905,7 +905,7 @@
         {
           "speaker": "조원",
           "side": "player",
-          "portrait": "assets/portraits/gyebaek.png",
+          "portrait": "assets/portraits/jo_won.png",
           "text": "귀주 벌판이 적의 퇴로를 삼키고 있습니다!"
         }
       ],
@@ -1046,13 +1046,13 @@
     {
       "speaker": "김종현",
       "side": "player",
-      "portrait": "assets/portraits/kim_yusin.png",
+      "portrait": "assets/portraits/kim_jong_hyeon.png",
       "text": "장군님, 소배압이 겨우 목숨만 건져 도주했습니다. 살아서 돌아간 자가 불과 수천에 불과합니다."
     },
     {
       "speaker": "조원",
       "side": "player",
-      "portrait": "assets/portraits/gyebaek.png",
+      "portrait": "assets/portraits/jo_won.png",
       "text": "이 한 번의 전투로 거란은 다시는 고려를 넘보지 못할 것입니다."
     },
     {
@@ -1064,7 +1064,7 @@
     {
       "speaker": "김종현",
       "side": "player",
-      "portrait": "assets/portraits/kim_yusin.png",
+      "portrait": "assets/portraits/kim_jong_hyeon.png",
       "text": "장군님, 오늘 이 귀주의 이름은 길이 기억될 것입니다."
     },
     {

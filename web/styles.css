@@ -2496,8 +2496,7 @@ input[type="range"].adjust-slider {
 }
 
 .battle-result-screen[data-online="false"] .result-growth-card {
-  width: 66%;
-  justify-self: center;
+  width: 100%;
 }
 
 .battle-result-screen[data-online="false"] .result-growth-battle-stats {

@@ -52,7 +52,7 @@
           "rangedDefenseBonus": 5,
           "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/wei_qing.png",
+        "portrait": "assets/portraits/li_shiji.png",
         "position": {
           "x": 25,
           "y": 40
@@ -80,7 +80,7 @@
           "rangedDefenseBonus": 5,
           "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/sun_bin.png",
+        "portrait": "assets/portraits/zhangsun_wuji.png",
         "position": {
           "x": 25,
           "y": 74
@@ -107,7 +107,7 @@
           "rangedDefenseMult": 1.2,
           "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/huo_qubing.png",
+        "portrait": "assets/portraits/xue_rengui.png",
         "position": {
           "x": 10,
           "y": 46
@@ -134,7 +134,7 @@
           "rangedDefenseMult": 1.2,
           "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/ma_chao.png",
+        "portrait": "assets/portraits/qibi_heli.png",
         "position": {
           "x": 9,
           "y": 67
@@ -238,7 +238,7 @@
         "combatOverrides": {
           "meleeAttackMult": 0.8
         },
-        "portrait": "assets/portraits/lu_bu.png",
+        "portrait": "assets/portraits/go_jeong_ui.png",
         "position": {
           "x": 225,
           "y": 46
@@ -263,7 +263,7 @@
           "meleeAttackMult": 0.8,
           "rangedAttackMult": 0.8
         },
-        "portrait": "assets/portraits/gyebaek.png",
+        "portrait": "assets/portraits/goguryeo_rear_guard.png",
         "position": {
           "x": 200,
           "y": 85
@@ -285,13 +285,13 @@
         {
           "speaker": "장손무기",
           "side": "player",
-          "portrait": "assets/portraits/sun_bin.png",
+          "portrait": "assets/portraits/zhangsun_wuji.png",
           "text": "폐하, 안시성을 구원하기 위한 고구려의 병사가 이 산 아래를 가득 메웠습니다. 수가 너무 많습니다."
         },
         {
           "speaker": "이세적",
           "side": "player",
-          "portrait": "assets/portraits/wei_qing.png",
+          "portrait": "assets/portraits/li_shiji.png",
           "text": "정면으로 부딪치면 오래 버티기 어렵습니다."
         },
         {
@@ -309,7 +309,7 @@
         {
           "speaker": "고정의",
           "side": "enemy",
-          "portrait": "assets/portraits/go_yeon_su.png",
+          "portrait": "assets/portraits/go_jeong_ui.png",
           "camera": {
             "x": 146,
             "y": 82
@@ -444,19 +444,19 @@
         {
           "speaker": "이세적",
           "side": "player",
-          "portrait": "assets/portraits/wei_qing.png",
+          "portrait": "assets/portraits/li_shiji.png",
           "text": "버텨야 한다! 여기서 물러서면 별동대가 돌아갈 시간도 없다!"
         },
         {
           "speaker": "장손무기",
           "side": "player",
-          "portrait": "assets/portraits/sun_bin.png",
+          "portrait": "assets/portraits/zhangsun_wuji.png",
           "text": "적의 압력이 거셉니다. 하지만 아직 전열은 유지됩니다."
         },
         {
           "speaker": "설인귀",
           "side": "player",
-          "portrait": "assets/portraits/huo_qubing.png",
+          "portrait": "assets/portraits/xue_rengui.png",
           "text": "서둘러야 한다. 방어선이 무너지기 전에 적의 뒤를 쳐야 한다."
         }
       ],
@@ -612,7 +612,7 @@
         {
           "speaker": "설인귀",
           "side": "player",
-          "portrait": "assets/portraits/huo_qubing.png",
+          "portrait": "assets/portraits/xue_rengui.png",
           "camera": {
             "x": 186,
             "y": 86
@@ -622,13 +622,13 @@
         {
           "speaker": "계필하력",
           "side": "player",
-          "portrait": "assets/portraits/ma_chao.png",
+          "portrait": "assets/portraits/qibi_heli.png",
           "text": "지금 들이치면 고구려군의 등 뒤가 무너집니다."
         },
         {
           "speaker": "후방 수비대",
           "side": "enemy",
-          "portrait": "assets/portraits/gyebaek.png",
+          "portrait": "assets/portraits/goguryeo_rear_guard.png",
           "text": "당군이다! 후방에 당군이 나타났다!"
         },
         {
@@ -646,7 +646,7 @@
         {
           "speaker": "이세적",
           "side": "player",
-          "portrait": "assets/portraits/wei_qing.png",
+          "portrait": "assets/portraits/li_shiji.png",
           "text": "팔을 들어라! 이제 우리가 밀 차례다!"
         }
       ],
@@ -799,7 +799,7 @@
         {
           "speaker": "장손무기",
           "side": "player",
-          "portrait": "assets/portraits/sun_bin.png",
+          "portrait": "assets/portraits/zhangsun_wuji.png",
           "text": "적의 압력이 약해졌습니다. 중앙이 흔들립니다!"
         },
         {
@@ -811,13 +811,13 @@
         {
           "speaker": "설인귀",
           "side": "player",
-          "portrait": "assets/portraits/huo_qubing.png",
+          "portrait": "assets/portraits/xue_rengui.png",
           "text": "후방에서 밀어붙이겠습니다!"
         },
         {
           "speaker": "이세적",
           "side": "player",
-          "portrait": "assets/portraits/wei_qing.png",
+          "portrait": "assets/portraits/li_shiji.png",
           "text": "앞과 뒤에서 동시에 압박하라!"
         }
       ],
@@ -950,31 +950,31 @@
     {
       "speaker": "이세적",
       "side": "player",
-      "portrait": "assets/portraits/alexander.png",
+      "portrait": "assets/portraits/li_shiji.png",
       "text": "폐하, 고구려와 말갈의 연합군이 완전히 궤멸되었습니다. 주필산은 당의 것입니다."
     },
     {
       "speaker": "당태종",
       "side": "player",
-      "portrait": "assets/portraits/alexander.png",
+      "portrait": "assets/portraits/tang_taizong.png",
       "text": "설인귀, 오늘 네 용맹을 전군이 보았다. 흰 갑옷의 장수가 적진을 홀로 뚫는 것을."
     },
     {
       "speaker": "설인귀",
       "side": "player",
-      "portrait": "assets/portraits/alexander.png",
+      "portrait": "assets/portraits/xue_rengui.png",
       "text": "폐하의 지휘 덕분입니다. 신은 다만 선봉에 섰을 뿐입니다."
     },
     {
       "speaker": "장손무기",
       "side": "player",
-      "portrait": "assets/portraits/alexander.png",
+      "portrait": "assets/portraits/zhangsun_wuji.png",
       "text": "그러나 폐하, 안시성은 아직 굳건합니다. 양만춘이 성벽을 굳게 지키고 있습니다."
     },
     {
       "speaker": "당태종",
       "side": "player",
-      "portrait": "assets/portraits/alexander.png",
+      "portrait": "assets/portraits/tang_taizong.png",
       "text": "안시성... 끝까지 버티는 자의 이름도 역사는 기억하는 법이지. 이 전쟁은 아직 끝나지 않았다."
     }
   ]

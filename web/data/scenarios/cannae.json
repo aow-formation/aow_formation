@@ -48,7 +48,7 @@
           "rangedDefenseMult": 3,
           "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/hannibal.png",
+        "portrait": "assets/portraits/mago.png",
         "position": {
           "x": 16,
           "y": 68
@@ -74,7 +74,7 @@
           "rangedDefenseMult": 3,
           "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/hannibal.png",
+        "portrait": "assets/portraits/gisgo.png",
         "position": {
           "x": 16,
           "y": 92
@@ -124,7 +124,7 @@
           "meleeDefenseMult": 1.5,
           "rangedDefenseMult": 1.5
         },
-        "portrait": "assets/portraits/hannibal.png",
+        "portrait": "assets/portraits/maharbal.png",
         "position": {
           "x": 14,
           "y": 116
@@ -156,7 +156,7 @@
           "meleeDefenseMult": 2,
           "rangedDefenseMult": 2
         },
-        "portrait": "assets/portraits/caesar.png",
+        "portrait": "assets/portraits/paullus.png",
         "position": {
           "x": 218,
           "y": 68
@@ -258,7 +258,7 @@
         "combatOverrides": {
           "meleeAttackMult": 0.8
         },
-        "portrait": "assets/portraits/caesar.png",
+        "portrait": "assets/portraits/varro.png",
         "position": {
           "x": 224,
           "y": 112
@@ -280,13 +280,13 @@
         {
           "speaker": "마고",
           "side": "player",
-          "portrait": "assets/portraits/hannibal.png",
+          "portrait": "assets/portraits/mago.png",
           "text": "장군님, 정찰병이 돌아왔습니다. 로마가 다시 군단병을 소집해 평원 너머에 집결하고 있습니다."
         },
         {
           "speaker": "기스코",
           "side": "player",
-          "portrait": "assets/portraits/hannibal.png",
+          "portrait": "assets/portraits/gisgo.png",
           "text": "이번에는 임시로 긁어모은 병력이 아닙니다. 집정관들이 결전을 각오하고 군단을 정비한 모양입니다."
         },
         {
@@ -304,7 +304,7 @@
         {
           "speaker": "바로",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/varro.png",
           "camera": {
             "x": 184,
             "y": 82
@@ -314,7 +314,7 @@
         {
           "speaker": "파울루스",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/paullus.png",
           "text": "서두르지 마시오, 바로 장군. 한니발은 기병 운용의 천재요. 보병 대열을 밀집시키고 흐트러지지 않게 하시오."
         }
       ],
@@ -458,7 +458,7 @@
         {
           "speaker": "기스코",
           "side": "player",
-          "portrait": "assets/portraits/hannibal.png",
+          "portrait": "assets/portraits/gisgo.png",
           "camera": {
             "x": 78,
             "y": 84
@@ -474,7 +474,7 @@
         {
           "speaker": "기스코",
           "side": "player",
-          "portrait": "assets/portraits/hannibal.png",
+          "portrait": "assets/portraits/gisgo.png",
           "text": "적어도 8만은 족히 넘을 것입니다. 우리보다 두 배는 많습니다. 저 압도적인 대군을 정면에서 이길 방법이 있겠습니까?"
         },
         {
@@ -486,7 +486,7 @@
         {
           "speaker": "기스코",
           "side": "player",
-          "portrait": "assets/portraits/hannibal.png",
+          "portrait": "assets/portraits/gisgo.png",
           "text": "예? 그건 무슨... 아니, 없을 것입니다."
         },
         {
@@ -629,7 +629,7 @@
         {
           "speaker": "바로",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/varro.png",
           "camera": {
             "x": 110,
             "y": 82
@@ -639,7 +639,7 @@
         {
           "speaker": "파울루스",
           "side": "enemy",
-          "portrait": "assets/portraits/caesar.png",
+          "portrait": "assets/portraits/paullus.png",
           "text": "늦었소... 한니발이 우리를 스스로 그물 속으로 들어오게 했구나. 대열을 유지하라! 제발 대열을 유지하라!"
         },
         {
@@ -751,7 +751,7 @@
     {
       "speaker": "마하르발",
       "side": "player",
-      "portrait": "assets/portraits/hannibal.png",
+      "portrait": "assets/portraits/maharbal.png",
       "text": "장군, 로마의 최정예 군단이 이 평원에서 사라졌습니다. 이제 이탈리아의 심장이 열렸습니다."
     },
     {
@@ -763,7 +763,7 @@
     {
       "speaker": "마고",
       "side": "player",
-      "portrait": "assets/portraits/hannibal.png",
+      "portrait": "assets/portraits/mago.png",
       "text": "형님, 지금 당장 로마를 향해 진격합시다! 성문이 열릴 것입니다!"
     },
     {
@@ -775,7 +775,7 @@
     {
       "speaker": "마하르발",
       "side": "player",
-      "portrait": "assets/portraits/hannibal.png",
+      "portrait": "assets/portraits/maharbal.png",
       "text": "장군께서는 승리하는 법은 아시지만, 그것을 이용하는 법은 모르십니다. 오늘의 승리를 오래 기억하십시오."
     }
   ]

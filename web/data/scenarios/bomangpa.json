@@ -165,7 +165,7 @@
         "combatOverrides": {
           "meleeAttackMult": 0.8
         },
-        "portrait": "assets/portraits/dian_wei.png",
+        "portrait": "assets/portraits/xiahou_dun.png",
         "position": {
           "x": 207,
           "y": 71
@@ -316,7 +316,7 @@
         {
           "speaker": "하후돈",
           "side": "enemy",
-          "portrait": "assets/portraits/dian_wei.png",
+          "portrait": "assets/portraits/xiahou_dun.png",
           "camera": {
             "x": 198,
             "y": 80
@@ -750,7 +750,7 @@
         {
           "speaker": "하후돈",
           "side": "enemy",
-          "portrait": "assets/portraits/dian_wei.png",
+          "portrait": "assets/portraits/xiahou_dun.png",
           "text": "복병이다! 불길에 퇴로까지 막혔다. 후퇴하라! 숲길을 빠져나가라!"
         },
         {
@@ -926,13 +926,13 @@
     {
       "speaker": "유비",
       "side": "player",
-      "portrait": "assets/portraits/zhuge_liang.png",
+      "portrait": "assets/portraits/liu_bei.png",
       "text": "공명, 그대의 첫 번째 전술이 이렇게 빛날 줄은 몰랐소. 오늘의 승리는 그대 덕분이오."
     },
     {
       "speaker": "조운",
       "side": "player",
-      "portrait": "assets/portraits/zhuge_liang.png",
+      "portrait": "assets/portraits/zhao_yun.png",
       "text": "군사님의 계략은 완벽했습니다. 관우 장군과 장비 장군도 잘 싸워주었습니다."
     },
     {
@@ -944,7 +944,7 @@
     {
       "speaker": "유비",
       "side": "player",
-      "portrait": "assets/portraits/zhuge_liang.png",
+      "portrait": "assets/portraits/liu_bei.png",
       "text": "강동의 손권과 손을 잡아야 할 때가 올 것이오. 천하는 아직 우리를 기다리고 있소."
     },
     {

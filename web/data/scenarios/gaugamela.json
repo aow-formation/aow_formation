@@ -66,7 +66,7 @@
           "meleeDefenseMult": 1.5,
           "rangedDefenseMult": 1.25
         },
-        "portrait": "assets/portraits/alexander.png",
+        "portrait": "assets/portraits/craterus.png",
         "position": {
           "x": 44,
           "y": 75
@@ -116,7 +116,7 @@
           "meleeDefenseMult": 1.5,
           "rangedDefenseMult": 1.25
         },
-        "portrait": "assets/portraits/alexander.png",
+        "portrait": "assets/portraits/parmenion.png",
         "position": {
           "x": 44,
           "y": 111
@@ -145,7 +145,7 @@
         "combatOverrides": {
           "meleeAttackMult": 0.8
         },
-        "portrait": "assets/portraits/attila.png",
+        "portrait": "assets/portraits/bessus.png",
         "position": {
           "x": 175,
           "y": 40
@@ -219,7 +219,7 @@
         "combatOverrides": {
           "meleeAttackMult": 0.8
         },
-        "portrait": "assets/portraits/attila.png",
+        "portrait": "assets/portraits/mazaeus.png",
         "position": {
           "x": 177,
           "y": 115
@@ -266,7 +266,7 @@
         {
           "speaker": "파르메니온",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/parmenion.png",
           "text": "폐하, 페르시아군이 평원을 가득 메웠습니다. 저 숫자는 병사라기보다 하나의 벽입니다."
         },
         {
@@ -278,7 +278,7 @@
         {
           "speaker": "크라테로스",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/craterus.png",
           "text": "팔랑크스는 중앙에 서겠습니다. 우리가 버티는 동안 폐하께서 길을 여십시오."
         },
         {
@@ -300,7 +300,7 @@
         {
           "speaker": "마자이오스",
           "side": "enemy",
-          "portrait": "assets/portraits/attila.png",
+          "portrait": "assets/portraits/mazaeus.png",
           "text": "기병을 양익으로 펼치겠습니다. 저들의 작은 대열을 감싸 눌러버리겠습니다."
         }
       ],
@@ -489,13 +489,13 @@
         {
           "speaker": "파르메니온",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/parmenion.png",
           "text": "방패를 맞대라! 창끝을 낮추고 한 걸음도 물러서지 마라!"
         },
         {
           "speaker": "크라테로스",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/craterus.png",
           "text": "적이 몰려옵니다. 중앙이 흔들리면 모든 것이 끝입니다."
         },
         {
@@ -662,7 +662,7 @@
         {
           "speaker": "파르메니온",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/parmenion.png",
           "text": "우리는 더 버티겠습니다. 폐하께서는 왕을 노리십시오!"
         },
         {
@@ -770,7 +770,7 @@
         {
           "speaker": "베수스",
           "side": "enemy",
-          "portrait": "assets/portraits/attila.png",
+          "portrait": "assets/portraits/bessus.png",
           "text": "폐하, 마케도니아 기병이 본진을 향하고 있습니다. 후퇴로를 열어야 합니다!"
         },
         {
@@ -921,7 +921,7 @@
         {
           "speaker": "파르메니온",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/parmenion.png",
           "camera": {
             "x": 112,
             "y": 88
@@ -931,7 +931,7 @@
         {
           "speaker": "크라테로스",
           "side": "player",
-          "portrait": "assets/portraits/alexander.png",
+          "portrait": "assets/portraits/craterus.png",
           "text": "팔랑크스, 전진하라!"
         },
         {
@@ -1071,7 +1071,7 @@
     {
       "speaker": "파르메니온",
       "side": "player",
-      "portrait": "assets/portraits/alexander.png",
+      "portrait": "assets/portraits/parmenion.png",
       "text": "폐하, 다리우스가 동쪽으로 도주했습니다. 페르시아 제국의 심장이 무너졌습니다."
     },
     {
@@ -1089,7 +1089,7 @@
     {
       "speaker": "크라테로스",
       "side": "player",
-      "portrait": "assets/portraits/alexander.png",
+      "portrait": "assets/portraits/craterus.png",
       "text": "배신자의 손에 왕이 죽는 일은 없어야 합니다. 동방으로 가야 합니까, 폐하?"
     },
     {
@@ -1101,7 +1101,7 @@
     {
       "speaker": "파르메니온",
       "side": "player",
-      "portrait": "assets/portraits/alexander.png",
+      "portrait": "assets/portraits/parmenion.png",
       "text": "폐하, 그 끝이 얼마나 먼지는 아무도 모릅니다..."
     },
     {
