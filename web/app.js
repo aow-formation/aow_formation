@@ -1868,6 +1868,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         vy: 0,
         damage: 0,
         damageEffectTimer: 0,
+        damageEffectFlip: false,
         capacity,
         slotIndex: i,
         slotLocal: vec(),
@@ -2794,6 +2795,22 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return Math.floor(Math.random() * count);
   }
 
+  function unitDamageEffectFlip(formation, unit) {
+    const hitIndex = unit.damageEffectHitCount = (unit.damageEffectHitCount || 0) + 1;
+    if (isOnlineMode()) {
+      return onlineHashNumber([
+        game.online.seed,
+        "damageEffectFlip",
+        formation.worldSide ?? formation.team,
+        formation.id,
+        unit.id,
+        unit.slotIndex,
+        hitIndex,
+      ].join("|")) % 2 === 0;
+    }
+    return Math.random() < 0.5;
+  }
+
   function deathTraceFlip(formation, unit) {
     if (isOnlineMode()) {
       return onlineHashNumber([
@@ -2826,6 +2843,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     unit.damage = Math.min(capacity, prevDamage + appliedDamage);
     if (options.meleeEffect === true && appliedDamage > 0 && (unit.damageEffectTimer || 0) <= 0) {
       unit.damageEffectTimer = UNIT_DAMAGE_EFFECT_DURATION;
+      unit.damageEffectFlip = unitDamageEffectFlip(targetFormation, unit);
     }
     targetFormation.general.losses += appliedDamage;
     if (attackerFormation && attackerFormation !== targetFormation) {
@@ -4479,7 +4497,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         effectSprite.texture = effectTex;
         effectSprite.x = cx;
         effectSprite.y = cy;
-        effectSprite.scale.set(effectScale);
+        effectSprite.scale.x = unit.damageEffectFlip ? -effectScale : effectScale;
+        effectSprite.scale.y = effectScale;
         effectSprite.zIndex = unit.x + unit.y + 0.02;
         effectSprite.alpha = 0.5;
         effectSprite.visible = true;
@@ -5068,14 +5087,27 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const effectDrawW = effectDrawH * (effectFrameW / effectFrameH);
         ctx.save();
         ctx.globalAlpha = 0.5;
-        ctx.drawImage(
-          unitDamageEffectSprite,
-          effectFrame * effectFrameW, 0, effectFrameW, effectFrameH,
-          Math.round(cx - effectDrawW / 2),
-          Math.round(cy - effectDrawH),
-          Math.round(effectDrawW),
-          Math.round(effectDrawH)
-        );
+        if (unit.damageEffectFlip) {
+          ctx.translate(cx, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            unitDamageEffectSprite,
+            effectFrame * effectFrameW, 0, effectFrameW, effectFrameH,
+            Math.round(-effectDrawW / 2),
+            Math.round(cy - effectDrawH),
+            Math.round(effectDrawW),
+            Math.round(effectDrawH)
+          );
+        } else {
+          ctx.drawImage(
+            unitDamageEffectSprite,
+            effectFrame * effectFrameW, 0, effectFrameW, effectFrameH,
+            Math.round(cx - effectDrawW / 2),
+            Math.round(cy - effectDrawH),
+            Math.round(effectDrawW),
+            Math.round(effectDrawH)
+          );
+        }
         ctx.restore();
       }
     });
