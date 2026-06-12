@@ -839,7 +839,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const V3 = "./assets/terrain_tiles_v3/";
   const WORLD_TEX = "./assets/terrain_world_textures/";
   const CLUSTER_TEX = "./assets/terrain_cluster_overlays/";
-  const TERRAIN_WORLD_TEXTURE_SCALE = 0.32;
+  const TERRAIN_WORLD_TEXTURE_SCALE = 0.78375; // 512px 소스 기준 (구 1254px × 0.32 = 401px 동일 반복)
   const TERRAIN_WORLD_TONE_FILTERS = {
     plain: "saturate(92%)",
     road: "saturate(110%)",
@@ -1640,7 +1640,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     buildingSeeds.forEach(placeBuildingCluster);
     */
 
-    return { isBorder, borderData, block, variant, ruggedMtn, ruggedMtnVariant, ruggedMtnEdge, clusterMap, objectMap, buildingMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false, chunkPixiReady: false };
+    return { isBorder, borderData, block, variant, ruggedMtn, ruggedMtnVariant, ruggedMtnEdge, clusterMap, objectMap, buildingMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false, chunkPixiReady: false, prefetchQueue: [], prefetchGen: 0, _prefetchScheduled: false };
   }
 
   function chooseNames() {
@@ -4124,6 +4124,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     game.terrainRender.chunkTileW = game.tileW;
     game.terrainRender.chunkSpritesReady = terrainSprites.ready;
     game.terrainRender.chunkPixiReady = pixiReady;
+    game.terrainRender.prefetchQueue.length = 0;
+    game.terrainRender.prefetchGen++;
+    game.terrainRender._prefetchScheduled = false;
     if (pixiUnitCtr) {
       for (const { sprite } of pixiTreeSprites) {
         pixiUnitCtr.removeChild(sprite);
@@ -4412,6 +4415,56 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       return true;
     };
 
+    // 경계 타일에서 월드 텍스처 + 디테일 패치를 단일 temp 캔버스에 합성 후 마스크 1회 적용
+    const drawBorderTile = (ctx, terrainType, tileX, tileY, px, py, options = {}, maskCv = null) => {
+      const w = options.width ?? (tileWidth + 1);
+      const h = options.height ?? (tileH + 1);
+      const drawX = px - w / 2;
+      const drawY = py - 0.25;
+
+      let tmp, tc;
+      if (sharedTmp.width >= w + 2 && sharedTmp.height >= h + 2) {
+        tmp = sharedTmp; tc = sharedTmpCtx;
+        tc.clearRect(0, 0, tmp.width, tmp.height);
+        tc.globalCompositeOperation = "source-over";
+        tc.globalAlpha = 1;
+      } else {
+        tmp = createSurface(w + 2, h + 2); tc = tmp.getContext("2d");
+      }
+
+      const pattern = worldPatternFor(tc, terrainType, drawX, drawY);
+      if (!pattern) return false;
+      tc.imageSmoothingEnabled = true;
+      tc.imageSmoothingQuality = "high";
+      tc.filter = terrainWorldToneFilter(terrainType);
+      tc.fillStyle = pattern;
+      tc.fillRect(0, 0, w + 2, h + 2);
+      tc.filter = "none";
+      if (options.punchWetland) punchWetlandDots(tc, w, h, tileX, tileY);
+
+      if (TERRAIN_DETAIL_PATCH_ENABLED && terrainSprites.clusters?.length && TERRAIN_DETAIL_PATCH_INDICES[terrainType]?.length) {
+        const localPad = 3;
+        for (let ay = tileY - localPad; ay <= tileY + localPad; ay++) {
+          for (let ax = tileX - localPad; ax <= tileX + localPad; ax++) {
+            drawDetailPatchAt(tc, terrainType, ax, ay, minIsoX + drawX, minIsoY + drawY, 0.88);
+          }
+        }
+      }
+
+      tc.globalCompositeOperation = "destination-in";
+      if (maskCv) {
+        tc.drawImage(maskCv, 0, 0, w, h);
+      } else {
+        tc.beginPath();
+        traceTileDiamond(tc, w / 2, 0.25, 0.8);
+        tc.fillStyle = "#fff";
+        tc.fill();
+      }
+      tc.globalCompositeOperation = "source-over";
+      ctx.drawImage(tmp, 0, 0, w + 2, h + 2, drawX, drawY, w + 2, h + 2);
+      return true;
+    };
+
     if (TERRAIN_DETAIL_PATCH_ENABLED && terrainSprites.ready && terrainSprites.clusters?.length) {
       chunkCtx.imageSmoothingEnabled = true;
       chunkCtx.imageSmoothingQuality = "high";
@@ -4472,47 +4525,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       if (!terrainSprites.ready || !TERRAIN_1X1_MASK_ENABLED) return;
       if (bd.maskDir === "center") {
-        const centerW = w + 1;
-        const centerH = tileH + 1;
-        const drawX = px - centerW / 2;
-        const drawY = py - 0.25;
-        fillWorldDiamond(chunkCtx, bd.upperT, x, y, px, py, { width: centerW, height: centerH, punchWetland: bd.upperT === "wetland" });
-        drawMaskedDetailPatchTile(chunkCtx, bd.upperT, x, y, drawX, drawY, centerW, centerH);
+        drawBorderTile(chunkCtx, bd.upperT, x, y, px, py, { punchWetland: bd.upperT === "wetland" });
       } else if (bd.maskDir) {
         const maskArr = terrainSprites.masks[bd.maskDir];
-        const maskCv = maskArr?.length
-          ? maskArr[tileHash(x, y) % maskArr.length]
-          : null;
+        const maskCv = maskArr?.length ? maskArr[tileHash(x, y) % maskArr.length] : null;
         if (!maskCv) return;
-
-        const h = tileH + 1;
-        const drawX = px - w / 2;
-        const drawY = py - 0.25;
-        // sharedTmp 재사용
-        let tmp2, tc2;
-        if (sharedTmp.width >= w + 2 && sharedTmp.height >= h + 2) {
-          tmp2 = sharedTmp; tc2 = sharedTmpCtx;
-          tc2.clearRect(0, 0, tmp2.width, tmp2.height);
-          tc2.globalCompositeOperation = "source-over";
-          tc2.globalAlpha = 1;
-        } else {
-          tmp2 = createSurface(w + 2, h + 2); tc2 = tmp2.getContext("2d");
-        }
-        const pattern = worldPatternFor(tc2, bd.upperT, drawX, drawY);
-        if (!pattern) return;
-
-        tc2.imageSmoothingEnabled = true;
-        tc2.imageSmoothingQuality = "high";
-        tc2.filter = terrainWorldToneFilter(bd.upperT);
-        tc2.fillStyle = pattern;
-        tc2.fillRect(0, 0, w + 2, h + 2);
-        tc2.filter = "none";
-        if (bd.upperT === "wetland") punchWetlandDots(tc2, w, h, x, y);
-        tc2.globalCompositeOperation = "destination-in";
-        tc2.drawImage(maskCv, 0, 0, w, h);
-        tc2.globalCompositeOperation = "source-over";
-        chunkCtx.drawImage(tmp2, 0, 0, w + 2, h + 2, drawX, drawY, w + 2, h + 2);
-        drawMaskedDetailPatchTile(chunkCtx, bd.upperT, x, y, drawX, drawY, w, h, maskCv);
+        drawBorderTile(chunkCtx, bd.upperT, x, y, px, py, { width: tileWidth, punchWetland: bd.upperT === "wetland" }, maskCv);
       }
 
     });
@@ -5098,6 +5116,44 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     ctx.drawImage(fogBlur, 0, 0);
   }
 
+  function scheduleTerrainPrefetch(minCX, maxCX, minCY, maxCY) {
+    const tr = game.terrainRender;
+    const cache = tr.chunkCache;
+    const queue = tr.prefetchQueue;
+    const inQueue = new Set(queue.map(([cx, cy]) => chunkKey(cx, cy)));
+    const pad = 2;
+    for (let cy = minCY - pad; cy <= maxCY + pad; cy++) {
+      for (let cx = minCX - pad; cx <= maxCX + pad; cx++) {
+        if (cx >= minCX && cx <= maxCX && cy >= minCY && cy <= maxCY) continue;
+        if (cx < 0 || cy < 0 || cx > Math.ceil(MAP_WIDTH / CHUNK_TILES) || cy > Math.ceil(MAP_HEIGHT / CHUNK_TILES)) continue;
+        const key = chunkKey(cx, cy);
+        if (cache.has(key) || inQueue.has(key)) continue;
+        inQueue.add(key);
+        queue.push([cx, cy]);
+      }
+    }
+    if (queue.length === 0 || tr._prefetchScheduled) return;
+    tr._prefetchScheduled = true;
+    const gen = tr.prefetchGen;
+    const bake = (deadline) => {
+      if (tr.prefetchGen !== gen) { tr._prefetchScheduled = false; return; }
+      while (queue.length > 0) {
+        if (deadline && deadline.timeRemaining() < 2) break;
+        const [cx, cy] = queue.shift();
+        const key = chunkKey(cx, cy);
+        if (!cache.has(key)) cache.set(key, createTerrainChunk(cx, cy));
+      }
+      if (queue.length > 0) {
+        if (window.requestIdleCallback) requestIdleCallback(bake, { timeout: 1000 });
+        else setTimeout(() => bake(null), 0);
+      } else {
+        tr._prefetchScheduled = false;
+      }
+    };
+    if (window.requestIdleCallback) requestIdleCallback(bake, { timeout: 1000 });
+    else setTimeout(() => bake(null), 0);
+  }
+
   function renderMap() {
     ensureTerrainChunkCache();
     const origin = viewportOrigin();
@@ -5152,6 +5208,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
       ctx.drawImage(chunk.canvas, chunk.worldX - game.camera.x + origin.x, chunk.worldY - game.camera.y + origin.y);
     });
+    scheduleTerrainPrefetch(minChunkX, maxChunkX, minChunkY, maxChunkY);
   }
 
   function renderMapPixi() {
