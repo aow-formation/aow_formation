@@ -1,0 +1,1917 @@
+{
+  "generatedAt": "2026-06-10T00:01:58.840Z",
+  "sourceStudy": "asset_studies/aoe_style_terrain_20260609",
+  "notes": [
+    "Runtime candidates generated from exploratory study sheets.",
+    "Base sprites are reference/fallback candidates; current battlefield base still uses world-coordinate textures.",
+    "Transition sprites are transparent overlays used on 3x3 terrain patch boundaries."
+  ],
+  "base": {
+    "bright_grass_00": {
+      "file": "assets/terrain_hybrid/base/bright_grass_00.png",
+      "sourceCrop": {
+        "left": 0,
+        "top": 0,
+        "width": 384,
+        "height": 220
+      },
+      "trim": {
+        "left": 9,
+        "top": 15,
+        "width": 375,
+        "height": 205
+      },
+      "width": 375,
+      "height": 205
+    },
+    "bright_grass_01": {
+      "file": "assets/terrain_hybrid/base/bright_grass_01.png",
+      "sourceCrop": {
+        "left": 384,
+        "top": 0,
+        "width": 384,
+        "height": 220
+      },
+      "trim": {
+        "left": 0,
+        "top": 13,
+        "width": 384,
+        "height": 207
+      },
+      "width": 384,
+      "height": 207
+    },
+    "bright_grass_02": {
+      "file": "assets/terrain_hybrid/base/bright_grass_02.png",
+      "sourceCrop": {
+        "left": 768,
+        "top": 0,
+        "width": 384,
+        "height": 220
+      },
+      "trim": {
+        "left": 0,
+        "top": 13,
+        "width": 384,
+        "height": 207
+      },
+      "width": 384,
+      "height": 207
+    },
+    "bright_grass_03": {
+      "file": "assets/terrain_hybrid/base/bright_grass_03.png",
+      "sourceCrop": {
+        "left": 1152,
+        "top": 0,
+        "width": 384,
+        "height": 220
+      },
+      "trim": {
+        "left": 0,
+        "top": 12,
+        "width": 369,
+        "height": 208
+      },
+      "width": 369,
+      "height": 208
+    },
+    "dark_grass_00": {
+      "file": "assets/terrain_hybrid/base/dark_grass_00.png",
+      "sourceCrop": {
+        "left": 0,
+        "top": 205,
+        "width": 384,
+        "height": 225
+      },
+      "trim": {
+        "left": 14,
+        "top": 0,
+        "width": 370,
+        "height": 225
+      },
+      "width": 370,
+      "height": 225
+    },
+    "dark_grass_01": {
+      "file": "assets/terrain_hybrid/base/dark_grass_01.png",
+      "sourceCrop": {
+        "left": 384,
+        "top": 205,
+        "width": 384,
+        "height": 225
+      },
+      "trim": {
+        "left": 0,
+        "top": 0,
+        "width": 384,
+        "height": 225
+      },
+      "width": 384,
+      "height": 225
+    },
+    "dark_grass_02": {
+      "file": "assets/terrain_hybrid/base/dark_grass_02.png",
+      "sourceCrop": {
+        "left": 768,
+        "top": 205,
+        "width": 384,
+        "height": 225
+      },
+      "trim": {
+        "left": 3,
+        "top": 0,
+        "width": 370,
+        "height": 225
+      },
+      "width": 370,
+      "height": 225
+    },
+    "dry_grass_00": {
+      "file": "assets/terrain_hybrid/base/dry_grass_00.png",
+      "sourceCrop": {
+        "left": 0,
+        "top": 407,
+        "width": 256,
+        "height": 200
+      },
+      "trim": {
+        "left": 7,
+        "top": 0,
+        "width": 249,
+        "height": 187
+      },
+      "width": 249,
+      "height": 187
+    },
+    "dry_grass_01": {
+      "file": "assets/terrain_hybrid/base/dry_grass_01.png",
+      "sourceCrop": {
+        "left": 256,
+        "top": 407,
+        "width": 256,
+        "height": 200
+      },
+      "trim": {
+        "left": 0,
+        "top": 19,
+        "width": 256,
+        "height": 168
+      },
+      "width": 256,
+      "height": 168
+    },
+    "dirt_00": {
+      "file": "assets/terrain_hybrid/base/dirt_00.png",
+      "sourceCrop": {
+        "left": 512,
+        "top": 407,
+        "width": 256,
+        "height": 200
+      },
+      "trim": {
+        "left": 22,
+        "top": 0,
+        "width": 234,
+        "height": 200
+      },
+      "width": 234,
+      "height": 200
+    },
+    "dirt_01": {
+      "file": "assets/terrain_hybrid/base/dirt_01.png",
+      "sourceCrop": {
+        "left": 768,
+        "top": 407,
+        "width": 256,
+        "height": 200
+      },
+      "trim": {
+        "left": 0,
+        "top": 0,
+        "width": 256,
+        "height": 187
+      },
+      "width": 256,
+      "height": 187
+    },
+    "dirt_02": {
+      "file": "assets/terrain_hybrid/base/dirt_02.png",
+      "sourceCrop": {
+        "left": 1024,
+        "top": 407,
+        "width": 256,
+        "height": 200
+      },
+      "trim": {
+        "left": 0,
+        "top": 19,
+        "width": 256,
+        "height": 172
+      },
+      "width": 256,
+      "height": 172
+    },
+    "dirt_03": {
+      "file": "assets/terrain_hybrid/base/dirt_03.png",
+      "sourceCrop": {
+        "left": 1280,
+        "top": 407,
+        "width": 256,
+        "height": 200
+      },
+      "trim": {
+        "left": 0,
+        "top": 18,
+        "width": 242,
+        "height": 169
+      },
+      "width": 242,
+      "height": 169
+    },
+    "road_00": {
+      "file": "assets/terrain_hybrid/base/road_00.png",
+      "sourceCrop": {
+        "left": 0,
+        "top": 588,
+        "width": 256,
+        "height": 220
+      },
+      "trim": {
+        "left": 7,
+        "top": 13,
+        "width": 249,
+        "height": 207
+      },
+      "width": 249,
+      "height": 207
+    },
+    "road_01": {
+      "file": "assets/terrain_hybrid/base/road_01.png",
+      "sourceCrop": {
+        "left": 256,
+        "top": 588,
+        "width": 256,
+        "height": 220
+      },
+      "trim": {
+        "left": 0,
+        "top": 13,
+        "width": 256,
+        "height": 184
+      },
+      "width": 256,
+      "height": 184
+    },
+    "road_02": {
+      "file": "assets/terrain_hybrid/base/road_02.png",
+      "sourceCrop": {
+        "left": 512,
+        "top": 588,
+        "width": 256,
+        "height": 220
+      },
+      "trim": {
+        "left": 0,
+        "top": 12,
+        "width": 256,
+        "height": 208
+      },
+      "width": 256,
+      "height": 208
+    },
+    "road_03": {
+      "file": "assets/terrain_hybrid/base/road_03.png",
+      "sourceCrop": {
+        "left": 768,
+        "top": 588,
+        "width": 256,
+        "height": 220
+      },
+      "trim": {
+        "left": 0,
+        "top": 15,
+        "width": 256,
+        "height": 205
+      },
+      "width": 256,
+      "height": 205
+    },
+    "gravel_00": {
+      "file": "assets/terrain_hybrid/base/gravel_00.png",
+      "sourceCrop": {
+        "left": 1024,
+        "top": 588,
+        "width": 256,
+        "height": 220
+      },
+      "trim": {
+        "left": 0,
+        "top": 0,
+        "width": 256,
+        "height": 220
+      },
+      "width": 256,
+      "height": 220
+    },
+    "gravel_01": {
+      "file": "assets/terrain_hybrid/base/gravel_01.png",
+      "sourceCrop": {
+        "left": 1280,
+        "top": 588,
+        "width": 256,
+        "height": 220
+      },
+      "trim": {
+        "left": 0,
+        "top": 13,
+        "width": 248,
+        "height": 207
+      },
+      "width": 248,
+      "height": 207
+    },
+    "rocky_ground_00": {
+      "file": "assets/terrain_hybrid/base/rocky_ground_00.png",
+      "sourceCrop": {
+        "left": 0,
+        "top": 775,
+        "width": 384,
+        "height": 249
+      },
+      "trim": {
+        "left": 30,
+        "top": 0,
+        "width": 354,
+        "height": 229
+      },
+      "width": 354,
+      "height": 229
+    },
+    "rocky_ground_01": {
+      "file": "assets/terrain_hybrid/base/rocky_ground_01.png",
+      "sourceCrop": {
+        "left": 384,
+        "top": 775,
+        "width": 384,
+        "height": 249
+      },
+      "trim": {
+        "left": 0,
+        "top": 0,
+        "width": 384,
+        "height": 234
+      },
+      "width": 384,
+      "height": 234
+    },
+    "farm_00": {
+      "file": "assets/terrain_hybrid/base/farm_00.png",
+      "sourceCrop": {
+        "left": 768,
+        "top": 775,
+        "width": 384,
+        "height": 249
+      },
+      "trim": {
+        "left": 0,
+        "top": 0,
+        "width": 384,
+        "height": 238
+      },
+      "width": 384,
+      "height": 238
+    },
+    "farm_01": {
+      "file": "assets/terrain_hybrid/base/farm_01.png",
+      "sourceCrop": {
+        "left": 1152,
+        "top": 775,
+        "width": 384,
+        "height": 249
+      },
+      "trim": {
+        "left": 0,
+        "top": 0,
+        "width": 384,
+        "height": 249
+      },
+      "width": 384,
+      "height": 249
+    }
+  },
+  "transitions": {
+    "grass_dirt": {
+      "tiles": [
+        "grassland",
+        "plain"
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_dirt/edge_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 0,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 3,
+            "top": 69,
+            "width": 216,
+            "height": 116
+          },
+          "width": 216,
+          "height": 116,
+          "name": "edge_00",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_dirt/edge_01.png",
+          "sourceCrop": {
+            "left": 219,
+            "top": 0,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 67,
+            "width": 217,
+            "height": 123
+          },
+          "width": 217,
+          "height": 123,
+          "name": "edge_01",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_dirt/edge_02.png",
+          "sourceCrop": {
+            "left": 439,
+            "top": 0,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 64,
+            "width": 219,
+            "height": 139
+          },
+          "width": 219,
+          "height": 139,
+          "name": "edge_02",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_dirt/corner_00.png",
+          "sourceCrop": {
+            "left": 658,
+            "top": 0,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 52,
+            "width": 220,
+            "height": 148
+          },
+          "width": 220,
+          "height": 148,
+          "name": "corner_00",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_dirt/corner_01.png",
+          "sourceCrop": {
+            "left": 878,
+            "top": 0,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 52,
+            "width": 219,
+            "height": 150
+          },
+          "width": 219,
+          "height": 150,
+          "name": "corner_01",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_dirt/corner_inner.png",
+          "sourceCrop": {
+            "left": 1097,
+            "top": 0,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 54,
+            "width": 220,
+            "height": 145
+          },
+          "width": 220,
+          "height": 145,
+          "name": "corner_inner",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_dirt/patch_00.png",
+          "sourceCrop": {
+            "left": 1317,
+            "top": 0,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 37,
+            "width": 210,
+            "height": 168
+          },
+          "width": 210,
+          "height": 168,
+          "name": "patch_00",
+          "role": "corner"
+        }
+      ]
+    },
+    "grass_forest": {
+      "tiles": [
+        "grassland",
+        "mountain"
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_forest/edge_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 205,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 49,
+            "width": 219,
+            "height": 126
+          },
+          "width": 219,
+          "height": 126,
+          "name": "edge_00",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_forest/edge_01.png",
+          "sourceCrop": {
+            "left": 219,
+            "top": 205,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 51,
+            "width": 215,
+            "height": 132
+          },
+          "width": 215,
+          "height": 132,
+          "name": "edge_01",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_forest/edge_02.png",
+          "sourceCrop": {
+            "left": 439,
+            "top": 205,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 44,
+            "width": 219,
+            "height": 160
+          },
+          "width": 219,
+          "height": 160,
+          "name": "edge_02",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_forest/corner_00.png",
+          "sourceCrop": {
+            "left": 658,
+            "top": 205,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 32,
+            "width": 220,
+            "height": 166
+          },
+          "width": 220,
+          "height": 166,
+          "name": "corner_00",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_forest/corner_01.png",
+          "sourceCrop": {
+            "left": 878,
+            "top": 205,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 35,
+            "width": 219,
+            "height": 165
+          },
+          "width": 219,
+          "height": 165,
+          "name": "corner_01",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_forest/corner_inner.png",
+          "sourceCrop": {
+            "left": 1097,
+            "top": 205,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 38,
+            "width": 220,
+            "height": 155
+          },
+          "width": 220,
+          "height": 155,
+          "name": "corner_inner",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_forest/patch_00.png",
+          "sourceCrop": {
+            "left": 1317,
+            "top": 205,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 16,
+            "width": 209,
+            "height": 189
+          },
+          "width": 209,
+          "height": 189,
+          "name": "patch_00",
+          "role": "corner"
+        }
+      ]
+    },
+    "dirt_road": {
+      "tiles": [
+        "plain",
+        "road"
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_road/edge_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 410,
+            "width": 219,
+            "height": 204
+          },
+          "trim": {
+            "left": 3,
+            "top": 43,
+            "width": 216,
+            "height": 132
+          },
+          "width": 216,
+          "height": 132,
+          "name": "edge_00",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_road/edge_01.png",
+          "sourceCrop": {
+            "left": 219,
+            "top": 410,
+            "width": 220,
+            "height": 204
+          },
+          "trim": {
+            "left": 0,
+            "top": 50,
+            "width": 220,
+            "height": 127
+          },
+          "width": 220,
+          "height": 127,
+          "name": "edge_01",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_road/edge_02.png",
+          "sourceCrop": {
+            "left": 439,
+            "top": 410,
+            "width": 219,
+            "height": 204
+          },
+          "trim": {
+            "left": 0,
+            "top": 46,
+            "width": 219,
+            "height": 150
+          },
+          "width": 219,
+          "height": 150,
+          "name": "edge_02",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_road/corner_00.png",
+          "sourceCrop": {
+            "left": 658,
+            "top": 410,
+            "width": 220,
+            "height": 204
+          },
+          "trim": {
+            "left": 0,
+            "top": 35,
+            "width": 220,
+            "height": 156
+          },
+          "width": 220,
+          "height": 156,
+          "name": "corner_00",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_road/corner_01.png",
+          "sourceCrop": {
+            "left": 878,
+            "top": 410,
+            "width": 219,
+            "height": 204
+          },
+          "trim": {
+            "left": 0,
+            "top": 39,
+            "width": 219,
+            "height": 155
+          },
+          "width": 219,
+          "height": 155,
+          "name": "corner_01",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_road/corner_inner.png",
+          "sourceCrop": {
+            "left": 1097,
+            "top": 410,
+            "width": 220,
+            "height": 204
+          },
+          "trim": {
+            "left": 0,
+            "top": 42,
+            "width": 220,
+            "height": 145
+          },
+          "width": 220,
+          "height": 145,
+          "name": "corner_inner",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_road/patch_00.png",
+          "sourceCrop": {
+            "left": 1317,
+            "top": 410,
+            "width": 219,
+            "height": 204
+          },
+          "trim": {
+            "left": 0,
+            "top": 19,
+            "width": 210,
+            "height": 185
+          },
+          "width": 210,
+          "height": 185,
+          "name": "patch_00",
+          "role": "corner"
+        }
+      ]
+    },
+    "dirt_farm": {
+      "tiles": [
+        "plain",
+        "farm"
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_farm/edge_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 614,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 1,
+            "top": 39,
+            "width": 218,
+            "height": 117
+          },
+          "width": 218,
+          "height": 117,
+          "name": "edge_00",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_farm/edge_01.png",
+          "sourceCrop": {
+            "left": 219,
+            "top": 614,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 38,
+            "width": 220,
+            "height": 125
+          },
+          "width": 220,
+          "height": 125,
+          "name": "edge_01",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_farm/edge_02.png",
+          "sourceCrop": {
+            "left": 439,
+            "top": 614,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 28,
+            "width": 219,
+            "height": 152
+          },
+          "width": 219,
+          "height": 152,
+          "name": "edge_02",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_farm/corner_00.png",
+          "sourceCrop": {
+            "left": 658,
+            "top": 614,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 19,
+            "width": 220,
+            "height": 159
+          },
+          "width": 220,
+          "height": 159,
+          "name": "corner_00",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_farm/corner_01.png",
+          "sourceCrop": {
+            "left": 878,
+            "top": 614,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 17,
+            "width": 219,
+            "height": 162
+          },
+          "width": 219,
+          "height": 162,
+          "name": "corner_01",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_farm/corner_inner.png",
+          "sourceCrop": {
+            "left": 1097,
+            "top": 614,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 17,
+            "width": 220,
+            "height": 152
+          },
+          "width": 220,
+          "height": 152,
+          "name": "corner_inner",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/dirt_farm/patch_00.png",
+          "sourceCrop": {
+            "left": 1317,
+            "top": 614,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 8,
+            "width": 209,
+            "height": 197
+          },
+          "width": 209,
+          "height": 197,
+          "name": "patch_00",
+          "role": "corner"
+        }
+      ]
+    },
+    "grass_gravel": {
+      "tiles": [
+        "grassland",
+        "gravel"
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_gravel/edge_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 819,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 16,
+            "width": 219,
+            "height": 135
+          },
+          "width": 219,
+          "height": 135,
+          "name": "edge_00",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_gravel/edge_01.png",
+          "sourceCrop": {
+            "left": 219,
+            "top": 819,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 21,
+            "width": 220,
+            "height": 135
+          },
+          "width": 220,
+          "height": 135,
+          "name": "edge_01",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_gravel/edge_02.png",
+          "sourceCrop": {
+            "left": 439,
+            "top": 819,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 5,
+            "width": 219,
+            "height": 173
+          },
+          "width": 219,
+          "height": 173,
+          "name": "edge_02",
+          "role": "edge"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_gravel/corner_00.png",
+          "sourceCrop": {
+            "left": 658,
+            "top": 819,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 0,
+            "width": 220,
+            "height": 176
+          },
+          "width": 220,
+          "height": 176,
+          "name": "corner_00",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_gravel/corner_01.png",
+          "sourceCrop": {
+            "left": 878,
+            "top": 819,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 3,
+            "width": 219,
+            "height": 168
+          },
+          "width": 219,
+          "height": 168,
+          "name": "corner_01",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_gravel/corner_inner.png",
+          "sourceCrop": {
+            "left": 1097,
+            "top": 819,
+            "width": 220,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 10,
+            "width": 220,
+            "height": 159
+          },
+          "width": 220,
+          "height": 159,
+          "name": "corner_inner",
+          "role": "corner"
+        },
+        {
+          "file": "assets/terrain_hybrid/transitions/grass_gravel/patch_00.png",
+          "sourceCrop": {
+            "left": 1317,
+            "top": 819,
+            "width": 219,
+            "height": 205
+          },
+          "trim": {
+            "left": 0,
+            "top": 0,
+            "width": 211,
+            "height": 181
+          },
+          "width": 211,
+          "height": 181,
+          "name": "patch_00",
+          "role": "corner"
+        }
+      ]
+    }
+  },
+  "doodads": {
+    "pebbles": {
+      "terrain": [
+        "plain",
+        "road",
+        "wetland"
+      ],
+      "scale": [
+        0.22,
+        0.38
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/doodads/pebbles/pebbles_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 28,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 47,
+            "top": 64,
+            "width": 100,
+            "height": 69
+          },
+          "width": 100,
+          "height": 69,
+          "name": "pebbles_00"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/pebbles/pebbles_01.png",
+          "sourceCrop": {
+            "left": 192,
+            "top": 28,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 6,
+            "top": 46,
+            "width": 143,
+            "height": 91
+          },
+          "width": 143,
+          "height": 91,
+          "name": "pebbles_01"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/pebbles/pebbles_02.png",
+          "sourceCrop": {
+            "left": 384,
+            "top": 28,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 0,
+            "top": 39,
+            "width": 171,
+            "height": 106
+          },
+          "width": 171,
+          "height": 106,
+          "name": "pebbles_02"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/pebbles/pebbles_03.png",
+          "sourceCrop": {
+            "left": 576,
+            "top": 28,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 20,
+            "top": 31,
+            "width": 172,
+            "height": 119
+          },
+          "width": 172,
+          "height": 119,
+          "name": "pebbles_03"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/pebbles/pebbles_04.png",
+          "sourceCrop": {
+            "left": 768,
+            "top": 28,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 42,
+            "top": 36,
+            "width": 147,
+            "height": 114
+          },
+          "width": 147,
+          "height": 114,
+          "name": "pebbles_04"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/pebbles/pebbles_05.png",
+          "sourceCrop": {
+            "left": 960,
+            "top": 28,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 51,
+            "top": 41,
+            "width": 141,
+            "height": 109
+          },
+          "width": 141,
+          "height": 109,
+          "name": "pebbles_05"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/pebbles/pebbles_06.png",
+          "sourceCrop": {
+            "left": 1152,
+            "top": 28,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 0,
+            "top": 58,
+            "width": 192,
+            "height": 89
+          },
+          "width": 192,
+          "height": 89,
+          "name": "pebbles_06"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/pebbles/pebbles_07.png",
+          "sourceCrop": {
+            "left": 1344,
+            "top": 28,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 0,
+            "top": 64,
+            "width": 147,
+            "height": 73
+          },
+          "width": 147,
+          "height": 73,
+          "name": "pebbles_07"
+        }
+      ]
+    },
+    "grass_tufts": {
+      "terrain": [
+        "plain",
+        "grassland",
+        "mountain"
+      ],
+      "scale": [
+        0.2,
+        0.34
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/doodads/grass_tufts/grass_tufts_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 188,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 22,
+            "top": 4,
+            "width": 155,
+            "height": 141
+          },
+          "width": 155,
+          "height": 141,
+          "name": "grass_tufts_00"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/grass_tufts/grass_tufts_01.png",
+          "sourceCrop": {
+            "left": 192,
+            "top": 188,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 0,
+            "top": 21,
+            "width": 192,
+            "height": 129
+          },
+          "width": 192,
+          "height": 129,
+          "name": "grass_tufts_01"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/grass_tufts/grass_tufts_02.png",
+          "sourceCrop": {
+            "left": 384,
+            "top": 188,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 0,
+            "top": 27,
+            "width": 192,
+            "height": 123
+          },
+          "width": 192,
+          "height": 123,
+          "name": "grass_tufts_02"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/grass_tufts/grass_tufts_03.png",
+          "sourceCrop": {
+            "left": 576,
+            "top": 188,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 0,
+            "top": 30,
+            "width": 144,
+            "height": 120
+          },
+          "width": 144,
+          "height": 120,
+          "name": "grass_tufts_03"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/grass_tufts/grass_tufts_04.png",
+          "sourceCrop": {
+            "left": 768,
+            "top": 188,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 10,
+            "top": 45,
+            "width": 133,
+            "height": 105
+          },
+          "width": 133,
+          "height": 105,
+          "name": "grass_tufts_04"
+        }
+      ]
+    },
+    "flowers": {
+      "terrain": [
+        "grassland"
+      ],
+      "scale": [
+        0.18,
+        0.3
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/doodads/flowers/flowers_00.png",
+          "sourceCrop": {
+            "left": 960,
+            "top": 188,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 0,
+            "top": 49,
+            "width": 143,
+            "height": 101
+          },
+          "width": 143,
+          "height": 101,
+          "name": "flowers_00"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/flowers/flowers_01.png",
+          "sourceCrop": {
+            "left": 1152,
+            "top": 188,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 13,
+            "top": 56,
+            "width": 135,
+            "height": 94
+          },
+          "width": 135,
+          "height": 94,
+          "name": "flowers_01"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/flowers/flowers_02.png",
+          "sourceCrop": {
+            "left": 1344,
+            "top": 188,
+            "width": 192,
+            "height": 150
+          },
+          "trim": {
+            "left": 0,
+            "top": 65,
+            "width": 136,
+            "height": 85
+          },
+          "width": 136,
+          "height": 85,
+          "name": "flowers_02"
+        }
+      ]
+    },
+    "shrubs": {
+      "terrain": [
+        "grassland",
+        "mountain"
+      ],
+      "scale": [
+        0.24,
+        0.44
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/doodads/shrubs/shrubs_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 350,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 36,
+            "top": 30,
+            "width": 189,
+            "height": 134
+          },
+          "width": 189,
+          "height": 134,
+          "name": "shrubs_00"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/shrubs/shrubs_01.png",
+          "sourceCrop": {
+            "left": 256,
+            "top": 350,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 22,
+            "top": 25,
+            "width": 192,
+            "height": 140
+          },
+          "width": 192,
+          "height": 140,
+          "name": "shrubs_01"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/shrubs/shrubs_02.png",
+          "sourceCrop": {
+            "left": 512,
+            "top": 350,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 14,
+            "top": 27,
+            "width": 199,
+            "height": 138
+          },
+          "width": 199,
+          "height": 138,
+          "name": "shrubs_02"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/shrubs/shrubs_03.png",
+          "sourceCrop": {
+            "left": 768,
+            "top": 350,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 26,
+            "top": 0,
+            "width": 230,
+            "height": 165
+          },
+          "width": 220,
+          "height": 158,
+          "name": "shrubs_03"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/shrubs/shrubs_04.png",
+          "sourceCrop": {
+            "left": 1024,
+            "top": 350,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 0,
+            "top": 0,
+            "width": 256,
+            "height": 165
+          },
+          "width": 220,
+          "height": 142,
+          "name": "shrubs_04"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/shrubs/shrubs_05.png",
+          "sourceCrop": {
+            "left": 1280,
+            "top": 350,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 0,
+            "top": 0,
+            "width": 189,
+            "height": 165
+          },
+          "width": 189,
+          "height": 165,
+          "name": "shrubs_05"
+        }
+      ]
+    },
+    "twigs_leaf_litter": {
+      "terrain": [
+        "plain",
+        "mountain"
+      ],
+      "scale": [
+        0.24,
+        0.42
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/doodads/twigs_leaf_litter/twigs_leaf_litter_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 522,
+            "width": 256,
+            "height": 130
+          },
+          "trim": {
+            "left": 59,
+            "top": 21,
+            "width": 197,
+            "height": 82
+          },
+          "width": 197,
+          "height": 82,
+          "name": "twigs_leaf_litter_00"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/twigs_leaf_litter/twigs_leaf_litter_01.png",
+          "sourceCrop": {
+            "left": 256,
+            "top": 522,
+            "width": 256,
+            "height": 130
+          },
+          "trim": {
+            "left": 0,
+            "top": 18,
+            "width": 256,
+            "height": 80
+          },
+          "width": 220,
+          "height": 69,
+          "name": "twigs_leaf_litter_01"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/twigs_leaf_litter/twigs_leaf_litter_02.png",
+          "sourceCrop": {
+            "left": 512,
+            "top": 522,
+            "width": 256,
+            "height": 130
+          },
+          "trim": {
+            "left": 0,
+            "top": 30,
+            "width": 256,
+            "height": 79
+          },
+          "width": 220,
+          "height": 68,
+          "name": "twigs_leaf_litter_02"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/twigs_leaf_litter/twigs_leaf_litter_03.png",
+          "sourceCrop": {
+            "left": 768,
+            "top": 522,
+            "width": 256,
+            "height": 130
+          },
+          "trim": {
+            "left": 0,
+            "top": 0,
+            "width": 256,
+            "height": 121
+          },
+          "width": 220,
+          "height": 104,
+          "name": "twigs_leaf_litter_03"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/twigs_leaf_litter/twigs_leaf_litter_04.png",
+          "sourceCrop": {
+            "left": 1024,
+            "top": 522,
+            "width": 256,
+            "height": 130
+          },
+          "trim": {
+            "left": 0,
+            "top": 0,
+            "width": 253,
+            "height": 130
+          },
+          "width": 220,
+          "height": 113,
+          "name": "twigs_leaf_litter_04"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/twigs_leaf_litter/twigs_leaf_litter_05.png",
+          "sourceCrop": {
+            "left": 1280,
+            "top": 522,
+            "width": 256,
+            "height": 130
+          },
+          "trim": {
+            "left": 25,
+            "top": 0,
+            "width": 170,
+            "height": 130
+          },
+          "width": 170,
+          "height": 130,
+          "name": "twigs_leaf_litter_05"
+        }
+      ]
+    },
+    "cracks_mud": {
+      "terrain": [
+        "plain",
+        "road"
+      ],
+      "scale": [
+        0.28,
+        0.5
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/doodads/cracks_mud/cracks_mud_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 678,
+            "width": 256,
+            "height": 126
+          },
+          "trim": {
+            "left": 45,
+            "top": 0,
+            "width": 194,
+            "height": 107
+          },
+          "width": 194,
+          "height": 107,
+          "name": "cracks_mud_00"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/cracks_mud/cracks_mud_01.png",
+          "sourceCrop": {
+            "left": 256,
+            "top": 678,
+            "width": 256,
+            "height": 126
+          },
+          "trim": {
+            "left": 35,
+            "top": 0,
+            "width": 192,
+            "height": 107
+          },
+          "width": 192,
+          "height": 107,
+          "name": "cracks_mud_01"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/cracks_mud/cracks_mud_02.png",
+          "sourceCrop": {
+            "left": 512,
+            "top": 678,
+            "width": 256,
+            "height": 126
+          },
+          "trim": {
+            "left": 18,
+            "top": 2,
+            "width": 182,
+            "height": 107
+          },
+          "width": 182,
+          "height": 107,
+          "name": "cracks_mud_02"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/cracks_mud/cracks_mud_03.png",
+          "sourceCrop": {
+            "left": 768,
+            "top": 678,
+            "width": 256,
+            "height": 126
+          },
+          "trim": {
+            "left": 0,
+            "top": 6,
+            "width": 181,
+            "height": 107
+          },
+          "width": 181,
+          "height": 107,
+          "name": "cracks_mud_03"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/cracks_mud/cracks_mud_04.png",
+          "sourceCrop": {
+            "left": 1024,
+            "top": 678,
+            "width": 256,
+            "height": 126
+          },
+          "trim": {
+            "left": 0,
+            "top": 16,
+            "width": 256,
+            "height": 109
+          },
+          "width": 220,
+          "height": 94,
+          "name": "cracks_mud_04"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/cracks_mud/cracks_mud_05.png",
+          "sourceCrop": {
+            "left": 1280,
+            "top": 678,
+            "width": 256,
+            "height": 126
+          },
+          "trim": {
+            "left": 0,
+            "top": 21,
+            "width": 197,
+            "height": 102
+          },
+          "width": 197,
+          "height": 102,
+          "name": "cracks_mud_05"
+        }
+      ]
+    },
+    "mossy_stones": {
+      "terrain": [
+        "mountain",
+        "wetland",
+        "grassland"
+      ],
+      "scale": [
+        0.26,
+        0.48
+      ],
+      "sprites": [
+        {
+          "file": "assets/terrain_hybrid/doodads/mossy_stones/mossy_stones_00.png",
+          "sourceCrop": {
+            "left": 0,
+            "top": 830,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 50,
+            "top": 7,
+            "width": 191,
+            "height": 120
+          },
+          "width": 191,
+          "height": 120,
+          "name": "mossy_stones_00"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/mossy_stones/mossy_stones_01.png",
+          "sourceCrop": {
+            "left": 256,
+            "top": 830,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 13,
+            "top": 16,
+            "width": 243,
+            "height": 114
+          },
+          "width": 220,
+          "height": 103,
+          "name": "mossy_stones_01"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/mossy_stones/mossy_stones_02.png",
+          "sourceCrop": {
+            "left": 512,
+            "top": 830,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 0,
+            "top": 6,
+            "width": 256,
+            "height": 129
+          },
+          "width": 220,
+          "height": 111,
+          "name": "mossy_stones_02"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/mossy_stones/mossy_stones_03.png",
+          "sourceCrop": {
+            "left": 768,
+            "top": 830,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 0,
+            "top": 6,
+            "width": 256,
+            "height": 130
+          },
+          "width": 220,
+          "height": 112,
+          "name": "mossy_stones_03"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/mossy_stones/mossy_stones_04.png",
+          "sourceCrop": {
+            "left": 1024,
+            "top": 830,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 0,
+            "top": 30,
+            "width": 256,
+            "height": 107
+          },
+          "width": 220,
+          "height": 92,
+          "name": "mossy_stones_04"
+        },
+        {
+          "file": "assets/terrain_hybrid/doodads/mossy_stones/mossy_stones_05.png",
+          "sourceCrop": {
+            "left": 1280,
+            "top": 830,
+            "width": 256,
+            "height": 165
+          },
+          "trim": {
+            "left": 0,
+            "top": 37,
+            "width": 205,
+            "height": 100
+          },
+          "width": 205,
+          "height": 100,
+          "name": "mossy_stones_05"
+        }
+      ]
+    }
+  }
+}
