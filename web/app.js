@@ -1156,13 +1156,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     for (let n = 0; n < 12; n++) terrainSprites.forestFloor.push(loadImg(`${V3}base_3x3/forest_floor/forest_floor_${String(n).padStart(2,"0")}.png`));
 
     // 월드 좌표 기반 베이스 텍스처 — 1×1 경계와 무관하게 같은 지형을 연속 샘플링
-    terrainSprites.world.dirt        = loadImg(`${WORLD_TEX}dirt_world.png`);
-    terrainSprites.world.grass       = loadImg(`${WORLD_TEX}bright_grass_world.png`);
-    terrainSprites.world.forestFloor = loadImg(`${WORLD_TEX}mountain_grass_world.png`);
-    terrainSprites.world.road        = loadImg(`${WORLD_TEX}road_world.png`);
-    terrainSprites.world.river       = loadImg(`${WORLD_TEX}river_world.png`);
-    terrainSprites.world.riverBank   = loadImg(`${WORLD_TEX}river_bank_world.png`);
-    terrainSprites.world.wetland     = loadImg(`${WORLD_TEX}wetland_grass_world.png`);
+    terrainSprites.world.dirt        = loadImg(`${WORLD_TEX}dirt_world.webp`);
+    terrainSprites.world.grass       = loadImg(`${WORLD_TEX}bright_grass_world.webp`);
+    terrainSprites.world.forestFloor = loadImg(`${WORLD_TEX}mountain_grass_world.webp`);
+    terrainSprites.world.road        = loadImg(`${WORLD_TEX}road_world.webp`);
+    terrainSprites.world.river       = loadImg(`${WORLD_TEX}river_world.webp`);
+    terrainSprites.world.riverBank   = loadImg(`${WORLD_TEX}river_bank_world.webp`);
+    terrainSprites.world.wetland     = loadImg(`${WORLD_TEX}wetland_grass_world.webp`);
     terrainSprites.clusters = TERRAIN_CLUSTER_DEFS.map(def => loadImg(`${CLUSTER_TEX}${def.file}`));
 
     // 나무 오브젝트
@@ -4171,8 +4171,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
     }
 
-    const clusterPadX = game.tileW * 12.0;
-    const clusterPadY = tileH * 13.0;
+    const clusterPadX = game.tileW * 4.5;
+    const clusterPadY = tileH * 4.5;
     minIsoX -= clusterPadX;
     maxIsoX += clusterPadX;
     minIsoY -= clusterPadY;
@@ -4180,6 +4180,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
     const canvasChunk = createSurface(maxIsoX - minIsoX, maxIsoY - minIsoY);
     const chunkCtx = canvasChunk.getContext("2d");
+
+    // 청크 bake 전반에서 공유하는 임시 캔버스 — createSurface를 타일마다 호출하지 않고 재사용
+    const tileW1 = game.tileW + 4;
+    const tileH1 = Math.ceil(getTileH()) + 4;
+    const sharedTmp = createSurface(tileW1, tileH1);
+    const sharedTmpCtx = sharedTmp.getContext("2d");
+
     const tiles = [];
     for (let y = startY; y < endY; y += 1) {
       for (let x = startX; x < endX; x += 1) {
@@ -4252,8 +4259,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const h = options.height ?? (tileH + 1);
       const drawX = px - w / 2;
       const drawY = py - 0.25;
-      const tmp = createSurface(w + 2, h + 2);
-      const tc = tmp.getContext("2d");
+      // sharedTmp 재사용: 크기가 충분하면 clearRect로 초기화, 아니면 새로 할당
+      let tmp, tc;
+      if (sharedTmp.width >= w + 2 && sharedTmp.height >= h + 2) {
+        tmp = sharedTmp; tc = sharedTmpCtx;
+        tc.clearRect(0, 0, tmp.width, tmp.height);
+        tc.globalCompositeOperation = "source-over";
+        tc.globalAlpha = 1;
+      } else {
+        tmp = createSurface(w + 2, h + 2); tc = tmp.getContext("2d");
+      }
       const pattern = worldPatternFor(tc, tile, drawX, drawY);
       if (!pattern) return false;
 
@@ -4261,7 +4276,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       tc.imageSmoothingQuality = "high";
       tc.filter = terrainWorldToneFilter(tile);
       tc.fillStyle = pattern;
-      tc.fillRect(0, 0, tmp.width, tmp.height);
+      tc.fillRect(0, 0, w + 2, h + 2);
       tc.filter = "none";
       if (options.punchWetland) punchWetlandDots(tc, w, h, x, y);
 
@@ -4272,7 +4287,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       tc.fill();
       tc.globalCompositeOperation = "source-over";
 
-      ctx.drawImage(tmp, drawX, drawY);
+      ctx.drawImage(tmp, 0, 0, w + 2, h + 2, drawX, drawY, w + 2, h + 2);
       return true;
     }
 
@@ -4363,8 +4378,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (!TERRAIN_DETAIL_PATCH_ENABLED || !terrainSprites.ready || !terrainSprites.clusters?.length) return false;
       if (!TERRAIN_DETAIL_PATCH_INDICES[terrainType]?.length) return false;
 
-      const tmp = createSurface(w + 2, h + 2);
-      const tc = tmp.getContext("2d");
+      // sharedTmp 재사용
+      let tmp, tc;
+      if (sharedTmp.width >= w + 2 && sharedTmp.height >= h + 2) {
+        tmp = sharedTmp; tc = sharedTmpCtx;
+        tc.clearRect(0, 0, tmp.width, tmp.height);
+        tc.globalCompositeOperation = "source-over";
+        tc.globalAlpha = 1;
+      } else {
+        tmp = createSurface(w + 2, h + 2); tc = tmp.getContext("2d");
+      }
       tc.imageSmoothingEnabled = true;
       tc.imageSmoothingQuality = "high";
       const prevAlpha = tc.globalAlpha;
@@ -4385,7 +4408,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         tc.fill();
       }
       tc.globalCompositeOperation = "source-over";
-      ctx.drawImage(tmp, drawX, drawY);
+      ctx.drawImage(tmp, 0, 0, w + 2, h + 2, drawX, drawY, w + 2, h + 2);
       return true;
     };
 
@@ -4465,22 +4488,30 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const h = tileH + 1;
         const drawX = px - w / 2;
         const drawY = py - 0.25;
-        const tmp = createSurface(w + 2, h + 2);
-        const tc = tmp.getContext("2d");
-        const pattern = worldPatternFor(tc, bd.upperT, drawX, drawY);
+        // sharedTmp 재사용
+        let tmp2, tc2;
+        if (sharedTmp.width >= w + 2 && sharedTmp.height >= h + 2) {
+          tmp2 = sharedTmp; tc2 = sharedTmpCtx;
+          tc2.clearRect(0, 0, tmp2.width, tmp2.height);
+          tc2.globalCompositeOperation = "source-over";
+          tc2.globalAlpha = 1;
+        } else {
+          tmp2 = createSurface(w + 2, h + 2); tc2 = tmp2.getContext("2d");
+        }
+        const pattern = worldPatternFor(tc2, bd.upperT, drawX, drawY);
         if (!pattern) return;
 
-        tc.imageSmoothingEnabled = true;
-        tc.imageSmoothingQuality = "high";
-        tc.filter = terrainWorldToneFilter(bd.upperT);
-        tc.fillStyle = pattern;
-        tc.fillRect(0, 0, tmp.width, tmp.height);
-        tc.filter = "none";
-        if (bd.upperT === "wetland") punchWetlandDots(tc, w, h, x, y);
-        tc.globalCompositeOperation = "destination-in";
-        tc.drawImage(maskCv, 0, 0, w, h);
-        tc.globalCompositeOperation = "source-over";
-        chunkCtx.drawImage(tmp, drawX, drawY);
+        tc2.imageSmoothingEnabled = true;
+        tc2.imageSmoothingQuality = "high";
+        tc2.filter = terrainWorldToneFilter(bd.upperT);
+        tc2.fillStyle = pattern;
+        tc2.fillRect(0, 0, w + 2, h + 2);
+        tc2.filter = "none";
+        if (bd.upperT === "wetland") punchWetlandDots(tc2, w, h, x, y);
+        tc2.globalCompositeOperation = "destination-in";
+        tc2.drawImage(maskCv, 0, 0, w, h);
+        tc2.globalCompositeOperation = "source-over";
+        chunkCtx.drawImage(tmp2, 0, 0, w + 2, h + 2, drawX, drawY, w + 2, h + 2);
         drawMaskedDetailPatchTile(chunkCtx, bd.upperT, x, y, drawX, drawY, w, h, maskCv);
       }
 
@@ -4702,10 +4733,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             }
             if (bx === undefined) { bx = treeCx; by = treeCy; }
             const scale = 0.85 + rng() * 0.30;
-            const hue = (rng() - 0.5) * 10;
-            const sat = 92 + rng() * 4;
             const variantIndex = chooseTreeVariant(treeTx, treeTy, ruggedVal, isMountainTree ? edgeWeight : 1, i);
-            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: treeTx, tileY: treeTy, scale, hue, sat, variantIndex });
+            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: treeTx, tileY: treeTy, scale, variantIndex });
           }
         }
       }
@@ -4719,13 +4748,25 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         chunkCtx.imageSmoothingQuality = "high";
         const prevTreeAlpha = chunkCtx.globalAlpha;
         chunkCtx.globalAlpha = prevTreeAlpha * TREE_TONE_ALPHA;
-        for (const { worldBx, worldBy, scale, hue, sat, variantIndex } of trees) {
-          const treeImg = treeImages[variantIndex % treeImages.length] || treeImages[0];
-          const { stW, stH } = treeDrawSize(treeImg, variantIndex, scale ?? 1);
-          const treeBrightness = (TREE_TONE_BRIGHTNESS * 100).toFixed(0);
-          const treeSaturation = (TREE_TONE_SATURATION * sat).toFixed(1);
-          chunkCtx.filter = `brightness(${treeBrightness}%) saturate(${treeSaturation}%) hue-rotate(${hue.toFixed(1)}deg)`;
-          chunkCtx.drawImage(treeImg, worldBx - minIsoX - stW / 2, worldBy - minIsoY - stH, stW, stH);
+        // variantIndex별로 그룹화하여 filter 변경 횟수를 최소화 (N_trees → N_variants)
+        const treeBrightness = Math.round(TREE_TONE_BRIGHTNESS * 100);
+        const treeSaturation = Math.round(TREE_TONE_SATURATION * 94);
+        const fixedFilter = `brightness(${treeBrightness}%) saturate(${treeSaturation}%)`;
+        const byVariant = new Map();
+        for (const tree of trees) {
+          const vi = tree.variantIndex;
+          if (!byVariant.has(vi)) byVariant.set(vi, []);
+          byVariant.get(vi).push(tree);
+        }
+        chunkCtx.filter = fixedFilter;
+        // 각 변종을 Y정렬 후 그리되 filter는 변종이 바뀔 때만 1회 변경
+        for (const [, group] of byVariant) {
+          group.sort((a, b) => a.worldBy - b.worldBy);
+          for (const { worldBx, worldBy, scale, variantIndex } of group) {
+            const treeImg = treeImages[variantIndex % treeImages.length] || treeImages[0];
+            const { stW, stH } = treeDrawSize(treeImg, variantIndex, scale ?? 1);
+            chunkCtx.drawImage(treeImg, worldBx - minIsoX - stW / 2, worldBy - minIsoY - stH, stW, stH);
+          }
         }
         chunkCtx.filter = "none";
         chunkCtx.globalAlpha = prevTreeAlpha;
@@ -4989,7 +5030,20 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const W = canvas.clientWidth;
     const H = canvas.clientHeight;
     const tileH = getTileH();
-    const NUM_RAYS = 120; // 3° 간격
+    const NUM_RAYS = 60; // 6° 간격
+
+    // 4프레임마다 재계산 — 부대가 이동 중이면 2프레임마다
+    game._fogFrame = (game._fogFrame || 0) + 1;
+    const anyMoving = game.playerFormations.some(f => f.speed !== "STOP" && f.units.some(isUnitAlive));
+    const fogInterval = anyMoving ? 2 : 4;
+    const sizeChanged = !game._fogBlurCanvas ||
+      game._fogBlurCanvas.width !== Math.ceil(W) ||
+      game._fogBlurCanvas.height !== Math.ceil(H);
+
+    if (!sizeChanged && game._fogFrame % fogInterval !== 0) {
+      if (game._fogBlurCanvas) ctx.drawImage(game._fogBlurCanvas, 0, 0);
+      return;
+    }
 
     if (!game._fogCanvas || game._fogCanvas.width !== Math.ceil(W) || game._fogCanvas.height !== Math.ceil(H)) {
       game._fogCanvas = createSurface(W, H);
@@ -5009,7 +5063,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       const center = formationCenter(f);
 
-      // 120 방향으로 광선을 쏘아 시야 폴리곤 꼭짓점 수집
+      // NUM_RAYS 방향으로 광선을 쏘아 시야 폴리곤 꼭짓점 수집
       const pts = [];
       for (let i = 0; i < NUM_RAYS; i++) {
         const angle = (i / NUM_RAYS) * Math.PI * 2;
@@ -5032,13 +5086,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
 
     fCtx.globalCompositeOperation = "source-over";
-    if (!game._fogBlurCanvas || game._fogBlurCanvas.width !== Math.ceil(W) || game._fogBlurCanvas.height !== Math.ceil(H)) {
+    if (sizeChanged) {
       game._fogBlurCanvas = createSurface(W, H);
     }
     const fogBlur = game._fogBlurCanvas;
     const bCtx = fogBlur.getContext("2d");
     bCtx.clearRect(0, 0, W, H);
-    bCtx.filter = "blur(28px)";
+    bCtx.filter = "blur(18px)";
     bCtx.drawImage(fog, 0, 0);
     bCtx.filter = "none";
     ctx.drawImage(fogBlur, 0, 0);
