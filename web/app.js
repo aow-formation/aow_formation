@@ -837,8 +837,53 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const TERRAIN_PRIORITY = { river: 0, wetland: 1, plain: 2, grassland: 3, road: 4, mountain: 5 };
   const TERRAIN_ASSET    = { river:"river", wetland:"river_bank", plain:"dirt", grassland:"plain", road:"road", mountain:"forest_floor" };
   const V3 = "./assets/terrain_tiles_v3/";
+  const WORLD_TEX = "./assets/terrain_world_textures/";
+  const CLUSTER_TEX = "./assets/terrain_cluster_overlays/";
+  const TERRAIN_WORLD_TEXTURE_SCALE = 0.32;
+  const TERRAIN_WORLD_TONE_FILTERS = {
+    plain: "saturate(92%)",
+    road: "saturate(110%)",
+  };
+  const TERRAIN_1X1_MASK_ENABLED = true;
+  const TERRAIN_CLUSTER_ENABLED = false;
+  const TERRAIN_DETAIL_PATCH_ENABLED = true;
+  const TERRAIN_DETAIL_PATCH_OPACITY = 0.44;
+  const TERRAIN_DETAIL_PATCH_BASE_DRAW_TILES = 3.35;
+  const TERRAIN_CLUSTER_BASE_DRAW_TILES = 4.4;
+  const TERRAIN_CLUSTER_BASE_ASSET_WIDTH = 360;
+  const RUGGED_MTN_SIZE = 8;
 
-  const terrainSprites = { tiles: {}, masks: {}, dirt: [], plainGrass: [], forestFloor: [], objects: [], buildings: [], tree: null, ruggedMtn: [], ready: false };
+  const terrainSprites = { tiles: {}, masks: {}, dirt: [], plainGrass: [], forestFloor: [], world: {}, clusters: [], objects: [], buildings: [], tree: null, trees: [], ruggedMtn: [], ready: false };
+  const TERRAIN_CLUSTER_DEFS = [
+    { file: "meadow_patch_00.png",      terrain: ["grassland"],          alpha: 0.48, scale: 1.00 },
+    { file: "dark_grass_patch_00.png",  terrain: [],                     alpha: 0.42, scale: 1.03 },
+    { file: "dry_grass_patch_00.png",   terrain: ["plain"],              alpha: 0.46, scale: 0.95 },
+    { file: "bare_soil_patch_00.png",   terrain: ["plain"],              alpha: 0.40, scale: 0.90 },
+    { file: "farm_rows_patch_00.png",   terrain: [],                     alpha: 0.34, scale: 1.08 },
+    { file: "mixed_scrub_patch_00.png", terrain: ["grassland"],          alpha: 0.43, scale: 0.98 },
+  ];
+  const TERRAIN_DETAIL_PATCH_INDICES = {
+    plain: [2, 3, 2, 3, 0],
+    grassland: [0, 5],
+    mountain: [0, 5],
+  };
+  const TREE_VARIANT_FILES = [
+    "conifer_dark_00.png",
+    "conifer_blue_00.png",
+    "evergreen_tall_00.png",
+    "pine_sparse_00.png",
+    "broadleaf_light_00.png",
+    "broadleaf_dark_00.png",
+    "broadleaf_yellow_00.png",
+    "shrub_tree_00.png",
+  ];
+  const TREE_VARIANT_DIR = "objects/trees/variants_50px";
+  const TREE_VARIANT_HEIGHT_SCALE = [1.08, 1.05, 1.12, 1.00, 1.06, 1.08, 1.03, 0.78];
+  const TREE_TONE_BRIGHTNESS = 0.86;
+  const TREE_TONE_SATURATION = 0.78;
+  const TREE_TONE_ALPHA = 0.92;
+  const TREE_PIXI_TINT = 0xd0d4c0;
+  const TERRAIN_TREE_RENDER_ENABLED = true;
 
   // ── 화공 스프라이트시트 ───────────────────────────────────────────────
   const fireSprite = new Image();
@@ -970,7 +1015,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   let pixiReady      = false;
   let pixiTerrainCtr = null;
   let pixiTreeCtr    = null;
-  let pixiTreeTex    = null;
+  let pixiTreeTex    = [];
   const pixiChunkSprites = new Map(); // chunkKey → PixiSprite
   const pixiTreeSprites  = [];        // { sprite, worldBx, worldBy }
 
@@ -1026,7 +1071,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         }
         return null;
       };
-      const [wP, wE, cP, cE, cBack, cBackBlue, iP, iE, treeT, dmgT] = await Promise.all([
+      const [wP, wE, cP, cE, cBack, cBackBlue, iP, iE, treeTs, fallbackTreeT, dmgT] = await Promise.all([
         load('./assets/units/ancient_infantry_helmet_walk.png'),
         load('./assets/units/ancient_infantry_helmet_walk_blue.png'),
         loadFirst(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.E),
@@ -1035,10 +1080,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         loadFirst(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.N),
         load('./assets/units/ancient_infantry_helmet_idle_1.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1_blue.png'),
+        Promise.all(TREE_VARIANT_FILES.map(file => load(`./assets/terrain_tiles_v3/${TREE_VARIANT_DIR}/${file}`))),
         load('./assets/terrain_tiles_v3/objects/trees/tree.png'),
         load('./assets/units/demage.png'),
       ]);
-      pixiTreeTex = treeT;
+      pixiTreeTex = (treeTs || []).filter(Boolean);
+      if (!pixiTreeTex.length && fallbackTreeT) pixiTreeTex = [fallbackTreeT];
       // 픽셀아트: 모든 유닛 텍스처에 nearest-neighbor 보간 설정
       [wP, wE, cP, cE, cBack, cBackBlue, iP, iE].forEach(tex => { if (tex) tex.source.scaleMode = 'nearest'; });
 
@@ -1107,8 +1154,20 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     for (let n = 0; n < 8;  n++) terrainSprites.dirt.push(loadImg(`${V3}base_3x3/dirt/dirt_${String(n).padStart(2,"0")}.png`));
     for (let n = 0; n < 12; n++) terrainSprites.plainGrass.push(loadImg(`${V3}base_3x3/plain/plain_${String(n).padStart(2,"0")}.png`));
     for (let n = 0; n < 12; n++) terrainSprites.forestFloor.push(loadImg(`${V3}base_3x3/forest_floor/forest_floor_${String(n).padStart(2,"0")}.png`));
+
+    // 월드 좌표 기반 베이스 텍스처 — 1×1 경계와 무관하게 같은 지형을 연속 샘플링
+    terrainSprites.world.dirt        = loadImg(`${WORLD_TEX}dirt_world.png`);
+    terrainSprites.world.grass       = loadImg(`${WORLD_TEX}bright_grass_world.png`);
+    terrainSprites.world.forestFloor = loadImg(`${WORLD_TEX}mountain_grass_world.png`);
+    terrainSprites.world.road        = loadImg(`${WORLD_TEX}road_world.png`);
+    terrainSprites.world.river       = loadImg(`${WORLD_TEX}river_world.png`);
+    terrainSprites.world.riverBank   = loadImg(`${WORLD_TEX}river_bank_world.png`);
+    terrainSprites.world.wetland     = loadImg(`${WORLD_TEX}wetland_grass_world.png`);
+    terrainSprites.clusters = TERRAIN_CLUSTER_DEFS.map(def => loadImg(`${CLUSTER_TEX}${def.file}`));
+
     // 나무 오브젝트
     terrainSprites.tree    = loadImg(`${V3}objects/trees/tree.png`);
+    terrainSprites.trees   = TREE_VARIANT_FILES.map(file => loadImg(`${V3}${TREE_VARIANT_DIR}/${file}`));
     terrainSprites.ruggedMtn = [
       loadImg(`${V3}base_3x3/mountain/mountain_0006_레이어-1.png`),
       loadImg(`${V3}base_3x3/mountain/mountain_0005_레이어-2.png`),
@@ -1133,14 +1192,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       terrainSprites.tiles[asset] = arr;
     }
 
-    // 엣지 마스크 combined_edge_8 — 방향별 5종 변형 (raw: 휘도→알파 변환 전)
+    // 엣지 마스크 EDGE_NEW — 방향별 5종 변형 (raw: 휘도→알파 변환 전)
     const MASK_DIRS = ["N","NE","E","SE","S","SW","W","NW"];
+    const EDGE_NEW_SOURCE_DIR = { N:"S", NE:"SW", E:"W", SE:"NW", S:"N", SW:"NE", W:"E", NW:"SE" };
     const MASK_VARS = 5;
     const rawMasks = {}; // key: "N_00" 등
     for (const d of MASK_DIRS)
       for (let n = 0; n < MASK_VARS; n++)
         rawMasks[`${d}_${String(n).padStart(2,"0")}`] =
-          loadImg(`${V3}masks_1x1/combined_edge_8/edge_mask_${d}_${String(n).padStart(2,"0")}.png`);
+          loadImg(`${V3}masks_1x1/EDGE_NEW/edge_mask_${EDGE_NEW_SOURCE_DIR[d]}_${String(n + 1).padStart(2,"0")}.png`);
 
     let loaded = 0;
     const done = () => {
@@ -1194,6 +1254,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     "LLUU": "N",  "ULLU": "E",  "UULL": "S",  "LUUL": "W",
     "LUUU": "SE", "ULUU": "SW", "UULU": "NW", "UUUL": "NE",
   };
+
+  function terrainWorldTexture(tile) {
+    if (tile === "river") return terrainSprites.world.river;
+    if (tile === "wetland") return terrainSprites.world.wetland;
+    if (tile === "road") return terrainSprites.world.road;
+    if (tile === "mountain") return terrainSprites.world.grass;
+    if (tile === "grassland") return terrainSprites.world.grass;
+    return terrainSprites.world.dirt;
+  }
+
+  function terrainWorldToneFilter(tile) {
+    return TERRAIN_WORLD_TONE_FILTERS[tile] || "none";
+  }
 
   function buildTerrainRenderData(terrain) {
     // 4면 방향: NW(-1,0) NE(0,-1) SE(+1,0) SW(0,+1)
@@ -1313,35 +1386,58 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         minimapCtx.fillRect(x, y, 1, 1);
       }
     // 험준산악 8×8 감지 — 청크 정렬 제한 (단일 청크 내에 완전히 들어오는 블록만)
-    const RUGGED_MTN_SIZE = 8;
     const ruggedMtn = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
     const ruggedMtnVariant = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
     const ruggedMtnEdge = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
-    const ruggedCandidates = [];
-    const ruggedCandidateMap = new Map();
-    for (let y = 0; y <= MAP_HEIGHT - RUGGED_MTN_SIZE; y++) {
-      for (let x = 0; x <= MAP_WIDTH - RUGGED_MTN_SIZE; x++) {
-        if (Math.floor(x / CHUNK_TILES) !== Math.floor((x + RUGGED_MTN_SIZE - 1) / CHUNK_TILES)) continue;
-        if (Math.floor(y / CHUNK_TILES) !== Math.floor((y + RUGGED_MTN_SIZE - 1) / CHUNK_TILES)) continue;
-        let ok = true;
-        for (let dy = 0; dy < RUGGED_MTN_SIZE && ok; dy++)
-          for (let dx = 0; dx < RUGGED_MTN_SIZE && ok; dx++)
-            if (terrain.tiles[y + dy][x + dx] !== "mountain") ok = false;
-        if (!ok) continue;
-        const key = y * MAP_WIDTH + x;
-        const lowNoise = (tileHash(Math.floor(x / 24) * 193 + 17, Math.floor(y / 24) * 389 + 29) % 10000) / 10000;
-        const localNoise = (tileHash(x * 53 + 101, y * 97 + 307) % 10000) / 10000;
-        const candidate = { x, y, key, score: lowNoise * 0.78 + localNoise * 0.22 };
-        ruggedCandidates.push(candidate);
-        ruggedCandidateMap.set(key, candidate);
-      }
-    }
-
-    const hasRuggedNearby = (x, y, radius) => {
-      const x0 = Math.max(0, x - radius);
-      const y0 = Math.max(0, y - radius);
-      const x1 = Math.min(MAP_WIDTH - 1, x + RUGGED_MTN_SIZE + radius);
-      const y1 = Math.min(MAP_HEIGHT - 1, y + RUGGED_MTN_SIZE + radius);
+    const ruggedNoiseSeed = 6721;
+    const ruggedNoiseValue = (xi, yi, seed) => {
+      return (tileHash(xi * 1777 + ruggedNoiseSeed + seed * 2113, yi * 1999 + ruggedNoiseSeed * 2 + seed * 2381) % 10000) / 10000;
+    };
+    const smoothRuggedNoise = (x, y, scale, seed) => {
+      const nx = x / scale;
+      const ny = y / scale;
+      const xi = Math.floor(nx);
+      const yi = Math.floor(ny);
+      const fx = nx - xi;
+      const fy = ny - yi;
+      const sx = fx * fx * (3 - 2 * fx);
+      const sy = fy * fy * (3 - 2 * fy);
+      return ruggedNoiseValue(xi, yi, seed)           * (1 - sx) * (1 - sy)
+           + ruggedNoiseValue(xi + 1, yi, seed)       * sx       * (1 - sy)
+           + ruggedNoiseValue(xi, yi + 1, seed)       * (1 - sx) * sy
+           + ruggedNoiseValue(xi + 1, yi + 1, seed)   * sx       * sy;
+    };
+    const ruggedCoverageNoise = (x, y) => {
+      return smoothRuggedNoise(x, y, 26, 1) * 0.54
+           + smoothRuggedNoise(x + 31, y - 23, 12, 2) * 0.31
+           + smoothRuggedNoise(x - 47, y + 37, 5, 3) * 0.15;
+    };
+    const ruggedCandidateScore = (x, y) => {
+      const cx = x + RUGGED_MTN_SIZE * 0.5;
+      const cy = y + RUGGED_MTN_SIZE * 0.5;
+      const coverage = ruggedCoverageNoise(cx, cy);
+      const localAvg = (
+        ruggedCoverageNoise(cx - 4, cy) +
+        ruggedCoverageNoise(cx + 4, cy) +
+        ruggedCoverageNoise(cx, cy - 4) +
+        ruggedCoverageNoise(cx, cy + 4)
+      ) * 0.25;
+      const lift = Math.max(0, coverage - localAvg);
+      const fine = smoothRuggedNoise(cx + 17, cy - 13, 4, 4);
+      return coverage * 0.82 + fine * 0.12 + lift * 1.55;
+    };
+    const canUseRuggedFootprint = (x, y) => {
+      if (x < 0 || y < 0 || x + RUGGED_MTN_SIZE > MAP_WIDTH || y + RUGGED_MTN_SIZE > MAP_HEIGHT) return false;
+      for (let dy = 0; dy < RUGGED_MTN_SIZE; dy++)
+        for (let dx = 0; dx < RUGGED_MTN_SIZE; dx++)
+          if (terrain.tiles[y + dy][x + dx] !== "mountain") return false;
+      return true;
+    };
+    const hasRuggedNearby = (x, y, padding = 0) => {
+      const x0 = Math.max(0, x - padding);
+      const y0 = Math.max(0, y - padding);
+      const x1 = Math.min(MAP_WIDTH - 1, x + RUGGED_MTN_SIZE - 1 + padding);
+      const y1 = Math.min(MAP_HEIGHT - 1, y + RUGGED_MTN_SIZE - 1 + padding);
       for (let ty = y0; ty <= y1; ty++)
         for (let tx = x0; tx <= x1; tx++)
           if (ruggedMtn[ty][tx]) return true;
@@ -1349,12 +1445,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     };
 
     const canPlaceRugged = (x, y) => {
-      const candidate = ruggedCandidateMap.get(y * MAP_WIDTH + x);
-      if (!candidate) return false;
-      for (let dy = 0; dy < RUGGED_MTN_SIZE; dy++)
-        for (let dx = 0; dx < RUGGED_MTN_SIZE; dx++)
-          if (ruggedMtn[y + dy][x + dx]) return false;
-      return true;
+      return canUseRuggedFootprint(x, y) && !hasRuggedNearby(x, y, 0);
+    };
+
+    const RUGGED_CLUSTER_MIN_ANCHOR_GAP = 4;
+    const hasReservedAnchorTooClose = (x, y, reserved) => {
+      return reserved.some((block) =>
+        Math.max(Math.abs(x - block.x), Math.abs(y - block.y)) < RUGGED_CLUSTER_MIN_ANCHOR_GAP
+      );
+    };
+
+    const canReserveRugged = (x, y, reserved) => {
+      return canPlaceRugged(x, y) && !hasReservedAnchorTooClose(x, y, reserved);
     };
 
     const placeRugged = (x, y) => {
@@ -1365,59 +1467,98 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         for (let dx = 0; dx < RUGGED_MTN_SIZE; dx++) {
           const ty = y + dy;
           const tx = x + dx;
-          if (dy || dx) ruggedMtn[ty][tx] = 2;
-          ruggedMtnEdge[ty][tx] = (dy === RUGGED_MTN_SIZE - 1 || dx === RUGGED_MTN_SIZE - 1)
+          const edgeWeight = (dy === RUGGED_MTN_SIZE - 1 || dx === RUGGED_MTN_SIZE - 1)
             ? 2
             : (dy === RUGGED_MTN_SIZE - 2 || dx === RUGGED_MTN_SIZE - 2 || dy === 0 || dx === 0) ? 1 : 0;
+          if (dy || dx) {
+            if (ruggedMtn[ty][tx] !== 1) ruggedMtn[ty][tx] = 2;
+            if (ruggedMtn[ty][tx] !== 1) ruggedMtnEdge[ty][tx] = Math.max(ruggedMtnEdge[ty][tx], edgeWeight);
+          } else {
+            ruggedMtnEdge[ty][tx] = Math.max(ruggedMtnEdge[ty][tx], edgeWeight);
+          }
         }
     };
 
-    const neighborOffsets = [
-      [ RUGGED_MTN_SIZE, 0], [-RUGGED_MTN_SIZE, 0],
-      [0,  RUGGED_MTN_SIZE], [0, -RUGGED_MTN_SIZE],
-      [ RUGGED_MTN_SIZE,  RUGGED_MTN_SIZE], [-RUGGED_MTN_SIZE, -RUGGED_MTN_SIZE],
-      [ RUGGED_MTN_SIZE, -RUGGED_MTN_SIZE], [-RUGGED_MTN_SIZE,  RUGGED_MTN_SIZE],
-    ];
-    ruggedCandidates.forEach((candidate) => {
-      const neighborCount = neighborOffsets.reduce((sum, [dx, dy]) =>
-        sum + (ruggedCandidateMap.has((candidate.y + dy) * MAP_WIDTH + candidate.x + dx) ? 1 : 0), 0);
-      candidate.score += neighborCount * 0.045;
-    });
-    ruggedCandidates.sort((a, b) => b.score - a.score);
-
-    const maxClusters = Math.max(1, Math.floor(ruggedCandidates.length / 120));
-    let clusterCount = 0;
-    for (const seed of ruggedCandidates) {
-      if (clusterCount >= maxClusters) break;
-      if (seed.score < 0.58) continue;
-      if (hasRuggedNearby(seed.x, seed.y, RUGGED_MTN_SIZE)) continue;
-      if (!canPlaceRugged(seed.x, seed.y)) continue;
-
-      const targetBlocks = 2 + (tileHash(seed.x * 43 + 5, seed.y * 59 + 11) % 4);
-      const placed = [];
-      placeRugged(seed.x, seed.y);
-      placed.push(seed);
-      clusterCount += 1;
-
-      for (let i = 0; i < placed.length && placed.length < targetBlocks; i++) {
-        const base = placed[i];
-        const neighbors = neighborOffsets
-          .map(([dx, dy]) => ruggedCandidateMap.get((base.y + dy) * MAP_WIDTH + base.x + dx))
-          .filter(Boolean)
-          .sort((a, b) => (b.score - a.score) || ((tileHash(a.x, a.y) % 1000) - (tileHash(b.x, b.y) % 1000)));
-        for (const next of neighbors) {
-          if (placed.length >= targetBlocks) break;
-          if (!canPlaceRugged(next.x, next.y)) continue;
-          placeRugged(next.x, next.y);
-          placed.push(next);
-        }
+    const ruggedCandidates = [];
+    for (let y = 0; y <= MAP_HEIGHT - RUGGED_MTN_SIZE; y += 1) {
+      for (let x = 0; x <= MAP_WIDTH - RUGGED_MTN_SIZE; x += 1) {
+        if (!canUseRuggedFootprint(x, y)) continue;
+        const score = ruggedCandidateScore(x, y);
+        if (score < 0.40) continue;
+        const scatter = (tileHash(x * 1523 + 83, y * 1777 + 109) % 1000) / 1000;
+        ruggedCandidates.push({ x, y, score: score + scatter * 0.025 });
       }
     }
+    ruggedCandidates.sort((a, b) => b.score - a.score);
 
-    if (!clusterCount) {
-      for (const candidate of ruggedCandidates) {
-        if (canPlaceRugged(candidate.x, candidate.y)) {
-          placeRugged(candidate.x, candidate.y);
+    const ruggedNeighborDirections = [
+      [ 1, 0], [-1, 0],
+      [0,  1], [0, -1],
+      [ 1,  1], [-1, -1],
+      [ 1, -1], [-1,  1],
+    ];
+    const ruggedNeighborOffsetsFor = (base, seed, guard) => {
+      return ruggedNeighborDirections.map(([dirX, dirY], index) => {
+        const hash = tileHash(
+          base.x * 1291 + seed.x * 17 + index * 97 + guard * 31,
+          base.y * 1451 + seed.y * 19 + index * 89 + guard * 37
+        );
+        if (dirX && dirY) {
+          const stepX = 4 + (hash % 4);
+          const stepY = 4 + ((hash >>> 5) % 4);
+          return [dirX * stepX, dirY * stepY];
+        }
+        const step = 4 + (hash % 4);
+        const skew = ((hash >>> 4) % 5) - 2;
+        return dirX ? [dirX * step, skew] : [skew, dirY * step];
+      });
+    };
+    const buildRuggedCluster = (seed, targetBlocks) => {
+      if (!canReserveRugged(seed.x, seed.y, [])) return [];
+      const reserved = [{ x: seed.x, y: seed.y, score: seed.score }];
+      const seen = new Set([`${seed.x}:${seed.y}`]);
+      let guard = 0;
+      while (reserved.length < targetBlocks && guard < targetBlocks * 16) {
+        guard += 1;
+        const options = [];
+        for (const base of reserved) {
+          for (const [dx, dy] of ruggedNeighborOffsetsFor(base, seed, guard)) {
+            const nx = base.x + dx;
+            const ny = base.y + dy;
+            const key = `${nx}:${ny}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            if (!canReserveRugged(nx, ny, reserved)) continue;
+            const scatter = (tileHash(nx * 1871 + seed.x * 13, ny * 2081 + seed.y * 17) % 1000) / 1000;
+            options.push({ x: nx, y: ny, score: ruggedCandidateScore(nx, ny) + scatter * 0.04 });
+          }
+        }
+        if (!options.length) break;
+        options.sort((a, b) => b.score - a.score);
+        const pickWindow = Math.min(options.length, 1 + (tileHash(seed.x + guard * 37, seed.y + guard * 53) % 3));
+        reserved.push(options[pickWindow - 1]);
+      }
+      return reserved.length >= 3 ? reserved : [];
+    };
+
+    const maxRuggedClusters = Math.max(1, Math.floor(ruggedCandidates.length / 260));
+    let ruggedClusterCount = 0;
+    for (const seed of ruggedCandidates) {
+      if (ruggedClusterCount >= maxRuggedClusters) break;
+      if (seed.score < 0.45) continue;
+      if (hasRuggedNearby(seed.x, seed.y, RUGGED_MTN_SIZE * 2)) continue;
+      const targetBlocks = 3 + (tileHash(seed.x * 43 + 5, seed.y * 59 + 11) % 5);
+      const clusterBlocks = buildRuggedCluster(seed, targetBlocks);
+      if (clusterBlocks.length < 3) continue;
+      clusterBlocks.forEach((block) => placeRugged(block.x, block.y));
+      ruggedClusterCount += 1;
+    }
+
+    if (!ruggedClusterCount) {
+      for (const seed of ruggedCandidates) {
+        const clusterBlocks = buildRuggedCluster(seed, 3);
+        if (clusterBlocks.length >= 3) {
+          clusterBlocks.forEach((block) => placeRugged(block.x, block.y));
           break;
         }
       }
@@ -1431,6 +1572,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         if (h % 800 < 1) objectMap[y][x] = 1 + ((h >>> 8) % 16);
       }
     }
+
+    const clusterMap = null;
 
     const buildingMap = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
     /*
@@ -1497,7 +1640,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     buildingSeeds.forEach(placeBuildingCluster);
     */
 
-    return { isBorder, borderData, block, variant, ruggedMtn, ruggedMtnVariant, ruggedMtnEdge, objectMap, buildingMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false, chunkPixiReady: false };
+    return { isBorder, borderData, block, variant, ruggedMtn, ruggedMtnVariant, ruggedMtnEdge, clusterMap, objectMap, buildingMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false, chunkPixiReady: false };
   }
 
   function chooseNames() {
@@ -1881,9 +2024,22 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       for (let y = 0; y < MAP_HEIGHT; y++) {
         for (let x = 0; x < MAP_WIDTH; x++) {
           if (tiles[y][x] !== "plain") continue;
-          if (grassNoise(x, y) > 0.72) tiles[y][x] = "grassland";
+          if (grassNoise(x, y) > 0.58) tiles[y][x] = "grassland";
         }
       }
+      const spread = [];
+      for (let y = 1; y < MAP_HEIGHT - 1; y++) {
+        for (let x = 1; x < MAP_WIDTH - 1; x++) {
+          if (tiles[y][x] !== "plain") continue;
+          const nearGrass =
+            tiles[y - 1][x] === "grassland" ||
+            tiles[y + 1][x] === "grassland" ||
+            tiles[y][x - 1] === "grassland" ||
+            tiles[y][x + 1] === "grassland";
+          if (nearGrass && grassNoise(x + 11, y + 7) > 0.49) spread.push([x, y]);
+        }
+      }
+      spread.forEach(([x, y]) => { tiles[y][x] = "grassland"; });
     }
 
     return { tiles, playerStart, enemyStart };
@@ -4015,6 +4171,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
     }
 
+    const clusterPadX = game.tileW * 12.0;
+    const clusterPadY = tileH * 13.0;
+    minIsoX -= clusterPadX;
+    maxIsoX += clusterPadX;
+    minIsoY -= clusterPadY;
+    maxIsoY += clusterPadY;
+
     const canvasChunk = createSurface(maxIsoX - minIsoX, maxIsoY - minIsoY);
     const chunkCtx = canvasChunk.getContext("2d");
     const tiles = [];
@@ -4036,6 +4199,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
 
     function punchWetlandDots(ctx, canvasW, canvasH, tileX, tileY) {
+      const previousComposite = ctx.globalCompositeOperation;
       ctx.globalCompositeOperation = "destination-out";
       const numDots = 2 + tileHash(tileX * 7, tileY * 11) % 4;
       for (let i = 0; i < numDots; i++) {
@@ -4047,74 +4211,230 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const dr  = (0.08 + rr * 0.18) * game.tileW;
         const grad = ctx.createRadialGradient(dcx, dcy, 0, dcx, dcy, dr);
         grad.addColorStop(0,    "rgba(0,0,0,1)");
-        grad.addColorStop(0.82, "rgba(0,0,0,1)");
+        grad.addColorStop(0.70, "rgba(0,0,0,1)");
         grad.addColorStop(1,    "rgba(0,0,0,0)");
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(dcx, dcy, dr, 0, Math.PI * 2);
         ctx.fill();
       }
+      ctx.globalCompositeOperation = previousComposite;
+    }
+
+    function traceTileDiamond(ctx, px, py, overlap = 0.85) {
+      const halfW = tileWidth / 2 + overlap;
+      const halfH = tileH / 2 + overlap * 0.45;
+      ctx.moveTo(px, py - overlap * 0.2);
+      ctx.lineTo(px + halfW, py + halfH);
+      ctx.lineTo(px, py + tileH + overlap * 0.2);
+      ctx.lineTo(px - halfW, py + halfH);
+      ctx.closePath();
+    }
+
+    function worldPatternFor(ctx, tile, offsetX = 0, offsetY = 0) {
+      const texture = terrainWorldTexture(tile);
+      if (!texture?.naturalWidth) return null;
+      const pattern = ctx.createPattern(texture, "repeat");
+      if (!pattern) return null;
+      if (typeof DOMMatrix !== "undefined" && typeof pattern.setTransform === "function") {
+        const transform = new DOMMatrix();
+        transform.a = TERRAIN_WORLD_TEXTURE_SCALE;
+        transform.d = TERRAIN_WORLD_TEXTURE_SCALE;
+        transform.e = -minIsoX - offsetX;
+        transform.f = -minIsoY - offsetY;
+        pattern.setTransform(transform);
+      }
+      return pattern;
+    }
+
+    function fillWorldDiamond(ctx, tile, x, y, px, py, options = {}) {
+      const w = options.width ?? (tileWidth + 1);
+      const h = options.height ?? (tileH + 1);
+      const drawX = px - w / 2;
+      const drawY = py - 0.25;
+      const tmp = createSurface(w + 2, h + 2);
+      const tc = tmp.getContext("2d");
+      const pattern = worldPatternFor(tc, tile, drawX, drawY);
+      if (!pattern) return false;
+
+      tc.imageSmoothingEnabled = true;
+      tc.imageSmoothingQuality = "high";
+      tc.filter = terrainWorldToneFilter(tile);
+      tc.fillStyle = pattern;
+      tc.fillRect(0, 0, tmp.width, tmp.height);
+      tc.filter = "none";
+      if (options.punchWetland) punchWetlandDots(tc, w, h, x, y);
+
+      tc.globalCompositeOperation = "destination-in";
+      tc.beginPath();
+      traceTileDiamond(tc, w / 2, 0.25, 0.8);
+      tc.fillStyle = "#fff";
+      tc.fill();
+      tc.globalCompositeOperation = "source-over";
+
+      ctx.drawImage(tmp, drawX, drawY);
+      return true;
     }
 
     if (terrainSprites.ready) {
       chunkCtx.imageSmoothingEnabled = true;
       chunkCtx.imageSmoothingQuality = "high";
 
-      // Pass 2A: 1×1 center 타일 — 전체 영역 베이스 (경계 타일 포함 모두)
-      chunkCtx.imageSmoothingEnabled = false;
-      tiles.forEach(([, x, y]) => {
-        const tile = game.terrain.tiles[y][x];
-        const variants = terrainSprites.tiles[TERRAIN_ASSET[tile]];
-        if (!variants?.length) return;
-        const sp = variants[tileHash(x, y) % variants.length];
-        if (!sp?.naturalWidth) return;
-        const iso = isoPoint(x, y);
-        const px = iso.x - minIsoX, py = iso.y - minIsoY;
-        const w  = game.tileW + 1.0;
-        const h  = getTileH() + 0.5;
+      // Pass 2A: 월드 좌표 기반 1×1 베이스 — 지형별 경로를 묶어 연속 샘플링
+      ["river", "plain", "grassland", "road", "mountain"].forEach((terrainType) => {
+        const pattern = worldPatternFor(chunkCtx, terrainType);
+        if (!pattern) return;
 
-        if (tile === "wetland") {
-          const riverVars = terrainSprites.tiles["river"];
-          const riverSp = riverVars?.[tileHash(x + 7, y + 11) % (riverVars?.length || 1)];
-          if (riverSp?.naturalWidth) chunkCtx.drawImage(riverSp, px - w / 2, py - 0.25, w, h);
-
-          const off = createSurface(w + 1, h + 1);
-          const offCtx = off.getContext("2d");
-          offCtx.drawImage(sp, 0, 0, w, h);
-          punchWetlandDots(offCtx, w, h, x, y);
-          chunkCtx.drawImage(off, px - w / 2, py - 0.25);
-          return;
+        chunkCtx.save();
+        chunkCtx.beginPath();
+        let hasTiles = false;
+        tiles.forEach(([, x, y]) => {
+          if (game.terrain.tiles[y][x] !== terrainType) return;
+          const iso = isoPoint(x, y);
+          traceTileDiamond(chunkCtx, iso.x - minIsoX, iso.y - minIsoY);
+          hasTiles = true;
+        });
+        if (hasTiles) {
+          chunkCtx.clip();
+          chunkCtx.filter = terrainWorldToneFilter(terrainType);
+          chunkCtx.fillStyle = pattern;
+          chunkCtx.fillRect(0, 0, canvasChunk.width, canvasChunk.height);
+          chunkCtx.filter = "none";
         }
-
-        chunkCtx.drawImage(sp, px - w / 2, py - 0.25, w, h);
+        chunkCtx.restore();
       });
 
-      // Pass 2B: 3×3 베이스 텍스처 — 1×1 위에 덮어씌움 (경계 타일 제외)
-      chunkCtx.imageSmoothingEnabled = true;
-      chunkCtx.imageSmoothingQuality = "high";
+      // 습지는 물 텍스처 위에 습지 텍스처를 얹고 작은 구멍으로 물을 노출시킨다.
       tiles.forEach(([, x, y]) => {
-        if (game.terrainRender.block[y][x] !== 1) return;
-
-        const tile = game.terrain.tiles[y][x];
-        let sprites = null;
-        if (tile === "plain")          sprites = terrainSprites.dirt;
-        else if (tile === "grassland") sprites = terrainSprites.plainGrass;
-        else if (tile === "mountain")  sprites = terrainSprites.forestFloor;
-        if (!sprites) return;
-
-        const v  = game.terrainRender.variant[y][x] % sprites.length;
-        const sp = sprites[v];
-        if (!sp?.naturalWidth) return;
-
+        if (game.terrain.tiles[y][x] !== "wetland") return;
         const iso = isoPoint(x, y);
-        const px  = iso.x - minIsoX, py = iso.y - minIsoY;
-        const w   = game.tileW * 3;
-        const h   = Math.round(w * sp.naturalHeight / sp.naturalWidth);
-        chunkCtx.drawImage(sp, px - w / 2, py, w, h);
+        const px = iso.x - minIsoX;
+        const py = iso.y - minIsoY;
+        fillWorldDiamond(chunkCtx, "river", x, y, px, py);
+        fillWorldDiamond(chunkCtx, "wetland", x, y, px, py, { punchWetland: true });
       });
     }
 
-    // Pass 2C: 경계 타일 3레이어 합성
+    const detailPatchSettingsFor = (terrainType) => {
+      if (!TERRAIN_DETAIL_PATCH_INDICES[terrainType]?.length) return null;
+      return {
+        baseAlpha: terrainType === "grassland" ? 0.58 : 0.38,
+        drawChance: terrainType === "grassland" ? 0.40 : 0.36,
+      };
+    };
+
+    const drawDetailPatchAt = (ctx, terrainType, x, y, originX, originY, alphaScale = 1) => {
+      const patchIndices = TERRAIN_DETAIL_PATCH_INDICES[terrainType];
+      const settings = detailPatchSettingsFor(terrainType);
+      if (!patchIndices?.length || !settings) return false;
+      if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return false;
+
+      const hash = tileHash(x * 3187 + (terrainType === "grassland" ? 113 : 197), y * 3761 + (terrainType === "grassland" ? 191 : 263));
+      if ((hash % 1000) / 1000 > settings.drawChance) return false;
+
+      const patchGroupHash = tileHash(Math.floor(x / 5) * 1553 + 31, Math.floor(y / 5) * 1877 + 47);
+      const patchIndex = patchIndices[(patchGroupHash + (hash >>> 8)) % patchIndices.length];
+      const patchImg = terrainSprites.clusters[patchIndex];
+      const def = TERRAIN_CLUSTER_DEFS[patchIndex];
+      if (!patchImg?.naturalWidth || !def) return false;
+
+      const iso = isoPoint(x, y);
+      const px = iso.x - originX + (((hash >>> 12) % 1000) / 1000 - 0.5) * game.tileW * 1.5;
+      const py = iso.y - originY + (((hash >>> 22) % 1000) / 1000 - 0.5) * tileH * 1.4;
+      const jitterScale = 0.76 + ((hash >>> 4) % 1000) / 1000 * 0.34;
+      const assetSizeScale = patchImg.naturalWidth / TERRAIN_CLUSTER_BASE_ASSET_WIDTH;
+      const drawW = game.tileW * TERRAIN_DETAIL_PATCH_BASE_DRAW_TILES * assetSizeScale * (def.scale ?? 1) * jitterScale;
+      const drawH = Math.round(drawW * patchImg.naturalHeight / patchImg.naturalWidth);
+      const flip = ((hash >>> 10) & 1);
+      ctx.globalAlpha = TERRAIN_DETAIL_PATCH_OPACITY * settings.baseAlpha * alphaScale * (0.82 + ((hash >>> 2) % 1000) / 1000 * 0.24);
+      ctx.save();
+      if (flip) {
+        ctx.translate(px, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(patchImg, -drawW / 2, py - drawH * 0.44, drawW, drawH);
+      } else {
+        ctx.drawImage(patchImg, px - drawW / 2, py - drawH * 0.44, drawW, drawH);
+      }
+      ctx.restore();
+      return true;
+    };
+
+    const drawMaskedDetailPatchTile = (ctx, terrainType, tileX, tileY, drawX, drawY, w, h, maskCv = null) => {
+      if (!TERRAIN_DETAIL_PATCH_ENABLED || !terrainSprites.ready || !terrainSprites.clusters?.length) return false;
+      if (!TERRAIN_DETAIL_PATCH_INDICES[terrainType]?.length) return false;
+
+      const tmp = createSurface(w + 2, h + 2);
+      const tc = tmp.getContext("2d");
+      tc.imageSmoothingEnabled = true;
+      tc.imageSmoothingQuality = "high";
+      const prevAlpha = tc.globalAlpha;
+      const localPad = 3;
+      for (let ay = tileY - localPad; ay <= tileY + localPad; ay += 1) {
+        for (let ax = tileX - localPad; ax <= tileX + localPad; ax += 1) {
+          drawDetailPatchAt(tc, terrainType, ax, ay, minIsoX + drawX, minIsoY + drawY, 0.88);
+        }
+      }
+      tc.globalAlpha = prevAlpha;
+      tc.globalCompositeOperation = "destination-in";
+      if (maskCv) {
+        tc.drawImage(maskCv, 0, 0, w, h);
+      } else {
+        tc.beginPath();
+        traceTileDiamond(tc, w / 2, 0.25, 0.8);
+        tc.fillStyle = "#fff";
+        tc.fill();
+      }
+      tc.globalCompositeOperation = "source-over";
+      ctx.drawImage(tmp, drawX, drawY);
+      return true;
+    };
+
+    if (TERRAIN_DETAIL_PATCH_ENABLED && terrainSprites.ready && terrainSprites.clusters?.length) {
+      chunkCtx.imageSmoothingEnabled = true;
+      chunkCtx.imageSmoothingQuality = "high";
+      const prevAlpha = chunkCtx.globalAlpha;
+
+      const drawDetailPatchTerrain = (terrainType) => {
+        const patchIndices = TERRAIN_DETAIL_PATCH_INDICES[terrainType];
+        if (!patchIndices?.length) return;
+
+        chunkCtx.save();
+        chunkCtx.beginPath();
+        let hasTerrainTiles = false;
+        tiles.forEach(([, x, y]) => {
+          if (game.terrain.tiles[y][x] !== terrainType) return;
+          const iso = isoPoint(x, y);
+          traceTileDiamond(chunkCtx, iso.x - minIsoX, iso.y - minIsoY);
+          hasTerrainTiles = true;
+        });
+        if (!hasTerrainTiles) {
+          chunkCtx.restore();
+          return;
+        }
+        chunkCtx.clip();
+
+        const anchorPad = 7;
+        const anchorStartX = Math.max(0, startX - anchorPad);
+        const anchorStartY = Math.max(0, startY - anchorPad);
+        const anchorEndX = Math.min(MAP_WIDTH, endX + anchorPad);
+        const anchorEndY = Math.min(MAP_HEIGHT, endY + anchorPad);
+
+        for (let y = anchorStartY; y < anchorEndY; y += 1) {
+          for (let x = anchorStartX; x < anchorEndX; x += 1) {
+            if (game.terrain.tiles[y][x] !== terrainType) continue;
+            drawDetailPatchAt(chunkCtx, terrainType, x, y, minIsoX, minIsoY);
+          }
+        }
+        chunkCtx.restore();
+      };
+
+      drawDetailPatchTerrain("plain");
+      drawDetailPatchTerrain("grassland");
+      drawDetailPatchTerrain("mountain");
+      chunkCtx.globalAlpha = prevAlpha;
+    }
+
+    // Pass 2C: 경계 타일 — 상위 지형 월드 텍스처에 1×1 알파 마스크 적용
     chunkCtx.imageSmoothingEnabled = true;
     chunkCtx.imageSmoothingQuality = "high";
 
@@ -4127,48 +4447,41 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const py = iso.y - minIsoY;
       const w  = game.tileW;
 
-      // ── 3레이어 합성 (스프라이트 로드 완료 시) ─────────────────────────
-      if (terrainSprites.ready) {
-        const lowerVars = terrainSprites.tiles[TERRAIN_ASSET[bd.lowerT]];
-        const upperVars = terrainSprites.tiles[TERRAIN_ASSET[bd.upperT]];
-        const lowerImg = lowerVars?.[tileHash(x, y)     % (lowerVars?.length || 1)];
-        const upperImg = upperVars?.[tileHash(x+1, y+1) % (upperVars?.length || 1)];
-        if (lowerImg?.naturalWidth && upperImg?.naturalWidth) {
-          const h = Math.round(w * lowerImg.naturalHeight / lowerImg.naturalWidth);
+      if (!terrainSprites.ready || !TERRAIN_1X1_MASK_ENABLED) return;
+      if (bd.maskDir === "center") {
+        const centerW = w + 1;
+        const centerH = tileH + 1;
+        const drawX = px - centerW / 2;
+        const drawY = py - 0.25;
+        fillWorldDiamond(chunkCtx, bd.upperT, x, y, px, py, { width: centerW, height: centerH, punchWetland: bd.upperT === "wetland" });
+        drawMaskedDetailPatchTile(chunkCtx, bd.upperT, x, y, drawX, drawY, centerW, centerH);
+      } else if (bd.maskDir) {
+        const maskArr = terrainSprites.masks[bd.maskDir];
+        const maskCv = maskArr?.length
+          ? maskArr[tileHash(x, y) % maskArr.length]
+          : null;
+        if (!maskCv) return;
 
-          // 레이어 1: 하위 지형 (전체 타일)
-          chunkCtx.drawImage(lowerImg, px - w / 2, py, w, h);
+        const h = tileH + 1;
+        const drawX = px - w / 2;
+        const drawY = py - 0.25;
+        const tmp = createSurface(w + 2, h + 2);
+        const tc = tmp.getContext("2d");
+        const pattern = worldPatternFor(tc, bd.upperT, drawX, drawY);
+        if (!pattern) return;
 
-          // 레이어 2+3: 상위 지형 + 알파마스크
-          if (bd.maskDir === "center") {
-            // center: 마스크 없이 상위 지형 전체 (습지는 원형 마스크 유지)
-            if (bd.upperT === "wetland") {
-              const tmp = createSurface(w + 1, h + 1);
-              const tc  = tmp.getContext("2d");
-              tc.drawImage(upperImg, 0, 0, w, h);
-              punchWetlandDots(tc, w, h, x, y);
-              chunkCtx.drawImage(tmp, px - w / 2, py);
-            } else {
-              chunkCtx.drawImage(upperImg, px - w / 2, py, w, h);
-            }
-          } else if (bd.maskDir) {
-            const maskArr = terrainSprites.masks[bd.maskDir];
-            const maskCv = maskArr?.length
-              ? maskArr[tileHash(x, y) % maskArr.length]
-              : null;
-            if (maskCv) {
-              const mW = maskCv.width, mH = maskCv.height;
-              const tmp = createSurface(mW, mH);
-              const tc  = tmp.getContext("2d");
-              tc.drawImage(upperImg, 0, 0, mW, mH);
-              tc.globalCompositeOperation = "destination-in";
-              tc.drawImage(maskCv, 0, 0, mW, mH);
-              if (bd.upperT === "wetland") punchWetlandDots(tc, mW, mH, x, y);
-              chunkCtx.drawImage(tmp, px - w / 2, py, w, h);
-            }
-          }
-          // maskDir === null: 하위 지형만 (레이어1 이미 그림)
-        }
+        tc.imageSmoothingEnabled = true;
+        tc.imageSmoothingQuality = "high";
+        tc.filter = terrainWorldToneFilter(bd.upperT);
+        tc.fillStyle = pattern;
+        tc.fillRect(0, 0, tmp.width, tmp.height);
+        tc.filter = "none";
+        if (bd.upperT === "wetland") punchWetlandDots(tc, w, h, x, y);
+        tc.globalCompositeOperation = "destination-in";
+        tc.drawImage(maskCv, 0, 0, w, h);
+        tc.globalCompositeOperation = "source-over";
+        chunkCtx.drawImage(tmp, drawX, drawY);
+        drawMaskedDetailPatchTile(chunkCtx, bd.upperT, x, y, drawX, drawY, w, h, maskCv);
       }
 
     });
@@ -4178,7 +4491,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (ruggedSprites?.length) {
       chunkCtx.imageSmoothingEnabled = true;
       chunkCtx.imageSmoothingQuality = "high";
-      tiles.forEach(([, x, y]) => {
+      const ruggedAnchors = [];
+      const ruggedStartX = Math.max(0, startX - RUGGED_MTN_SIZE);
+      const ruggedStartY = Math.max(0, startY - RUGGED_MTN_SIZE);
+      const ruggedEndX = Math.min(MAP_WIDTH, endX + RUGGED_MTN_SIZE);
+      const ruggedEndY = Math.min(MAP_HEIGHT, endY + RUGGED_MTN_SIZE);
+      for (let y = ruggedStartY; y < ruggedEndY; y += 1) {
+        for (let x = ruggedStartX; x < ruggedEndX; x += 1) {
+          if (game.terrainRender.ruggedMtn[y][x] === 1) ruggedAnchors.push([x + y, x, y]);
+        }
+      }
+      ruggedAnchors.sort((a, b) => a[0] - b[0]);
+      ruggedAnchors.forEach(([, x, y]) => {
         if (game.terrainRender.ruggedMtn[y][x] !== 1) return;
         const ruggedImg = ruggedSprites[game.terrainRender.ruggedMtnVariant?.[y]?.[x] % ruggedSprites.length];
         if (!ruggedImg?.naturalWidth) return;
@@ -4234,19 +4558,94 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     }
 
     const trees = [];
-    const treeImg = terrainSprites.tree;
-    if (treeImg?.naturalWidth) {
-      const tW = Math.round(game.tileW * 11 / 24);
-      const tH = Math.round(game.tileW * 22 / 24);
+    const treeImages = (terrainSprites.trees || []).filter(img => img?.naturalWidth);
+    if (!treeImages.length && terrainSprites.tree?.naturalWidth) treeImages.push(terrainSprites.tree);
+    if (TERRAIN_TREE_RENDER_ENABLED && treeImages.length) {
+      const treeBaseH = game.tileW * 22 / 24;
+      const treeVariantScale = (variantIndex) => TREE_VARIANT_HEIGHT_SCALE[variantIndex % TREE_VARIANT_HEIGHT_SCALE.length] ?? 1;
+      const treeDrawSize = (img, variantIndex, scale = 1) => {
+        const stH = Math.round(treeBaseH * scale * treeVariantScale(variantIndex));
+        const stW = Math.max(1, Math.round(stH * img.naturalWidth / img.naturalHeight));
+        return { stW, stH };
+      };
+      const chooseTreeVariant = (tx, ty, ruggedVal, edgeWeight, slotIndex) => {
+        const variantCount = treeImages.length;
+        if (variantCount <= 1) return 0;
+        const h = tileHash(tx * 2671 + slotIndex * 97, ty * 3253 + slotIndex * 131);
+        const pool = ruggedVal === 2
+          ? [0, 0, 1, 1, 2, 3, 7]
+          : edgeWeight > 0
+            ? [0, 1, 3, 4, 5, 6, 7]
+            : [0, 0, 1, 1, 2, 3, 4, 5, 6, 7];
+        return pool[h % pool.length] % variantCount;
+      };
+      const drawTreeShadow = ({ worldBx, worldBy, scale, variantIndex }) => {
+        const treeImg = treeImages[variantIndex % treeImages.length] || treeImages[0];
+        const { stW, stH } = treeDrawSize(treeImg, variantIndex, scale ?? 1);
+        const localX = worldBx - minIsoX;
+        const localY = worldBy - minIsoY;
+        const shadowW = clamp(stW * 0.98, game.tileW * 0.78, game.tileW * 2.20);
+        const shadowH = clamp(tileH * (0.34 + stW / Math.max(stH, 1) * 0.18), tileH * 0.32, tileH * 0.78);
+        const shadowAlpha = clamp(0.24 + stW / Math.max(game.tileW * 3.5, 1) * 0.13, 0.24, 0.42);
+
+        chunkCtx.save();
+        chunkCtx.globalCompositeOperation = "multiply";
+        chunkCtx.translate(localX + game.tileW * 0.12, localY + tileH * 0.18);
+        chunkCtx.scale(shadowW / 2, shadowH / 2);
+        const grad = chunkCtx.createRadialGradient(0, 0, 0, 0, 0, 1);
+        grad.addColorStop(0, `rgba(24,30,18,${shadowAlpha})`);
+        grad.addColorStop(0.68, `rgba(24,30,18,${shadowAlpha * 0.58})`);
+        grad.addColorStop(1, "rgba(24,30,18,0)");
+        chunkCtx.fillStyle = grad;
+        chunkCtx.beginPath();
+        chunkCtx.arc(0, 0, 1, 0, Math.PI * 2);
+        chunkCtx.fill();
+        chunkCtx.restore();
+      };
+      const canUseSparseTreeTile = (x, y, terrainType) => {
+        if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return false;
+        if (game.terrain.tiles[y][x] !== terrainType) return false;
+        if (game.terrainRender.isBorder?.[y]?.[x]) return false;
+        if (game.terrainRender.objectMap?.[y]?.[x] || game.terrainRender.buildingMap?.[y]?.[x]) return false;
+        return true;
+      };
+      const sparseTreeClusterSlots = (x, y, terrainType) => {
+        const targetCount = 2 + (tileHash(x * 1699 + 41, y * 2069 + 73) % 3);
+        const offsets = [
+          [1, 0], [-1, 0], [0, 1], [0, -1],
+          [1, 1], [-1, -1], [1, -1], [-1, 1],
+          [2, 0], [-2, 0], [0, 2], [0, -2],
+        ].sort((a, b) => {
+          const ah = tileHash((x + a[0]) * 2221 + 11, (y + a[1]) * 2551 + 17);
+          const bh = tileHash((x + b[0]) * 2221 + 11, (y + b[1]) * 2551 + 17);
+          return ah - bh;
+        });
+        const slots = canUseSparseTreeTile(x, y, terrainType) ? [{ tx: x, ty: y }] : [];
+        for (const [dx, dy] of offsets) {
+          if (slots.length >= targetCount) break;
+          const sx = x + dx;
+          const sy = y + dy;
+          if (canUseSparseTreeTile(sx, sy, terrainType)) slots.push({ tx: sx, ty: sy });
+        }
+        return slots.length ? slots : [{ tx: x, ty: y }];
+      };
 
       for (let ty = startY; ty < endY; ty++) {
         for (let tx = startX; tx < endX; tx++) {
-          if (game.terrain.tiles[ty][tx] !== "mountain") continue;
-          const ruggedVal = game.terrainRender.ruggedMtn[ty][tx];
+          const tile = game.terrain.tiles[ty][tx];
+          const isMountainTree = tile === "mountain";
+          if (!isMountainTree && tile !== "grassland") continue;
+          if (!isMountainTree) {
+            if (!canUseSparseTreeTile(tx, ty, tile)) continue;
+            const sparseRoll = (tileHash(tx * 4337 + 17, ty * 4933 + 29) % 100000) / 100000;
+            const sparseChance = tile === "grassland" ? 0.0045 : 0.0012;
+            if (sparseRoll > sparseChance) continue;
+          }
+          const ruggedVal = isMountainTree ? game.terrainRender.ruggedMtn[ty][tx] : 0;
 
           // 험준산악 경계 판별 — 인접 블록 여부와 무관하게 블록 내 상대 위치로 결정
           let edgeWeight = 0; // 0: 내부(스킵), 1: 북서/북동 변, 2: 남서/남동 외곽 변, 1(2nd): 남서/남동 2번째 행/열
-          if (ruggedVal === 2) {
+          if (isMountainTree && ruggedVal === 2) {
             const ax = Math.floor(tx / CHUNK_TILES) * CHUNK_TILES;
             const ay = Math.floor(ty / CHUNK_TILES) * CHUNK_TILES;
             const relX = tx - ax; // 0..15
@@ -4266,7 +4665,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             else if (onNW  || onNE)         edgeWeight = 1;
             edgeWeight = game.terrainRender.ruggedMtnEdge?.[ty]?.[tx] ?? edgeWeight;
             if (edgeWeight === 0) continue; // 내부 타일: 나무 없음
-          } else if (ruggedVal !== 0) {
+          } else if (isMountainTree && ruggedVal !== 0) {
             continue; // 앵커 타일(=1): 건너뜀
           }
 
@@ -4279,41 +4678,57 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
           const r = rng();
           // 험준산악 가장자리: 모든 변 동일하게 0~2그루
-          const count = ruggedVal === 0
-            ? (r < 0.1 ? 0 : r < 0.4 ? 2 : 1)
-            : (r < 0.25 ? 0 : r < 0.65 ? 1 : 2);
+          const sparseSlots = isMountainTree ? null : sparseTreeClusterSlots(tx, ty, tile);
+          const count = isMountainTree
+            ? (ruggedVal === 0
+              ? (r < 0.1 ? 0 : r < 0.4 ? 2 : 1)
+              : (r < 0.25 ? 0 : r < 0.65 ? 1 : 2))
+            : sparseSlots.length;
           for (let i = 0; i < count; i++) {
+            const treeTx = isMountainTree ? tx : sparseSlots[i].tx;
+            const treeTy = isMountainTree ? ty : sparseSlots[i].ty;
+            const treeIso = isMountainTree ? iso : isoPoint(treeTx, treeTy);
+            const treeCx = treeIso.x - minIsoX;
+            const treeCy = treeIso.y - minIsoY + tileH / 2;
             let bx, by;
             for (let attempt = 0; attempt < 8; attempt++) {
               const rx = (rng() - 0.5) * game.tileW;
               const ry = (rng() - 0.5) * tileH;
               if (Math.abs(rx) / (game.tileW / 2) + Math.abs(ry) / (tileH / 2) <= 1) {
-                bx = cx + rx;
-                by = cy + ry;
+                bx = treeCx + rx;
+                by = treeCy + ry;
                 break;
               }
             }
-            if (bx === undefined) { bx = cx; by = cy; }
+            if (bx === undefined) { bx = treeCx; by = treeCy; }
             const scale = 0.85 + rng() * 0.30;
-            const hue = (rng() - 0.5) * 36;
-            const sat = 95 + rng() * 10;
-            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: tx, tileY: ty, scale, hue, sat });
+            const hue = (rng() - 0.5) * 10;
+            const sat = 92 + rng() * 4;
+            const variantIndex = chooseTreeVariant(treeTx, treeTy, ruggedVal, isMountainTree ? edgeWeight : 1, i);
+            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: treeTx, tileY: treeTy, scale, hue, sat, variantIndex });
           }
         }
       }
 
       // PIXI_TREE_SPRITES 비활성 시 캔버스에 직접 드로잉
-      if (!(PIXI_TREE_SPRITES && pixiReady && pixiTreeTex)) {
+      trees.forEach(drawTreeShadow);
+
+      if (!(PIXI_TREE_SPRITES && pixiReady && pixiTreeTex?.length)) {
         trees.sort((a, b) => a.worldBy - b.worldBy);
         chunkCtx.imageSmoothingEnabled = true;
         chunkCtx.imageSmoothingQuality = "high";
-        for (const { worldBx, worldBy, scale, hue, sat } of trees) {
-          const stW = Math.round(tW * (scale ?? 1));
-          const stH = Math.round(tH * (scale ?? 1));
-          chunkCtx.filter = `hue-rotate(${hue.toFixed(1)}deg) saturate(${sat.toFixed(1)}%)`;
+        const prevTreeAlpha = chunkCtx.globalAlpha;
+        chunkCtx.globalAlpha = prevTreeAlpha * TREE_TONE_ALPHA;
+        for (const { worldBx, worldBy, scale, hue, sat, variantIndex } of trees) {
+          const treeImg = treeImages[variantIndex % treeImages.length] || treeImages[0];
+          const { stW, stH } = treeDrawSize(treeImg, variantIndex, scale ?? 1);
+          const treeBrightness = (TREE_TONE_BRIGHTNESS * 100).toFixed(0);
+          const treeSaturation = (TREE_TONE_SATURATION * sat).toFixed(1);
+          chunkCtx.filter = `brightness(${treeBrightness}%) saturate(${treeSaturation}%) hue-rotate(${hue.toFixed(1)}deg)`;
           chunkCtx.drawImage(treeImg, worldBx - minIsoX - stW / 2, worldBy - minIsoY - stH, stW, stH);
         }
         chunkCtx.filter = "none";
+        chunkCtx.globalAlpha = prevTreeAlpha;
       }
     }
 
@@ -4617,9 +5032,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
 
     fCtx.globalCompositeOperation = "source-over";
-    ctx.filter = "blur(28px)";
-    ctx.drawImage(fog, 0, 0);
-    ctx.filter = "none";
+    if (!game._fogBlurCanvas || game._fogBlurCanvas.width !== Math.ceil(W) || game._fogBlurCanvas.height !== Math.ceil(H)) {
+      game._fogBlurCanvas = createSurface(W, H);
+    }
+    const fogBlur = game._fogBlurCanvas;
+    const bCtx = fogBlur.getContext("2d");
+    bCtx.clearRect(0, 0, W, H);
+    bCtx.filter = "blur(28px)";
+    bCtx.drawImage(fog, 0, 0);
+    bCtx.filter = "none";
+    ctx.drawImage(fogBlur, 0, 0);
   }
 
   function renderMap() {
@@ -4655,14 +5077,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (!chunk) {
         chunk = createTerrainChunk(chunkX, chunkY);
         game.terrainRender.chunkCache.set(key, chunk);
-        if (PIXI_TREE_SPRITES && pixiReady && pixiTreeTex && chunk.trees.length > 0) {
-          const tW = Math.round(game.tileW * 11 / 24);
-          const tH = Math.round(game.tileW * 22 / 24);
-          for (const { worldBx, worldBy, tileX, tileY, scale } of chunk.trees) {
-            const tspr = new PixiSprite(pixiTreeTex);
-            tspr.width  = Math.round(tW * (scale ?? 1));
-            tspr.height = Math.round(tH * (scale ?? 1));
+        if (TERRAIN_TREE_RENDER_ENABLED && PIXI_TREE_SPRITES && pixiReady && pixiTreeTex?.length && chunk.trees.length > 0) {
+          const treeBaseH = game.tileW * 22 / 24;
+          for (const { worldBx, worldBy, tileX, tileY, scale, variantIndex } of chunk.trees) {
+            const tex = pixiTreeTex[variantIndex % pixiTreeTex.length] || pixiTreeTex[0];
+            const variantScale = TREE_VARIANT_HEIGHT_SCALE[variantIndex % TREE_VARIANT_HEIGHT_SCALE.length] ?? 1;
+            const targetH = Math.round(treeBaseH * (scale ?? 1) * variantScale);
+            const targetW = Math.max(1, Math.round(targetH * tex.width / tex.height));
+            const tspr = new PixiSprite(tex);
+            tspr.width  = targetW;
+            tspr.height = targetH;
             tspr.anchor.set(0.5, 1.0);
+            tspr.alpha = TREE_TONE_ALPHA;
+            tspr.tint = TREE_PIXI_TINT;
             tspr.zIndex = tileX + tileY;
             pixiUnitCtr.addChild(tspr);
             pixiTreeSprites.push({ sprite: tspr, worldBx, worldBy });
