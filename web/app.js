@@ -1314,28 +1314,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
     }
 
-    // 2패스: 경계 타일별 마스크 방향 결정
-    // 경계 타일 이웃 = 무조건 U / 하위·동일 우선순위 = L
-    // 코너 갭 포함, 단일 로직으로 처리
+    // 2패스: 경계 타일별 레이어 목록 결정 (Method B: 다중 레이어)
+    // 각 레이어마다 상위 지형 하나씩 처리 → 3개 이상 지형 접합부 정상 처리
     const ALL8 = [...FACES, [-1,-1],[1,-1],[1,1],[-1,1]];
     const borderData = Array.from({length: MAP_HEIGHT}, () => new Array(MAP_WIDTH).fill(null));
+    const SINGLE_FACE_KEYS = new Set(["ULLL","LULL","LLUL","LLLU"]);
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
         if (!isBorder[y][x]) continue;
         const t = terrain.tiles[y][x];
         const p = TERRAIN_PRIORITY[t] ?? 2;
-
-        // 8방향에서 최고 우선순위 지형 탐색 (코너 갭용 대각 포함)
-        let upperT = t, upperP = p;
-        for (const [dx, dy] of ALL8) {
-          const nx = x+dx, ny = y+dy;
-          if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
-          const nt = terrain.tiles[ny][nx];
-          const np = TERRAIN_PRIORITY[nt] ?? 2;
-          if (np > upperP) { upperP = np; upperT = nt; }
-        }
-        if (upperT === t) continue; // 실제 상위 지형 없음
 
         // 4면 이웃 수집
         const nbrs = FACES.map(([dx, dy]) => {
@@ -1344,13 +1333,39 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           return { p: TERRAIN_PRIORITY[terrain.tiles[ny][nx]] ?? 2, border: isBorder[ny][nx] === 1 };
         }); // [NW, NE, SE, SW]
 
-        // 면 상태 분류: 경계 타일 이웃 → U, 하위/동일 → L
-        const states = nbrs.map(n => (n.border || n.p > p) ? "U" : "L");
-        const key = states.join("");
+        // ALL8에서 상위 지형 종류 수집 (우선순위 오름차순)
+        const upperTSet = new Set();
+        for (const [dx, dy] of ALL8) {
+          const nx = x+dx, ny = y+dy;
+          if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
+          const nt = terrain.tiles[ny][nx];
+          if ((TERRAIN_PRIORITY[nt] ?? 2) > p) upperTSet.add(nt);
+        }
+        if (upperTSet.size === 0) continue;
 
-        const maskDir = key === "UUUU" ? "center" : (MASK_KEY[key] || null);
+        const layers = [];
+        for (const T of [...upperTSet].sort((a, b) =>
+            (TERRAIN_PRIORITY[a] ?? 2) - (TERRAIN_PRIORITY[b] ?? 2))) {
+          const tP = TERRAIN_PRIORITY[T] ?? 2;
+          // 면 상태: 이웃 우선순위 >= T 우선순위이면 U
+          // 코너갭 경계 타일(같은 우선순위이지만 isBorder=1)도 U로 처리
+          const states = nbrs.map(n => (n.p >= tP || (n.border && n.p >= p)) ? "U" : "L");
+          const key = states.join("");
+          let maskDir;
+          if (key === "UUUU") {
+            maskDir = "center";
+          } else if (MASK_KEY[key]) {
+            maskDir = MASK_KEY[key];
+          } else if (SINGLE_FACE_KEYS.has(key)) {
+            maskDir = key; // 단일 면: 사분면 클립으로 처리
+          } else {
+            continue; // 인식 불가 패턴 스킵
+          }
+          layers.push({ upperT: T, maskDir });
+        }
 
-        borderData[y][x] = { maskDir, lowerT: t, upperT, dbgKey: key };
+        if (layers.length === 0) continue;
+        borderData[y][x] = { layers, lowerT: t };
       }
     }
 
@@ -4416,7 +4431,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     };
 
     // 경계 타일에서 월드 텍스처 + 디테일 패치를 단일 temp 캔버스에 합성 후 마스크 1회 적용
-    const drawBorderTile = (ctx, terrainType, tileX, tileY, px, py, options = {}, maskCv = null) => {
+    const drawBorderTile = (ctx, terrainType, tileX, tileY, px, py, options = {}, maskCv = null, quarterDir = null) => {
       const w = options.width ?? (tileWidth + 1);
       const h = options.height ?? (tileH + 1);
       const drawX = px - w / 2;
@@ -4455,6 +4470,32 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       tc.globalCompositeOperation = "destination-in";
       if (maskCv) {
         tc.drawImage(maskCv, 0, 0, w, h);
+      } else if (quarterDir) {
+        // 단일 면 사분면 클립: 다이아몬드 꼭짓점 좌표 (traceTileDiamond와 동일)
+        const overlap = 0.8;
+        const qpx = w / 2, qpy = 0.25;
+        const halfW = tileWidth / 2 + overlap;
+        const halfH = tileH / 2 + overlap * 0.45;
+        const topX = qpx,          topY = qpy - overlap * 0.2;
+        const rightX = qpx + halfW, rightY = qpy + halfH;
+        const botX = qpx,          botY = qpy + tileH + overlap * 0.2;
+        const leftX = qpx - halfW,  leftY = qpy + halfH;
+        const cqx = qpx, cqy = (topY + botY) / 2;
+        let v0x, v0y, v1x, v1y;
+        if      (quarterDir === "ULLL") { v0x = topX;   v0y = topY;   v1x = leftX;  v1y = leftY;  }
+        else if (quarterDir === "LULL") { v0x = topX;   v0y = topY;   v1x = rightX; v1y = rightY; }
+        else if (quarterDir === "LLUL") { v0x = rightX; v0y = rightY; v1x = botX;   v1y = botY;   }
+        else                            { v0x = botX;   v0y = botY;   v1x = leftX;  v1y = leftY;  }
+        tc.beginPath();
+        tc.moveTo(cqx, cqy); tc.lineTo(v0x, v0y); tc.lineTo(v1x, v1y);
+        tc.closePath();
+        // 외부 모서리 → 중심 방향으로 페이드아웃
+        const midEdgeX = (v0x + v1x) / 2, midEdgeY = (v0y + v1y) / 2;
+        const grad = tc.createLinearGradient(midEdgeX, midEdgeY, cqx, cqy);
+        grad.addColorStop(0, "rgba(255,255,255,1)");
+        grad.addColorStop(1, "rgba(255,255,255,0)");
+        tc.fillStyle = grad;
+        tc.fill();
       } else {
         tc.beginPath();
         traceTileDiamond(tc, w / 2, 0.25, 0.8);
@@ -4518,22 +4559,25 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     tiles.forEach(([, x, y]) => {
       const bd = game.terrainRender.borderData[y][x];
       if (!bd) return;
+      if (!terrainSprites.ready || !TERRAIN_1X1_MASK_ENABLED) return;
 
       const iso = isoPoint(x, y);
       const px = iso.x - minIsoX;
       const py = iso.y - minIsoY;
-      const w  = game.tileW;
 
-      if (!terrainSprites.ready || !TERRAIN_1X1_MASK_ENABLED) return;
-      if (bd.maskDir === "center") {
-        drawBorderTile(chunkCtx, bd.upperT, x, y, px, py, { punchWetland: bd.upperT === "wetland" });
-      } else if (bd.maskDir) {
-        const maskArr = terrainSprites.masks[bd.maskDir];
-        const maskCv = maskArr?.length ? maskArr[tileHash(x, y) % maskArr.length] : null;
-        if (!maskCv) return;
-        drawBorderTile(chunkCtx, bd.upperT, x, y, px, py, { width: tileWidth, punchWetland: bd.upperT === "wetland" }, maskCv);
+      for (const { upperT, maskDir } of bd.layers) {
+        const punchWetland = upperT === "wetland";
+        if (maskDir === "center") {
+          drawBorderTile(chunkCtx, upperT, x, y, px, py, { punchWetland });
+        } else if (maskDir === "ULLL" || maskDir === "LULL" || maskDir === "LLUL" || maskDir === "LLLU") {
+          drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, null, maskDir);
+        } else if (maskDir) {
+          const maskArr = terrainSprites.masks[maskDir];
+          const maskCv = maskArr?.length ? maskArr[tileHash(x, y) % maskArr.length] : null;
+          if (!maskCv) continue;
+          drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, maskCv);
+        }
       }
-
     });
 
     // Pass 3A: 험준산악 — 청크 정렬 보장, 단일 청크 내 안전 렌더링
