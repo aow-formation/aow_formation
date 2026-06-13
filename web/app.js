@@ -2391,8 +2391,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   preloadTerrainSprites();
   game.spriteCache = buildSpriteCache();
 
+  let _battleTileH = null;
   function getTileH() {
-    return Math.floor(game.tileW / 2);
+    return _battleTileH ?? Math.floor(game.tileW / 2);
   }
 
   function isoPoint(x, y) {
@@ -5242,7 +5243,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   }
 
   function renderMap() {
-    ensureTerrainChunkCache();
+    if (game.battlePhase !== "live") ensureTerrainChunkCache();
     const origin = viewportOrigin();
     const samples = [
       toTile(0, 0),
@@ -5299,7 +5300,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   }
 
   function renderMapPixi() {
-    ensureTerrainChunkCache();
+    if (game.battlePhase !== "live") ensureTerrainChunkCache();
     const origin = viewportOrigin();
 
     // 지형/나무 컨테이너에 카메라 오프셋 적용 (스프라이트는 월드 좌표 고정)
@@ -5609,7 +5610,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const canvasUnitMetrics = (formation) => {
       const troopType = normalizeTroopType(formation.troopType);
       if (!externalUnitLoaded) {
-        const fallbackScale = game.tileW / 20;
+        const fallbackScale = formation._cachedRenderScale ?? (game.tileW / 20);
         return { troopType, frameW: SPRITE_W, frameH: SPRITE_H, drawW: Math.round(SPRITE_W * fallbackScale), drawH: Math.round(SPRITE_H * fallbackScale), spriteScale: fallbackScale };
       }
       const teamSprite = troopType === "cavalry"
@@ -5619,7 +5620,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           : unitWalkSprite;
       const frameW = teamSprite.naturalWidth / troopWalkFrames(troopType);
       const frameH = teamSprite.naturalHeight;
-      const spriteScale = troopRenderScale(troopType);
+      const spriteScale = formation._cachedRenderScale ?? troopRenderScale(troopType);
       return {
         troopType,
         frameW,
@@ -6612,6 +6613,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   function startLiveBattle() {
     if (game.battlePhase !== "planning") return;
     game.battlePhase = "live";
+    _battleTileH = Math.floor(game.tileW / 2);
+    ensureTerrainChunkCache();
+    const allF2 = [...game.playerFormations, ...game.enemyFormations];
+    allF2.forEach((f) => {
+      f._cachedRenderScale = troopRenderScale(normalizeTroopType(f.troopType));
+    });
     if (isMobile()) setTopbarCollapsed(true);
     const allF = [...game.playerFormations, ...game.enemyFormations];
     allF.forEach((f) => { f.kihapCooldown = kihapMaxCooldown(f); f.skillCooldown = skillMaxCooldown(f); });
@@ -6902,6 +6909,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       // 핀치 줌
       const ratio = dist / touchState.lastDist;
+      if (game.battlePhase === "live") { touchState.lastDist = dist; return; }
       const levels = TOUCH_ZOOM_LEVELS;
       const idx = levels.indexOf(game.tileW);
       const curIdx = idx !== -1 ? idx : levels.length - 1;
@@ -6964,6 +6972,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
+    if (game.battlePhase === "live") return;
     const old = game.tileW;
     const idx = ZOOM_LEVELS.indexOf(old);
     const curIdx = idx !== -1 ? idx : ZOOM_LEVELS.length - 1;
@@ -7089,6 +7098,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   // ── 시나리오 초기화 공통 ────────────────────────────────────────────
   function resetGameState() {
     game.battlePhase         = "planning";
+    _battleTileH = null;
     game.battleTime          = 0;
     game.simulationAccumulator = 0;
     game.speedMultiplier     = 1;
