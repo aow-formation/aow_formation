@@ -4451,6 +4451,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         }
       }
 
+      tc.globalAlpha = 1;
       tc.globalCompositeOperation = "destination-in";
       if (maskCv) {
         tc.drawImage(maskCv, 0, 0, w, h);
