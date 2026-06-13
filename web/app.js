@@ -1348,8 +1348,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             (TERRAIN_PRIORITY[a] ?? 2) - (TERRAIN_PRIORITY[b] ?? 2))) {
           const tP = TERRAIN_PRIORITY[T] ?? 2;
           // 면 상태: 이웃 우선순위 >= T 우선순위이면 U
-          // 코너갭 경계 타일(같은 우선순위이지만 isBorder=1)도 U로 처리
-          const states = nbrs.map(n => (n.p >= tP || (n.border && n.p >= p)) ? "U" : "L");
+          // 코너갭(같은 지형 경계 타일, n.p === p)도 U로 처리 — 다른 지형 border는 제외
+          const states = nbrs.map(n => (n.p >= tP || (n.border && n.p === p)) ? "U" : "L");
           const key = states.join("");
           let maskDir;
           if (key === "UUUU") {
