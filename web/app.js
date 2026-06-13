@@ -1013,6 +1013,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   };
   const pixiDamageEffectTex = [];
   let pixiReady      = false;
+  let _pixiRendererW = 0, _pixiRendererH = 0;
   let pixiTerrainCtr = null;
   let pixiTreeCtr    = null;
   let pixiTreeTex    = [];
@@ -5650,6 +5651,36 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
     ctx.restore();
 
+    // ── Pass 1.5: 글로우 패스 (스프라이트보다 먼저, 배치 처리) ──────────────
+    units.forEach(({ formation, unit }) => {
+      const screen = toScreen(unit.x, unit.y);
+      const cx = screen.x;
+      const cy = screen.y + tileH / 2;
+      const { troopType, drawW, drawH } = canvasUnitMetrics(formation);
+      const targetSlot = add(formation.anchor, worldFromLocal(formation, unit.slotLocal));
+      const slotDist = len(targetSlot.x - unit.x, targetSlot.y - unit.y);
+      const firstRowBonusActive = unit.isFirstRow && slotDist < 1.5;
+      const positionBonusActive = !firstRowBonusActive && slotDist < POSITION_DEFENSE_THRESHOLD;
+      const kihapActive = unit.kihapTimer > 0;
+      const skillBuffActive = formation.swiftTimer > 0
+        || formation.archeryTimer > 0
+        || (formation.guardTimer > 0 && slotDist < POSITION_DEFENSE_THRESHOLD);
+      if (firstRowBonusActive || positionBonusActive || kihapActive || skillBuffActive) {
+        const strongGlow  = firstRowBonusActive || kihapActive || skillBuffActive;
+        const cavalryScale = troopType === 'cavalry' ? 0.80 : 1.0;
+        const glowAlpha   = strongGlow ? 0.24 : 0.14;
+        const glowSize    = strongGlow
+          ? { x: 0.60 * cavalryScale, y: 0.50 * cavalryScale }
+          : { x: 0.50 * cavalryScale, y: 0.40 * cavalryScale };
+        ctx.fillStyle = formation.team === 'player'
+          ? `rgba(255,60,60,${glowAlpha})`
+          : `rgba(255,170,70,${glowAlpha})`;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - drawH * 0.35, drawW * glowSize.x, drawH * glowSize.y, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
     // ── Pass 2: 스프라이트 ────────────────────────────────────────────────
     ctx.imageSmoothingEnabled = false;
     units.forEach(({ formation, unit }) => {
@@ -5659,15 +5690,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const metrics = canvasUnitMetrics(formation);
       const { troopType, drawW, drawH } = metrics;
 
-      const targetSlot = add(formation.anchor, worldFromLocal(formation, unit.slotLocal));
-      const slotDist = len(targetSlot.x - unit.x, targetSlot.y - unit.y);
-      const firstRowBonusActive = unit.isFirstRow && slotDist < 1.5;
-      const positionBonusActive = !firstRowBonusActive && slotDist < POSITION_DEFENSE_THRESHOLD;
-      const kihapActive = unit.kihapTimer > 0;
-      const skillBuffActive = formation.swiftTimer > 0
-        || formation.archeryTimer > 0
-        || (formation.guardTimer > 0 && slotDist < POSITION_DEFENSE_THRESHOLD);
-
       const visualFacing = updateUnitVisualFacing(formation, unit);
       const isMoving = visualFacing.moving;
       const isFacingBack = visualFacing.facingBack;
@@ -5675,31 +5697,19 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const frameIdx = isMoving ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % frameCount : 0;
       const facingLeft = visualFacing.facingLeft;
       const spriteSet = externalUnitLoaded ? null : game.spriteCache[formation.team][frameIdx];
-      const sprite = externalUnitLoaded ? null : (firstRowBonusActive || kihapActive || skillBuffActive
-        ? (facingLeft ? spriteSet.bonusLeft : spriteSet.bonusRight)
-        : (facingLeft ? spriteSet.left      : spriteSet.right));
+      const sprite = externalUnitLoaded ? null : ((() => {
+        const targetSlot2 = add(formation.anchor, worldFromLocal(formation, unit.slotLocal));
+        const slotDist2 = len(targetSlot2.x - unit.x, targetSlot2.y - unit.y);
+        const frb = unit.isFirstRow && slotDist2 < 1.5;
+        const kihap = unit.kihapTimer > 0;
+        const skillBuff = formation.swiftTimer > 0 || formation.archeryTimer > 0 || (formation.guardTimer > 0 && slotDist2 < POSITION_DEFENSE_THRESHOLD);
+        return (frb || kihap || skillBuff)
+          ? (facingLeft ? spriteSet.bonusLeft : spriteSet.bonusRight)
+          : (facingLeft ? spriteSet.left : spriteSet.right);
+      })());
 
       const drawX = cx - drawW / 2;
       const drawY = cy - drawH;
-
-      // 보너스 이펙트: 선두행은 강하게, 일반 정위치는 은은하게 표시
-      if (firstRowBonusActive || positionBonusActive || kihapActive || skillBuffActive) {
-        const strongGlow  = firstRowBonusActive || kihapActive || skillBuffActive;
-        const cavalryScale = troopType === 'cavalry' ? 0.80 : 1.0; // 기병 글로우 크기 축소
-        const glowAlpha   = strongGlow ? 0.24 : 0.14;
-        const glowSize    = strongGlow
-          ? { x: 0.60 * cavalryScale, y: 0.50 * cavalryScale }
-          : { x: 0.50 * cavalryScale, y: 0.40 * cavalryScale };
-        const glowColor   = formation.team === 'player'
-          ? `rgba(255,60,60,${glowAlpha})`
-          : `rgba(255,170,70,${glowAlpha})`;
-        ctx.save();
-        ctx.fillStyle = glowColor;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy - drawH * 0.35, drawW * glowSize.x, drawH * glowSize.y, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
 
       if (externalUnitLoaded) {
         const cavalryDirection = troopType === "cavalry"
@@ -5723,15 +5733,15 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const drawUnitX = cx - drawW / 2;
         const drawUnitY = cy - drawH;
         const shouldFlip = cavalryDirection ? cavalryDirection.flip : facingLeft;
-        ctx.save();
         if (shouldFlip) {
+          ctx.save();
           ctx.translate(cx, 0);
           ctx.scale(-1, 1);
           ctx.drawImage(teamSprite, sx, 0, frameW, frameH, -drawW / 2, drawUnitY, drawW, drawH);
+          ctx.restore();
         } else {
           ctx.drawImage(teamSprite, sx, 0, frameW, frameH, drawUnitX, drawUnitY, drawW, drawH);
         }
-        ctx.restore();
       } else {
         ctx.drawImage(sprite, drawX, drawY, drawW, drawH);
       }
@@ -5744,9 +5754,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         );
         const effectDrawH = drawH * 1.08;
         const effectDrawW = effectDrawH * (effectFrameW / effectFrameH);
-        ctx.save();
-        ctx.globalAlpha = 0.5;
         if (unit.damageEffectFlip) {
+          ctx.save();
           ctx.translate(cx, 0);
           ctx.scale(-1, 1);
           ctx.drawImage(
@@ -5757,6 +5766,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             Math.round(effectDrawW),
             Math.round(effectDrawH)
           );
+          ctx.restore();
         } else {
           ctx.drawImage(
             unitDamageEffectSprite,
@@ -5767,7 +5777,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             Math.round(effectDrawH)
           );
         }
-        ctx.restore();
       }
     });
     ctx.imageSmoothingEnabled = true;
@@ -6196,7 +6205,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     renderFormationSelection();
 
     if (pixiReady) {
-      if (pixiApp.renderer.width !== Math.ceil(width) || pixiApp.renderer.height !== Math.ceil(height)) {
+      if (width !== _pixiRendererW || height !== _pixiRendererH) {
+        _pixiRendererW = width; _pixiRendererH = height;
         pixiApp.renderer.resize(width, height);
       }
       renderUnitsPixi();
