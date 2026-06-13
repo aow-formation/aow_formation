@@ -1732,6 +1732,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return UNIT_RADIUS * troopTypeInfo(formation.troopType).collisionMult;
   }
 
+  function getUnitRadius(formation) {
+    if (formation._unitRadius == null)
+      formation._unitRadius = UNIT_RADIUS * troopTypeInfo(formation.troopType).collisionMult;
+    return formation._unitRadius;
+  }
+
   function troopPopulation(troops, type) {
     return Math.max(0, Math.round(troops)) * troopPopulationCost(type);
   }
@@ -3339,6 +3345,41 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return result;
   }
 
+  function buildFireParticleHash(fires) {
+    const cells = new Map();
+    fires.forEach((fire) => {
+      fire.particles.forEach((p) => {
+        const cellX = Math.floor(p.x / SPATIAL_CELL_SIZE);
+        const cellY = Math.floor(p.y / SPATIAL_CELL_SIZE);
+        const key = `${cellX}:${cellY}`;
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key).push(p);
+      });
+    });
+    return { cells, cellSize: SPATIAL_CELL_SIZE };
+  }
+
+  function findNearbyFireParticles(fireHash, x, y, radius) {
+    const { cells, cellSize } = fireHash;
+    const minCX = Math.floor((x - radius) / cellSize);
+    const maxCX = Math.floor((x + radius) / cellSize);
+    const minCY = Math.floor((y - radius) / cellSize);
+    const maxCY = Math.floor((y + radius) / cellSize);
+    const result = [];
+    const rSq = radius * radius;
+    for (let cy = minCY; cy <= maxCY; cy++) {
+      for (let cx = minCX; cx <= maxCX; cx++) {
+        const entries = cells.get(`${cx}:${cy}`);
+        if (!entries) continue;
+        for (const p of entries) {
+          const dx = p.x - x, dy = p.y - y;
+          if (dx * dx + dy * dy <= rSq) result.push(p);
+        }
+      }
+    }
+    return result;
+  }
+
   function findNearestEnemy(spatialHash, x, y, radius) {
     const minCellX = Math.floor((x - radius) / spatialHash.cellSize);
     const maxCellX = Math.floor((x + radius) / spatialHash.cellSize);
@@ -3519,7 +3560,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     };
   }
 
-  function updateFormation(formation, enemySpatialHash, allSpatialHash, dt) {
+  function updateFormation(formation, enemySpatialHash, allSpatialHash, dt, fireHash) {
     const alive = formation.units.filter(isUnitAlive);
     if (!alive.length) return;
     // 정지 상태에서 적 진형을 추적 중이면 방향만 지속 갱신
@@ -3693,7 +3734,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (slotDistance > formationSpacing(formation) * 1.8) desired = add(desired, mul(normalize(slotDelta), 1.35));
 
       const CROSS_SEP_RADIUS = 1.8;
-      const unitRadius = formationUnitRadius(formation);
+      const unitRadius = getUnitRadius(formation);
       const nearbyAll = findNearbyUnits(allSpatialHash, unit.x, unit.y, CROSS_SEP_RADIUS);
       for (const entry of nearbyAll) {
         if (entry.unit === unit) continue;
@@ -3703,7 +3744,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const dy = unit.y - entry.unit.y;
         const d = len(dx, dy);
         if (d < 0.001) continue;
-        const hardZone = unitRadius + formationUnitRadius(entry.formation);
+        const hardZone = unitRadius + getUnitRadius(entry.formation);
         const cavalryKnockMult = entry.formation.troopType === 'cavalry' ? 2.5 : 1.0;
         if (d < hardZone) {
           const overlap = (hardZone - d) / hardZone;
@@ -3714,11 +3755,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
 
       // 화공 회피: desired 단계에서 방향 힌트 (정규화 전)
-      for (const fire of game.fires) {
-        for (const p of fire.particles) {
+      if (fireHash) {
+        for (const p of findNearbyFireParticles(fireHash, unit.x, unit.y, 1.3)) {
           const dfx = unit.x - p.x, dfy = unit.y - p.y;
           const df = len(dfx, dfy);
-          if (df < 1.3 && df > 0.001)
+          if (df > 0.001)
             desired = add(desired, mul({ x: dfx/df, y: dfy/df }, 2.0));
         }
       }
@@ -3759,14 +3800,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       unit.vy = lerp(unit.vy, targetV.y, blend);
 
       // 화공 차단: lerp 이후 속도에 직접 강한 반발력 (정규화·관성 우회)
-      for (const fire of game.fires) {
-        for (const p of fire.particles) {
+      if (fireHash) {
+        const FIRE_R = 1.2;
+        for (const p of findNearbyFireParticles(fireHash, unit.x, unit.y, FIRE_R)) {
           const dfx = unit.x - p.x, dfy = unit.y - p.y;
           const df = len(dfx, dfy);
-          const FIRE_R = 1.2;
-          if (df < FIRE_R && df > 0.001) {
+          if (df > 0.001) {
             const t = (FIRE_R - df) / FIRE_R;
-            const strength = t * t * 12.0; // 제곱으로 중심부 강화
+            const strength = t * t * 12.0;
             unit.vx += (dfx / df) * strength * dt;
             unit.vy += (dfy / df) * strength * dt;
           }
@@ -3972,17 +4013,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
   }
 
-  function applyPositionCorrection() {
+  function applyPositionCorrection(allSpatialHash) {
     const allFormations = orderedAllFormations();
-    const correctionHash = buildSpatialHash(allFormations);
-    const maxRadius = allFormations.reduce((max, formation) => Math.max(max, formationUnitRadius(formation)), UNIT_RADIUS);
+    const maxRadius = allFormations.reduce((max, f) => Math.max(max, getUnitRadius(f)), UNIT_RADIUS);
     const searchRadius = maxRadius * 2;
     allFormations.forEach((formation) => {
       formation.units.filter(isUnitAlive).forEach((unit) => {
-        const nearby = findNearbyUnits(correctionHash, unit.x, unit.y, searchRadius);
+        const nearby = findNearbyUnits(allSpatialHash, unit.x, unit.y, searchRadius);
         for (const entry of nearby) {
           if (entry.unit === unit) continue;
-          const minDist = formationUnitRadius(formation) + formationUnitRadius(entry.formation);
+          const minDist = getUnitRadius(formation) + getUnitRadius(entry.formation);
           const dx = unit.x - entry.unit.x;
           const dy = unit.y - entry.unit.y;
           const d = len(dx, dy);
@@ -4074,20 +4114,21 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       allFormations.forEach((f) => { if (f.kihapCooldown > 0) f.kihapCooldown -= dt; });
 
       const allSpatialHash = buildSpatialHash(allFormations);
+      const fireHash = game.fires.length ? buildFireParticleHash(game.fires) : null;
       if (isOnlineMode()) {
         const side0Formations = onlineFormationsForSide(0);
         const side1Formations = onlineFormationsForSide(1);
         const side0SpatialHash = buildSpatialHash(side0Formations);
         const side1SpatialHash = buildSpatialHash(side1Formations);
-        side0Formations.forEach((formation) => updateFormation(formation, side1SpatialHash, allSpatialHash, dt));
-        side1Formations.forEach((formation) => updateFormation(formation, side0SpatialHash, allSpatialHash, dt));
+        side0Formations.forEach((formation) => updateFormation(formation, side1SpatialHash, allSpatialHash, dt, fireHash));
+        side1Formations.forEach((formation) => updateFormation(formation, side0SpatialHash, allSpatialHash, dt, fireHash));
       } else {
         const playerSpatialHash = buildSpatialHash(game.playerFormations);
         const enemySpatialHash = buildSpatialHash(game.enemyFormations);
-        game.playerFormations.forEach((formation) => updateFormation(formation, enemySpatialHash, allSpatialHash, dt));
-        game.enemyFormations.forEach((formation) => updateFormation(formation, playerSpatialHash, allSpatialHash, dt));
+        game.playerFormations.forEach((formation) => updateFormation(formation, enemySpatialHash, allSpatialHash, dt, fireHash));
+        game.enemyFormations.forEach((formation) => updateFormation(formation, playerSpatialHash, allSpatialHash, dt, fireHash));
       }
-      applyPositionCorrection();
+      applyPositionCorrection(allSpatialHash);
       if (isHistoricalMode()) updateHistoricalAI(dt);
       else if (!isOnlineMode()) updateAI(dt);
       updateSkills(dt);
