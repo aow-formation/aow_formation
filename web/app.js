@@ -4900,9 +4900,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     return effDist;
   }
 
-  // 한 방향으로 광선을 쏘아 시야 한계(60 유효타일)까지의 실제 도달 거리 반환
+  // 한 방향으로 광선을 쏘아 시야 한계(50 유효타일)까지의 실제 도달 거리 반환
   function castRay(fromX, fromY, dirX, dirY) {
-    const VISION_LIMIT = 60;
+    const VISION_LIMIT = 50;
     const STEP = 0.5;
     let effDist = 0;
     let realDist = 0;
@@ -5412,7 +5412,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const alive = f.units.filter(isUnitAlive);
       if (!alive.length) return false;
       const center = formationCenter(f);
-      return effectiveDistance(center.x, center.y, unit.x, unit.y) <= 60;
+      return effectiveDistance(center.x, center.y, unit.x, unit.y) <= 50;
     });
   }
 
