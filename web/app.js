@@ -846,7 +846,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   };
   const TERRAIN_1X1_MASK_ENABLED = true;
   const TERRAIN_CLUSTER_ENABLED = false;
-  const TERRAIN_DETAIL_PATCH_ENABLED = false; // TEMP: 저사양 로딩 속도 측정용 임시 비활성화
+  const TERRAIN_DETAIL_PATCH_ENABLED = true;
   const TERRAIN_DETAIL_PATCH_OPACITY = 0.44;
   const TERRAIN_DETAIL_PATCH_BASE_DRAW_TILES = 3.35;
   const TERRAIN_CLUSTER_BASE_DRAW_TILES = 4.4;
