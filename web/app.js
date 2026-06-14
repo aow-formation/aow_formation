@@ -37,7 +37,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const MAX_SIMULATION_STEPS = 4;
   const ONLINE_CATCHUP_CHUNK_STEPS = 180;
   const ONLINE_MAX_INLINE_CATCHUP_STEPS = 12;
-  const ONLINE_CHECKSUM_INTERVAL_TICKS = 300;
+  const ONLINE_CHECKSUM_INTERVAL_TICKS = 150;
   const SPATIAL_CELL_SIZE = 4;
   const UNIT_RADIUS = 0.27;
   const TILE_W_MIN = 16;
@@ -2685,6 +2685,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         Math.round((formation.swiftTimer || 0) * 10),
         Math.round((formation.guardTimer || 0) * 10),
         Math.round((formation.archeryTimer || 0) * 10),
+        Math.round((formation.disorderAccum || 0) * 100),
       );
       const stride = Math.max(1, Math.floor(formation.units.length / 8));
       for (let i = 0, samples = 0; i < formation.units.length && samples < 8; i += stride, samples += 1) {
@@ -2693,6 +2694,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           Math.round(unit.x * 10),
           Math.round(unit.y * 10),
           Math.round((unit.damage || 0) * 10),
+          Math.round((unit.kihapTimer || 0) * 10),
+          Math.round((unit.vx || 0) * 100),
+          Math.round((unit.vy || 0) * 100),
         );
       }
     });
@@ -3138,7 +3142,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (formation.kihapCooldown > 0) return;
     const durMult = formation.combatOverrides?.skillDurationMult ?? 1;
     formation.units.forEach((u) => {
-      if (isUnitAlive(u)) u.kihapTimer = (4 + Math.random() * 2) * durMult;
+      if (isUnitAlive(u)) {
+        const roll = isOnlineMode()
+          ? onlineDeterministicRoll(game.online.seed, "kihap_dur", formation.id, u.slotIndex, game.online.simTick)
+          : Math.random();
+        u.kihapTimer = (4 + roll * 2) * durMult;
+      }
     });
     formation.disorderAccum = Math.max(0, formation.disorderAccum - 0.1);
     formation.disorder = Math.max(0, formation.disorder - 0.1);
@@ -3169,7 +3178,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const durMult = formation.combatOverrides?.skillDurationMult ?? 1;
     switch (formation.skillType) {
       case "kihap": {
-        formation.units.forEach(u => { if (isUnitAlive(u)) u.kihapTimer = (4 + Math.random() * 2) * durMult; });
+        formation.units.forEach((u) => {
+          if (isUnitAlive(u)) {
+            const roll = isOnlineMode()
+              ? onlineDeterministicRoll(game.online.seed, "kihap_dur", formation.id, u.slotIndex, game.online.simTick)
+              : Math.random();
+            u.kihapTimer = (4 + roll * 2) * durMult;
+          }
+        });
         formation.kihapCooldown = kihapMaxCooldown(formation);
         if (speechData) tryShowSpeech(formation, randFrom(speechData.kihap), "high");
         break;
@@ -3212,8 +3228,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             if (ptile === "river" || ptile === "wetland") continue;
             particles.push({
               x: px, y: py,
-              duration:  (10 + Math.random() * 10) * durMult,
-              moveTimer: 1.0 + Math.random() * 0.4,
+              moveCount: 0,
+              duration: (10 + (isOnlineMode()
+                ? onlineDeterministicRoll(game.online.seed, "fire_dur", formation.id, game.online.simTick, dx, dy)
+                : Math.random()) * 10) * durMult,
+              moveTimer: 1.0 + (isOnlineMode()
+                ? onlineDeterministicRoll(game.online.seed, "fire_mt", formation.id, game.online.simTick, dx, dy)
+                : Math.random()) * 0.4,
             });
           }
         game.fires.push({ particles, dmgTimer: 1.0, dmgMult: fireDmgMult });
@@ -3254,7 +3275,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         p.moveTimer -= dt;
         if (p.moveTimer <= 0) {
           p.moveTimer = 1.0;
-          const angle = Math.random() * Math.PI * 2;
+          p.moveCount = (p.moveCount || 0) + 1;
+          const angle = isOnlineMode()
+            ? onlineDeterministicRoll(game.online.seed, "fp_mv", Math.round(p.x * 10), Math.round(p.y * 10), p.moveCount) * Math.PI * 2
+            : Math.random() * Math.PI * 2;
           const nx = clamp(p.x + Math.cos(angle) * 0.5, 1, MAP_WIDTH  - 1);
           const ny = clamp(p.y + Math.sin(angle) * 0.5, 1, MAP_HEIGHT - 1);
           const ntile = game.terrain.tiles[clamp(Math.floor(ny), 0, MAP_HEIGHT - 1)][clamp(Math.floor(nx), 0, MAP_WIDTH - 1)];
@@ -3293,8 +3317,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             const dmg = applyUnitDamage(f, u, 40, null, { trace: false });
             if (dmg > 0) {
               hit = true;
-              const angle = Math.random() * Math.PI * 2;
-              const dist = 1.0 + Math.random() * 3.0;
+              const angle = isOnlineMode()
+                ? onlineDeterministicRoll(game.online.seed, "flood_a", f.id, u.slotIndex, game.online.simTick) * Math.PI * 2
+                : Math.random() * Math.PI * 2;
+              const dist = isOnlineMode()
+                ? 1.0 + onlineDeterministicRoll(game.online.seed, "flood_d", f.id, u.slotIndex, game.online.simTick) * 3.0
+                : 1.0 + Math.random() * 3.0;
               u.x = clamp(u.x + Math.cos(angle) * dist, 0, MAP_WIDTH - 1);
               u.y = clamp(u.y + Math.sin(angle) * dist, 0, MAP_HEIGHT - 1);
             }
@@ -3861,7 +3889,9 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (formation.reorganizeTimer <= 0) {
         const anyInCombat = alive.some((u) => u.chaseTimer > 0 || u.chaseEntry !== null);
         if (!anyInCombat) initializeFormationSlots(formation, true);
-        formation.reorganizeTimer = 4.0 + Math.random() * 3.0;
+        formation.reorganizeTimer = 4.0 + (isOnlineMode()
+          ? onlineDeterministicRoll(game.online.seed, "reorg2", formation.id, game.online.simTick)
+          : Math.random()) * 3.0;
       }
     }
   }
@@ -6611,6 +6641,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (isMobile()) setTopbarCollapsed(true);
     const allF = [...game.playerFormations, ...game.enemyFormations];
     allF.forEach((f) => { f.kihapCooldown = kihapMaxCooldown(f); f.skillCooldown = skillMaxCooldown(f); });
+    // 온라인 모드: Math.random()으로 초기화된 유닛 값을 결정론적 시드 기반으로 재설정
+    if (isOnlineMode() && game.online?.seed) {
+      const seed = game.online.seed;
+      allF.forEach((f) => {
+        f.reorganizeTimer = 3.0 + onlineDeterministicRoll(seed, "reorg", f.id) * 3.0;
+        f.units.forEach((u) => {
+          u.chaosSeed = onlineDeterministicRoll(seed, "chaos", f.id, u.slotIndex);
+          u.chaosPhaseOffset = onlineDeterministicRoll(seed, "chaosPhase", f.id, u.slotIndex) * Math.PI * 2;
+          u.rangedCooldown = onlineDeterministicRoll(seed, "rangedCD", f.id, u.slotIndex);
+        });
+      });
+    }
     currentSelection().forEach((formation) => {
       if (formation.speed === "STOP" && formation.target) formation.speed = "NORMAL";
     });
