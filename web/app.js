@@ -1306,8 +1306,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     // 각 레이어마다 상위 지형 하나씩 처리 → 3개 이상 지형 접합부 정상 처리
     const ALL8 = [...FACES, [-1,-1],[1,-1],[1,1],[-1,1]];
     const borderData = Array.from({length: MAP_HEIGHT}, () => new Array(MAP_WIDTH).fill(null));
-    const SINGLE_FACE_KEYS   = new Set(["ULLL","LULL","LLUL","LLLU"]);
-    const DIAGONAL_FACE_KEYS = new Set(["ULUL","LULU"]); // 대각 2면: 사분면 2회로 분해
+    const SINGLE_FACE_KEYS = new Set(["ULLL","LULL","LLUL","LLLU"]);
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
@@ -1346,9 +1345,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           } else if (MASK_KEY[key]) {
             maskDir = MASK_KEY[key];
           } else if (SINGLE_FACE_KEYS.has(key)) {
-            maskDir = key;
-          } else if (DIAGONAL_FACE_KEYS.has(key)) {
-            maskDir = key; // 대각 2면: 렌더 시 사분면 2회 분해
+            maskDir = key; // 단일 면: 사분면 클립으로 처리
           } else {
             continue; // 인식 불가 패턴 스킵
           }
@@ -4661,14 +4658,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           drawBorderTile(chunkCtx, upperT, x, y, px, py, { punchWetland });
         } else if (maskDir === "ULLL" || maskDir === "LULL" || maskDir === "LLUL" || maskDir === "LLLU") {
           drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, null, maskDir);
-        } else if (maskDir === "ULUL") {
-          // 대각 분해: NW(ULLL) + SE(LLUL) 두 사분면
-          drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, null, "ULLL");
-          drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, null, "LLUL");
-        } else if (maskDir === "LULU") {
-          // 대각 분해: NE(LULL) + SW(LLLU) 두 사분면
-          drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, null, "LULL");
-          drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, null, "LLLU");
         } else if (maskDir) {
           const maskArr = terrainSprites.masks[maskDir];
           const maskCv = maskArr?.length ? maskArr[tileHash(x, y) % maskArr.length] : null;
