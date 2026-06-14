@@ -840,10 +840,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const WORLD_TEX = "./assets/terrain_world_textures/";
   const CLUSTER_TEX = "./assets/terrain_cluster_overlays/";
   const TERRAIN_WORLD_TEXTURE_SCALE = 0.78375; // 512px 소스 기준 (구 1254px × 0.32 = 401px 동일 반복)
-  const TERRAIN_WORLD_TONE_FILTERS = {
-    plain: "saturate(92%)",
-    road: "saturate(110%)",
-  };
   const TERRAIN_1X1_MASK_ENABLED = true;
   const TERRAIN_CLUSTER_ENABLED = false;
   const TERRAIN_DETAIL_PATCH_ENABLED = true;
@@ -1258,10 +1254,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     if (tile === "mountain") return terrainSprites.world.grass;
     if (tile === "grassland") return terrainSprites.world.grass;
     return terrainSprites.world.dirt;
-  }
-
-  function terrainWorldToneFilter(tile) {
-    return TERRAIN_WORLD_TONE_FILTERS[tile] || "none";
   }
 
   function buildTerrainRenderData(terrain) {
@@ -4393,10 +4385,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       tc.imageSmoothingEnabled = true;
       tc.imageSmoothingQuality = "high";
-      tc.filter = terrainWorldToneFilter(tile);
       tc.fillStyle = pattern;
       tc.fillRect(0, 0, w + 2, h + 2);
-      tc.filter = "none";
       if (options.punchWetland) punchWetlandDots(tc, w, h, x, y);
 
       tc.globalCompositeOperation = "destination-in";
@@ -4430,10 +4420,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         });
         if (hasTiles) {
           chunkCtx.clip();
-          chunkCtx.filter = terrainWorldToneFilter(terrainType);
           chunkCtx.fillStyle = pattern;
           chunkCtx.fillRect(0, 0, canvasChunk.width, canvasChunk.height);
-          chunkCtx.filter = "none";
         }
         chunkCtx.restore();
       });
@@ -4552,10 +4540,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (!pattern) return false;
       tc.imageSmoothingEnabled = true;
       tc.imageSmoothingQuality = "high";
-      tc.filter = terrainWorldToneFilter(terrainType);
       tc.fillStyle = pattern;
       tc.fillRect(0, 0, w + 2, h + 2);
-      tc.filter = "none";
       if (options.punchWetland) punchWetlandDots(tc, w, h, tileX, tileY);
 
       if (TERRAIN_DETAIL_PATCH_ENABLED && terrainSprites.clusters?.length && TERRAIN_DETAIL_PATCH_INDICES[terrainType]?.length) {
