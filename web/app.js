@@ -883,7 +883,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const TREE_TONE_SATURATION = 0.78;
   const TREE_TONE_ALPHA = 0.92;
   const TREE_PIXI_TINT = 0xd0d4c0;
-  const TERRAIN_TREE_RENDER_ENABLED = true;
+  const TERRAIN_TREE_RENDER_ENABLED = false; // TEMP: 저사양 로딩 속도 측정용 임시 비활성화
 
   // ── 화공 스프라이트시트 ───────────────────────────────────────────────
   const fireSprite = new Image();
