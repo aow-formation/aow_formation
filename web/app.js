@@ -870,19 +870,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   const TREE_VARIANT_FILES = [
     "conifer_dark_00.png",
     "conifer_blue_00.png",
-    "evergreen_tall_00.png",
     "pine_sparse_00.png",
     "broadleaf_light_00.png",
     "broadleaf_dark_00.png",
     "broadleaf_yellow_00.png",
     "shrub_tree_00.png",
   ];
-  const TREE_VARIANT_DIR = "objects/trees/variants_50px";
-  const TREE_VARIANT_HEIGHT_SCALE = [1.08, 1.05, 1.12, 1.00, 1.06, 1.08, 1.03, 0.78];
-  const TREE_TONE_BRIGHTNESS = 0.86;
-  const TREE_TONE_SATURATION = 0.78;
-  const TREE_TONE_ALPHA = 0.92;
-  const TREE_PIXI_TINT = 0xd0d4c0;
+  const TREE_VARIANT_DIR = "objects/trees/variants";
+  const TREE_VARIANT_HEIGHT_SCALE = [1.08, 1.05, 1.00, 1.06, 1.08, 1.03, 0.78];
   const TERRAIN_TREE_RENDER_ENABLED = true;
 
   // ── 화공 스프라이트시트 ───────────────────────────────────────────────
@@ -4779,29 +4774,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             : [0, 0, 1, 1, 2, 3, 4, 5, 6, 7];
         return pool[h % pool.length] % variantCount;
       };
-      const drawTreeShadow = ({ worldBx, worldBy, scale, variantIndex }) => {
-        const treeImg = treeImages[variantIndex % treeImages.length] || treeImages[0];
-        const { stW, stH } = treeDrawSize(treeImg, variantIndex, scale ?? 1);
-        const localX = worldBx - minIsoX;
-        const localY = worldBy - minIsoY;
-        const shadowW = clamp(stW * 0.98, game.tileW * 0.78, game.tileW * 2.20);
-        const shadowH = clamp(tileH * (0.34 + stW / Math.max(stH, 1) * 0.18), tileH * 0.32, tileH * 0.78);
-        const shadowAlpha = clamp(0.24 + stW / Math.max(game.tileW * 3.5, 1) * 0.13, 0.24, 0.42);
-
-        chunkCtx.save();
-        chunkCtx.globalCompositeOperation = "multiply";
-        chunkCtx.translate(localX + game.tileW * 0.12, localY + tileH * 0.18);
-        chunkCtx.scale(shadowW / 2, shadowH / 2);
-        const grad = chunkCtx.createRadialGradient(0, 0, 0, 0, 0, 1);
-        grad.addColorStop(0, `rgba(24,30,18,${shadowAlpha})`);
-        grad.addColorStop(0.68, `rgba(24,30,18,${shadowAlpha * 0.58})`);
-        grad.addColorStop(1, "rgba(24,30,18,0)");
-        chunkCtx.fillStyle = grad;
-        chunkCtx.beginPath();
-        chunkCtx.arc(0, 0, 1, 0, Math.PI * 2);
-        chunkCtx.fill();
-        chunkCtx.restore();
-      };
       const canUseSparseTreeTile = (x, y, terrainType) => {
         if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return false;
         if (game.terrain.tiles[y][x] !== terrainType) return false;
@@ -4909,36 +4881,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
 
       // PIXI_TREE_SPRITES 비활성 시 캔버스에 직접 드로잉
-      trees.forEach(drawTreeShadow);
-
       if (!(PIXI_TREE_SPRITES && pixiReady && pixiTreeTex?.length)) {
         trees.sort((a, b) => a.worldBy - b.worldBy);
         chunkCtx.imageSmoothingEnabled = true;
         chunkCtx.imageSmoothingQuality = "high";
-        const prevTreeAlpha = chunkCtx.globalAlpha;
-        chunkCtx.globalAlpha = prevTreeAlpha * TREE_TONE_ALPHA;
         // variantIndex별로 그룹화하여 filter 변경 횟수를 최소화 (N_trees → N_variants)
-        const treeBrightness = Math.round(TREE_TONE_BRIGHTNESS * 100);
-        const treeSaturation = Math.round(TREE_TONE_SATURATION * 94);
-        const fixedFilter = `brightness(${treeBrightness}%) saturate(${treeSaturation}%)`;
-        const byVariant = new Map();
-        for (const tree of trees) {
-          const vi = tree.variantIndex;
-          if (!byVariant.has(vi)) byVariant.set(vi, []);
-          byVariant.get(vi).push(tree);
-        }
-        chunkCtx.filter = fixedFilter;
         // 각 변종을 Y정렬 후 그리되 filter는 변종이 바뀔 때만 1회 변경
-        for (const [, group] of byVariant) {
-          group.sort((a, b) => a.worldBy - b.worldBy);
-          for (const { worldBx, worldBy, scale, variantIndex } of group) {
-            const treeImg = treeImages[variantIndex % treeImages.length] || treeImages[0];
-            const { stW, stH } = treeDrawSize(treeImg, variantIndex, scale ?? 1);
-            chunkCtx.drawImage(treeImg, worldBx - minIsoX - stW / 2, worldBy - minIsoY - stH, stW, stH);
-          }
+        for (const { worldBx, worldBy, scale, variantIndex } of trees) {
+          const treeImg = treeImages[variantIndex % treeImages.length] || treeImages[0];
+          const { stW, stH } = treeDrawSize(treeImg, variantIndex, scale ?? 1);
+          chunkCtx.drawImage(treeImg, worldBx - minIsoX - stW / 2, worldBy - minIsoY - stH, stW, stH);
         }
-        chunkCtx.filter = "none";
-        chunkCtx.globalAlpha = prevTreeAlpha;
       }
     }
 
@@ -5349,8 +5302,6 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
             tspr.width  = targetW;
             tspr.height = targetH;
             tspr.anchor.set(0.5, 1.0);
-            tspr.alpha = TREE_TONE_ALPHA;
-            tspr.tint = TREE_PIXI_TINT;
             tspr.zIndex = tileX + tileY;
             pixiUnitCtr.addChild(tspr);
             pixiTreeSprites.push({ sprite: tspr, worldBx, worldBy });
