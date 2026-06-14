@@ -867,7 +867,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     grassland: [0, 5],
     mountain: [0, 5],
   };
-  const TREE_VARIANT_FILES = []; // TEMP: 단일 tree.png 폴백 사용 (속도 측정)
+  const TREE_VARIANT_FILES = [
+    "conifer_dark_00.png",
+    "conifer_blue_00.png",
+    "evergreen_tall_00.png",
+    "pine_sparse_00.png",
+    "broadleaf_light_00.png",
+    "broadleaf_dark_00.png",
+    "broadleaf_yellow_00.png",
+    "shrub_tree_00.png",
+  ];
   const TREE_VARIANT_DIR = "objects/trees/variants_50px";
   const TREE_VARIANT_HEIGHT_SCALE = [1.08, 1.05, 1.12, 1.00, 1.06, 1.08, 1.03, 0.78];
   const TREE_TONE_BRIGHTNESS = 0.86;
