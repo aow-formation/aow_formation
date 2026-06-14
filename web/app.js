@@ -9,6 +9,8 @@ import {
   Texture,
   Rectangle    as PixiRect,
 } from 'pixi.js';
+import { OnlineClient } from './src/netcode.js';
+import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
 (function () {
   "use strict";
@@ -33,6 +35,9 @@ import {
   const PIXI_TREE_SPRITES = false; // true: 나무를 PixiJS Y정렬 스프라이트로 처리, false: 캔버스에 직접 렌더링
   const SIMULATION_STEP = 1 / 30;
   const MAX_SIMULATION_STEPS = 4;
+  const ONLINE_CATCHUP_CHUNK_STEPS = 180;
+  const ONLINE_MAX_INLINE_CATCHUP_STEPS = 12;
+  const ONLINE_CHECKSUM_INTERVAL_TICKS = 300;
   const SPATIAL_CELL_SIZE = 4;
   const UNIT_RADIUS = 0.27;
   const TILE_W_MIN = 16;
@@ -43,10 +48,10 @@ import {
   const PANEL_WIDTH = 300;
   const NAME_POOL = [
     "관우", "장비", "조조", "유비", "제갈량", "사마의", "손권", "주유", "여포", "조운",
-    "황충", "마초", "강유", "육손", "장료", "허저", "전위", "문앙", "등애", "종회",
+    "마초", "장료", "허저",
     "이순신", "강감찬", "을지문덕", "계백", "김유신", "연개소문", "최영", "이성계",
     "오다노부나가", "도요토미히데요시", "도쿠가와이에야스", "다케다신겐", "우에스기겐신",
-    "한니발", "카이사르", "알렉산드로스", "나폴레옹", "살라딘", "아틸라"
+    "한니발", "카이사르", "나폴레옹", "살라딘", "아틸라", "샤를마뉴", "잔다르크", "티무르"
   ];
 
   const terrainInfo = {
@@ -125,6 +130,7 @@ import {
   const ctx = canvas.getContext("2d");
   const hudEl = document.getElementById("hud");
   const phaseButton = document.getElementById("phaseButton");
+  const endBattleBtn = document.getElementById("endBattleBtn");
   const speedToggleButton = document.getElementById("speedToggleButton");
   const troopAdjustBtn = document.getElementById("troopAdjustBtn");
   const battleLoadingMask = document.getElementById("battleLoadingMask");
@@ -156,14 +162,19 @@ import {
   });
 
   function setPaused(paused) {
+    if (isOnlineMode()) paused = false;
     game.paused = paused;
     pauseOverlay.hidden = !paused;
     if (paused) { syncPauseSpeedBtns(); syncPauseCtrlBtns(); }
   }
 
   function syncPauseSpeedBtns() {
-    document.getElementById("pauseSpeed1x").classList.toggle("active", game.speedMultiplier === 1);
-    document.getElementById("pauseSpeed2x").classList.toggle("active", game.speedMultiplier === 2);
+    const speed1x = document.getElementById("pauseSpeed1x");
+    const speed2x = document.getElementById("pauseSpeed2x");
+    if (isOnlineMode()) game.speedMultiplier = 1;
+    speed1x.classList.toggle("active", game.speedMultiplier === 1);
+    speed2x.classList.toggle("active", game.speedMultiplier === 2);
+    speed2x.hidden = isOnlineMode();
   }
 
   function setControlType(type) {
@@ -202,6 +213,7 @@ import {
   });
 
   document.getElementById("pauseSpeed2x").addEventListener("click", () => {
+    if (isOnlineMode()) return;
     game.speedMultiplier = 2;
     syncPauseSpeedBtns();
   });
@@ -211,12 +223,21 @@ import {
     if (game.controlType !== 'touch') setControlType('touch');
   }, { passive: true, once: false });
 
-  window.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
+  function isEscapeKey(event) {
+    return event.key === "Escape" || event.key === "Esc" || event.code === "Escape" ||
+      event.keyCode === 27 || event.which === 27;
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (!isEscapeKey(e)) return;
     if (appShell.hidden) return;
     if (game.battlePhase !== "live") return;
+    const tag = e.target?.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    e.preventDefault();
+    e.stopPropagation();
     setPaused(!game.paused);
-  });
+  }, true);
   const buttons = {
     speed: document.querySelectorAll("[data-speed]"),
     density: document.querySelectorAll("[data-density]"),
@@ -241,10 +262,68 @@ import {
   const scenarioSelectScreen = document.getElementById("scenarioSelectScreen");
   const scenarioSelectGrid = document.getElementById("scenarioSelectGrid");
   const scenarioSelectBackBtn = document.getElementById("scenarioSelectBackBtn");
+  const onlineScreen = document.getElementById("onlineScreen");
+  const onlineBackBtn = document.getElementById("onlineBackBtn");
+  const onlineProfile = document.getElementById("onlineProfile");
+  const onlineAuthForm = document.getElementById("onlineAuthForm");
+  const onlineUsername = document.getElementById("onlineUsername");
+  const onlinePassword = document.getElementById("onlinePassword");
+  const onlineDisplayName = document.getElementById("onlineDisplayName");
+  const onlineLoginBtn = document.getElementById("onlineLoginBtn");
+  const onlineRegisterBtn = document.getElementById("onlineRegisterBtn");
+  let onlineLogoutBtn = document.getElementById("onlineLogoutBtn");
+  const onlineCommanders = document.getElementById("onlineCommanders");
+  const onlineMatchStatus = document.getElementById("onlineMatchStatus");
+  const onlineResultSummary = document.getElementById("onlineResultSummary");
+  const onlineRecentMatches = document.getElementById("onlineRecentMatches");
+  const onlineLeaderboard = document.getElementById("onlineLeaderboard");
+  const onlineQueueBtn = document.getElementById("onlineQueueBtn");
+  const onlineLeaveQueueBtn = document.getElementById("onlineLeaveQueueBtn");
+  const onlineProfileEditOverlay = document.getElementById("onlineProfileEditOverlay");
+  const onlineProfileEditName = document.getElementById("onlineProfileEditName");
+  const onlineProfileEditEmblemGrid = document.getElementById("onlineProfileEditEmblemGrid");
+  const onlineProfileEditStatus = document.getElementById("onlineProfileEditStatus");
+  const onlineProfileEditSaveBtn = document.getElementById("onlineProfileEditSaveBtn");
+  const onlineProfileEditCancelBtn = document.getElementById("onlineProfileEditCancelBtn");
+  let onlineProfileEditSelectedEmblem = null;
+  let onlineSaveLoadoutBtn = null;
+  let onlineGoMatchBtn = null;
+  let onlineRecordsBtn = null;
+  let onlineProfileEditBtn = null;
+  let onlineRecordsBackBtn = null;
+  let onlineMatchLogoutBtn = null;
+  let onlineBackToCommandersBtn = null;
+  let onlineReadyBtn = null;
+  let onlineMatchRoster = null;
+  let onlineMatchPlayerInfo = null;
+  let onlineOpponentPreview = null;
+  let onlineAuthStatus = null;
+  let onlineCommanderPool = null;
+  const onlineSyncNotice = document.getElementById("onlineSyncNotice");
+  const enemyTargetTooltip = document.getElementById("enemyTargetTooltip");
+  const enemyTargetNameEl = document.getElementById("enemyTargetName");
+  const enemyTargetBarTrack = document.getElementById("enemyTargetBarTrack");
+  const enemyTargetBarFill = document.getElementById("enemyTargetBarFill");
   const troopAdjustScreen  = document.getElementById("troopAdjustScreen");
   const battleResultScreen = document.getElementById("battleResultScreen");
   const appShell           = document.getElementById("appShell");
   const homeBg             = document.querySelector(".home-bg");
+  const gameLoadingScreen  = document.getElementById("gameLoadingScreen");
+  const gameLoadingBg      = document.getElementById("gameLoadingBg");
+  const gameLoadingProgressBar = document.getElementById("gameLoadingProgressBar");
+  const gameLoadingScenarioProgressBar = document.getElementById("gameLoadingScenarioProgressBar");
+  const gameLoadingScenarioPanel   = document.getElementById("gameLoadingScenarioPanel");
+  const gameLoadingPanelTitle      = document.getElementById("gameLoadingPanelTitle");
+  const gameLoadingPanelEra        = document.getElementById("gameLoadingPanelEra");
+  const gameLoadingPlayerFactionIcon = document.getElementById("gameLoadingPlayerFactionIcon");
+  const gameLoadingPlayerForceName = document.getElementById("gameLoadingPlayerForceName");
+  const gameLoadingPlayerForcePeriod = document.getElementById("gameLoadingPlayerForcePeriod");
+  const gameLoadingEnemyFactionIcon  = document.getElementById("gameLoadingEnemyFactionIcon");
+  const gameLoadingEnemyForceName  = document.getElementById("gameLoadingEnemyForceName");
+  const gameLoadingEnemyForcePeriod = document.getElementById("gameLoadingEnemyForcePeriod");
+  const gameLoadingPlayerRoster    = document.getElementById("gameLoadingPlayerRoster");
+  const gameLoadingEnemyRoster     = document.getElementById("gameLoadingEnemyRoster");
+  const menuOnlineBattle = document.getElementById("menuOnlineBattle");
   const menuHistoricalScenario = document.getElementById("menuHistoricalScenario");
   const scenarioHud = document.getElementById("scenarioHud");
   const scenarioTitle = document.getElementById("scenarioTitle");
@@ -261,6 +340,19 @@ import {
 
   // 현재 앱 상태: "home" | "battle" | "troopAdjust" | "battleResult"
   let appState = "home";
+  const onlineClient = new OnlineClient();
+  let onlineSyncNoticeTimer = null;
+  let onlineCatchupScheduled = false;
+  let onlineLastResult = null;
+  let onlinePage = "auth";
+  let onlinePreviousPage = "commanders";
+  let onlineLoadoutDraft = [];
+  let onlinePendingMatch = null;
+  let onlineReadySides = [];
+  let onlineRematchAfterCancel = false;
+  let onlineReturnToCommandersAfterCancel = false;
+  const pendingInviteCode = new URLSearchParams(location.search).get("invite") || null;
+  let onlineInvitePanel = null;
 
   // 재전투용 저장 데이터
   let savedPlayerGenerals = null;
@@ -279,12 +371,20 @@ import {
     appState = state;
     homeScreen.hidden         = (state !== "home");
     if (scenarioSelectScreen) scenarioSelectScreen.hidden = (state !== "scenarioSelect");
+    if (onlineScreen) onlineScreen.hidden = (state !== "online");
     troopAdjustScreen.hidden  = (state !== "troopAdjust");
     battleResultScreen.hidden = (state !== "battleResult");
-    appShell.hidden           = (state === "home" || state === "scenarioSelect");
+    appShell.hidden           = (state === "home" || state === "scenarioSelect" || state === "online");
+    if (state !== "battle") hideOnlineSyncNotice();
     if (state === "battle") cameraYOffset = 150 - canvas.clientHeight / 2;
     updateBattleLoadingMask();
   }
+
+  // LQIP: 20px 너비 썸네일 base64 (홈 배경)
+  const LQIP_BG = {
+    'main.jpg':  'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAALABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIDBAX/xAAdEAACAgIDAQAAAAAAAAAAAAABAgARIUEDEjFR/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAL/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwDhAr2ycVqVReMmyxA+1M2xH8Vq1JUozKrULIhEUWATkwgf/9k=',
+    'main1.jpg': 'data:image/jpeg;base64,/9j/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAALABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIDBAX/xAAcEAEAAwACAwAAAAAAAAAAAAABAAIRAyESMUH/xAAVAQEBAAAAAAAAAAAAAAAAAAACAf/EABYRAQEBAAAAAAAAAAAAAAAAAAABEf/aAAwDAQACEQMRAD8A4fHaq4uy6cJRe9mKr3GvZ9b1DYUpldfEE+QkthLg6//Z',
+  };
 
   function applyRandomHomeBackground() {
     if (!homeBg) return;
@@ -293,8 +393,29 @@ import {
       "./assets/background/main1.jpg",
     ];
     const selected = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-    homeBg.style.backgroundImage =
-      `linear-gradient(90deg, rgba(0,0,0,0.45), rgba(0,0,0,0.08)), url('${selected}')`;
+    const key = selected.split('/').pop();
+    const grad = 'linear-gradient(90deg, rgba(0,0,0,0.45), rgba(0,0,0,0.08))';
+    const lqip = LQIP_BG[key];
+
+    if (lqip) {
+      // 즉시 LQIP 표시 (transition 없이 블러 적용)
+      homeBg.style.transition = 'none';
+      homeBg.style.backgroundImage = `${grad}, url('${lqip}')`;
+      homeBg.style.filter = 'blur(8px)';
+      homeBg.style.transform = 'scale(1.05)';
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      homeBg.style.backgroundImage = `${grad}, url('${selected}')`;
+      // 다음 페인트 사이클부터 부드럽게 블러 해제
+      requestAnimationFrame(() => {
+        homeBg.style.transition = 'filter 0.8s ease, transform 0.8s ease';
+        homeBg.style.filter = '';
+        homeBg.style.transform = '';
+      });
+    };
+    img.src = selected;
   }
 
   applyRandomHomeBackground();
@@ -320,7 +441,7 @@ import {
       id: "bomangpa",
       no: "03",
       title: "매복 - 박망파 전투",
-      year: "202",
+      year: "AD 202",
       icon: 2,
       enabled: true
     },
@@ -328,23 +449,23 @@ import {
       id: "kalka",
       no: "04",
       title: "거짓 후퇴 - 칼카강 전투",
-      year: "1223",
+      year: "AD 1223",
       icon: 3,
       enabled: false
     },
     {
       id: "gwiju",
       no: "05",
-      title: "수공 - 흥화진/귀주 대첩",
-      year: "1018",
+      title: "수공 - 귀주 대첩",
+      year: "AD 1018",
       icon: 4,
       enabled: true
     },
     {
       id: "jupil",
       no: "06",
-      title: "복합 전술 - 주필산 전투",
-      year: "645",
+      title: "우회 - 주필산 전투",
+      year: "AD 645",
       icon: 5,
       enabled: true
     },
@@ -352,7 +473,7 @@ import {
       id: "yiling",
       no: "07",
       title: "화공 - 이릉 대첩",
-      year: "222",
+      year: "AD 222",
       icon: 6,
       enabled: false
     },
@@ -360,19 +481,129 @@ import {
       id: "tours",
       no: "08",
       title: "방진 - 투르 푸아티에 전투",
-      year: "732",
+      year: "AD 732",
       icon: 1,
       enabled: false
     }
   ];
 
+  function historicalScenarioIconSrc(id) {
+    const scenario = HISTORICAL_SCENARIOS.find(item => item.id === id);
+    const iconIndex = Number.isInteger(scenario?.icon) ? scenario.icon : 0;
+    return `./assets/ui/${String(iconIndex + 1).padStart(2, '0')}.jpg`;
+  }
+
+  const SCENARIO_LOADING_META = {
+    gaugamela: {
+      title: "가우가멜라 전투",
+      era: "BC 331",
+      player: "마케도니아",
+      playerPeriod: "BC 808 – BC 168",
+      enemy: "페르시아",
+      enemyPeriod: "BC 550 – BC 330",
+      background: "./assets/background/scenario_maps/gaugamela_map.png",
+      playerFactionIcon: "./assets/factions/macedon.png",
+      enemyFactionIcon: "./assets/factions/persia.png"
+    },
+    cannae: {
+      title: "칸나에 전투",
+      era: "BC 216",
+      player: "카르타고",
+      playerPeriod: "BC 814 – BC 146",
+      enemy: "로마",
+      enemyPeriod: "BC 753 – AD 476",
+      background: "./assets/background/scenario_maps/cannae_map.png",
+      playerFactionIcon: "./assets/factions/carthage.png",
+      enemyFactionIcon: "./assets/factions/rome.png"
+    },
+    bomangpa: {
+      title: "박망파 전투",
+      era: "AD 202",
+      player: "촉",
+      playerPeriod: "AD 221 – AD 263",
+      enemy: "위",
+      enemyPeriod: "AD 220 – AD 265",
+      background: "./assets/background/scenario_maps/bomangpa_map.png",
+      playerFactionIcon: "./assets/factions/shu_han.png",
+      enemyFactionIcon: "./assets/factions/cao_wei.png"
+    },
+    gwiju: {
+      title: "귀주대첩",
+      era: "AD 1019",
+      player: "고려",
+      playerPeriod: "AD 918 – AD 1392",
+      enemy: "거란",
+      enemyPeriod: "AD 916 – AD 1125",
+      background: "./assets/background/scenario_maps/gwiju_map.png",
+      playerFactionIcon: "./assets/factions/goryeo.png",
+      enemyFactionIcon: "./assets/factions/khitan.png"
+    },
+    jupil: {
+      title: "주필산 전투",
+      era: "AD 645",
+      player: "당",
+      playerPeriod: "AD 618 – AD 907",
+      enemy: "고구려",
+      enemyPeriod: "BC 37 – AD 668",
+      background: "./assets/background/scenario_maps/jupil_map.png",
+      playerFactionIcon: "./assets/factions/tang.png",
+      enemyFactionIcon: "./assets/factions/goguryeo.png"
+    }
+  };
+
+  const FACTION_EMBLEM_OPTIONS = [
+    { id: "macedon", label: "마케도니아", icon: "./assets/factions/macedon.png" },
+    { id: "persia", label: "페르시아", icon: "./assets/factions/persia.png" },
+    { id: "carthage", label: "카르타고", icon: "./assets/factions/carthage.png" },
+    { id: "rome", label: "로마", icon: "./assets/factions/rome.png" },
+    { id: "shu_han", label: "촉", icon: "./assets/factions/shu_han.png" },
+    { id: "cao_wei", label: "위", icon: "./assets/factions/cao_wei.png" },
+    { id: "goryeo", label: "고려", icon: "./assets/factions/goryeo.png" },
+    { id: "khitan", label: "거란", icon: "./assets/factions/khitan.png" },
+    { id: "tang", label: "당", icon: "./assets/factions/tang.png" },
+    { id: "goguryeo", label: "고구려", icon: "./assets/factions/goguryeo.png" },
+  ];
+
+  function factionEmblemOption(emblemId) {
+    return FACTION_EMBLEM_OPTIONS.find((option) => option.id === emblemId) || FACTION_EMBLEM_OPTIONS[0];
+  }
+
+  function randomFactionEmblemId() {
+    const index = Math.floor(Math.random() * FACTION_EMBLEM_OPTIONS.length);
+    return FACTION_EMBLEM_OPTIONS[index].id;
+  }
+
+  function factionEmblemMarkup(emblemId, className = "online-profile-emblem") {
+    const option = factionEmblemOption(emblemId);
+    return `<img class="${className}" src="${option.icon}" alt="${escapeHtml(option.label)}" />`;
+  }
+
+  function historicalScenarioClearIds() {
+    if (!onlineClient.token || !Array.isArray(onlineClient.player?.scenarioClears)) return new Set();
+    return new Set(onlineClient.player.scenarioClears.map((clear) =>
+      typeof clear === "string" ? clear : (clear.scenarioId || clear.scenario_id || clear.id)
+    ).filter(Boolean));
+  }
+
+  async function refreshHistoricalScenarioClears() {
+    if (!onlineClient.token) return;
+    try {
+      await onlineClient.loadMe();
+    } catch (error) {
+      console.warn("[online] scenario clear list refresh failed", error);
+    }
+  }
+
   function renderScenarioSelect() {
     if (!scenarioSelectGrid) return;
     scenarioSelectGrid.innerHTML = "";
+    const clearIds = historicalScenarioClearIds();
     HISTORICAL_SCENARIOS.forEach((scenario) => {
+      const cleared = clearIds.has(scenario.id);
       const card = document.createElement("article");
       card.className = "scenario-card";
       card.dataset.enabled = scenario.enabled ? "true" : "false";
+      card.dataset.cleared = cleared ? "true" : "false";
       card.dataset.icon = String(scenario.icon);
       if (scenario.enabled) {
         card.tabIndex = 0;
@@ -397,7 +628,28 @@ import {
       top.append(index, status);
 
       const icon = document.createElement("div");
-      icon.className = "scenario-card-icon";
+      icon.className = "scenario-card-icon scenario-icon-loading";
+      const fullSrc = `./assets/ui/${String(scenario.icon + 1).padStart(2, '0')}.jpg`;
+      const imgLoader = new Image();
+      imgLoader.onload = () => {
+        icon.classList.remove("scenario-icon-loading");
+        icon.style.transition = 'opacity 0.4s ease';
+        icon.style.opacity = '0';
+        icon.style.backgroundImage = `url('${fullSrc}')`;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          icon.style.opacity = '';
+        }));
+      };
+      imgLoader.src = fullSrc;
+      if (cleared) {
+        const clearedIcon = document.createElement("img");
+        clearedIcon.className = "scenario-card-cleared-icon";
+        clearedIcon.src = "./assets/ui/scenario_cleared_icon.png";
+        clearedIcon.alt = "";
+        clearedIcon.setAttribute("aria-hidden", "true");
+        clearedIcon.draggable = false;
+        icon.appendChild(clearedIcon);
+      }
 
       const title = document.createElement("h3");
       title.className = "scenario-card-title";
@@ -427,11 +679,112 @@ import {
   function updateBattleLoadingMask() {
     if (appState === "battle" && !areGameAssetsReady()) {
       showBattleLoadingMask();
-      return;
-    }
-    if (appState === "battle" && areGameAssetsReady()) {
+    } else if (appState === "battle" && areGameAssetsReady()) {
       hideBattleLoadingMask();
     }
+    tryHideGameLoadingScreen();
+  }
+
+  let _gameLoadingHideTimer = null;
+  let _gameLoadingMinElapsed = false;
+
+  function applyGameLoadingScenarioMeta(meta = null) {
+    if (!gameLoadingScreen || !gameLoadingBg || !gameLoadingScenarioPanel) return;
+    const setFactionIcon = (iconEl, src, label) => {
+      if (!iconEl) return;
+      if (!src) {
+        iconEl.hidden = true;
+        iconEl.removeAttribute("src");
+        iconEl.alt = "";
+        return;
+      }
+      iconEl.hidden = false;
+      iconEl.src = src;
+      iconEl.alt = label || "";
+    };
+    if (!meta) {
+      gameLoadingScreen.classList.remove("is-scenario");
+      gameLoadingScenarioPanel.hidden = true;
+      setFactionIcon(gameLoadingPlayerFactionIcon, null, "");
+      setFactionIcon(gameLoadingEnemyFactionIcon, null, "");
+      return;
+    }
+    gameLoadingScreen.classList.add("is-scenario");
+    gameLoadingScenarioPanel.hidden = false;
+    gameLoadingBg.style.backgroundImage = "none";
+    if (gameLoadingPanelTitle) gameLoadingPanelTitle.textContent = meta.title;
+    if (gameLoadingPanelEra) gameLoadingPanelEra.textContent = meta.era;
+    setFactionIcon(gameLoadingPlayerFactionIcon, meta.playerFactionIcon, meta.player);
+    if (gameLoadingPlayerForceName) gameLoadingPlayerForceName.textContent = meta.player;
+    if (gameLoadingPlayerForcePeriod) gameLoadingPlayerForcePeriod.textContent = meta.playerPeriod || "";
+    setFactionIcon(gameLoadingEnemyFactionIcon, meta.enemyFactionIcon, meta.enemy);
+    if (gameLoadingEnemyForceName) gameLoadingEnemyForceName.textContent = meta.enemy;
+    if (gameLoadingEnemyForcePeriod) gameLoadingEnemyForcePeriod.textContent = meta.enemyPeriod || "";
+    if (gameLoadingPlayerRoster) gameLoadingPlayerRoster.innerHTML = "";
+    if (gameLoadingEnemyRoster) gameLoadingEnemyRoster.innerHTML = "";
+  }
+
+  function gameLoadingPortraitMarkup(commander) {
+    if (commander?.portrait) {
+      return `<div class="gl-roster-portrait"><img src="${escapeHtml(commander.portrait)}" alt="${escapeHtml(commander.name || "")}" loading="eager" decoding="async" /></div>`;
+    }
+    return `<div class="gl-roster-portrait">${escapeHtml((commander?.name || "?").slice(0, 1))}</div>`;
+  }
+
+  function updateGameLoadingScenarioRoster(playerFormations, enemyFormations) {
+    if (!gameLoadingScenarioPanel || gameLoadingScenarioPanel.hidden) return;
+    const cardMarkup = (formations = []) => formations.map(f => {
+      const gen = f.general || f || {};
+      const troopLabel = troopTypeInfo(gen.troopType)?.label || gen.troopType || "";
+      const troops = formatTroops(gen.troops || 0);
+      return `
+        <div class="gl-roster-card">
+          ${gameLoadingPortraitMarkup(gen)}
+          <div class="gl-roster-name">${escapeHtml(gen.name || "")}</div>
+          <div class="gl-roster-troop">${escapeHtml(troopLabel)} ${troops}</div>
+        </div>
+      `;
+    }).join("");
+    if (gameLoadingPlayerRoster) {
+      gameLoadingPlayerRoster.innerHTML = cardMarkup(playerFormations);
+    }
+    if (gameLoadingEnemyRoster) {
+      gameLoadingEnemyRoster.innerHTML = cardMarkup(enemyFormations);
+    }
+  }
+
+  function showGameLoadingScreen(meta = null) {
+    _gameLoadingMinElapsed = false;
+    if (_gameLoadingHideTimer) { clearTimeout(_gameLoadingHideTimer); _gameLoadingHideTimer = null; }
+    if (meta) {
+      applyGameLoadingScenarioMeta(meta);
+    } else {
+      applyGameLoadingScenarioMeta(null);
+      const bgKeys = Object.keys(LQIP_BG);
+      const bgKey = bgKeys[Math.floor(Math.random() * bgKeys.length)];
+      gameLoadingBg.style.backgroundImage = `url('./assets/background/${bgKey}')`;
+    }
+    gameLoadingScreen.style.display = "flex";
+    const minLoadingMs = meta ? 5000 : 2000;
+    [gameLoadingProgressBar, gameLoadingScenarioProgressBar].forEach((bar) => {
+      if (!bar) return;
+      bar.style.setProperty("--game-loading-duration", `${minLoadingMs}ms`);
+      bar.classList.remove("is-running");
+      void bar.offsetWidth;
+      bar.classList.add("is-running");
+    });
+    _gameLoadingHideTimer = setTimeout(() => {
+      _gameLoadingHideTimer = null;
+      _gameLoadingMinElapsed = true;
+      tryHideGameLoadingScreen();
+    }, minLoadingMs);
+  }
+
+  function tryHideGameLoadingScreen() {
+    if (gameLoadingScreen.style.display === "none") return;
+    if (!_gameLoadingMinElapsed) return;
+    if (!areGameAssetsReady()) return;
+    gameLoadingScreen.style.display = "none";
   }
 
   function preventPanelButtonFocus() {
@@ -484,40 +837,151 @@ import {
   const TERRAIN_PRIORITY = { river: 0, wetland: 1, plain: 2, grassland: 3, road: 4, mountain: 5 };
   const TERRAIN_ASSET    = { river:"river", wetland:"river_bank", plain:"dirt", grassland:"plain", road:"road", mountain:"forest_floor" };
   const V3 = "./assets/terrain_tiles_v3/";
+  const WORLD_TEX = "./assets/terrain_world_textures/";
+  const CLUSTER_TEX = "./assets/terrain_cluster_overlays/";
+  const TERRAIN_WORLD_TEXTURE_SCALE = 0.78375; // 512px 소스 기준 (구 1254px × 0.32 = 401px 동일 반복)
+  const TERRAIN_WORLD_TONE_FILTERS = {
+    plain: "saturate(92%)",
+    road: "saturate(110%)",
+  };
+  const TERRAIN_1X1_MASK_ENABLED = true;
+  const TERRAIN_CLUSTER_ENABLED = false;
+  const TERRAIN_DETAIL_PATCH_ENABLED = true;
+  const TERRAIN_DETAIL_PATCH_OPACITY = 0.44;
+  const TERRAIN_DETAIL_PATCH_BASE_DRAW_TILES = 3.35;
+  const TERRAIN_CLUSTER_BASE_DRAW_TILES = 4.4;
+  const TERRAIN_CLUSTER_BASE_ASSET_WIDTH = 360;
+  const RUGGED_MTN_SIZE = 8;
 
-  const terrainSprites = { tiles: {}, masks: {}, dirt: [], plainGrass: [], forestFloor: [], objects: [], tree: null, ruggedMtn: null, ready: false };
+  const terrainSprites = { tiles: {}, masks: {}, dirt: [], plainGrass: [], forestFloor: [], world: {}, clusters: [], objects: [], buildings: [], tree: null, trees: [], ruggedMtn: [], ready: false };
+  const TERRAIN_CLUSTER_DEFS = [
+    { file: "meadow_patch_00.png",      terrain: ["grassland"],          alpha: 0.48, scale: 1.00 },
+    { file: "dark_grass_patch_00.png",  terrain: [],                     alpha: 0.42, scale: 1.03 },
+    { file: "dry_grass_patch_00.png",   terrain: ["plain"],              alpha: 0.46, scale: 0.95 },
+    { file: "bare_soil_patch_00.png",   terrain: ["plain"],              alpha: 0.40, scale: 0.90 },
+    { file: "farm_rows_patch_00.png",   terrain: [],                     alpha: 0.34, scale: 1.08 },
+    { file: "mixed_scrub_patch_00.png", terrain: ["grassland"],          alpha: 0.43, scale: 0.98 },
+  ];
+  const TERRAIN_DETAIL_PATCH_INDICES = {
+    plain: [2, 3, 2, 3, 0],
+    grassland: [0, 5],
+    mountain: [0, 5],
+  };
+  const TREE_VARIANT_FILES = [
+    "conifer_dark_00.png",
+    "conifer_blue_00.png",
+    "evergreen_tall_00.png",
+    "pine_sparse_00.png",
+    "broadleaf_light_00.png",
+    "broadleaf_dark_00.png",
+    "broadleaf_yellow_00.png",
+    "shrub_tree_00.png",
+  ];
+  const TREE_VARIANT_DIR = "objects/trees/variants_50px";
+  const TREE_VARIANT_HEIGHT_SCALE = [1.08, 1.05, 1.12, 1.00, 1.06, 1.08, 1.03, 0.78];
+  const TREE_TONE_BRIGHTNESS = 0.86;
+  const TREE_TONE_SATURATION = 0.78;
+  const TREE_TONE_ALPHA = 0.92;
+  const TREE_PIXI_TINT = 0xd0d4c0;
+  const TERRAIN_TREE_RENDER_ENABLED = true;
 
   // ── 화공 스프라이트시트 ───────────────────────────────────────────────
   const fireSprite = new Image();
   fireSprite.src = './assets/terrain_tiles_v3/objects/fire_spritesheet.png';
   const FIRE_COLS = 4, FIRE_ROWS = 4, FIRE_FRAMES = 16;
+  const remainsSprites = Array.from({ length: 6 }, (_unused, index) => {
+    const image = new Image();
+    image.src = `./assets/terrain_tiles_v3/objects/remains_layer_${String(index + 2).padStart(2, "0")}.png`;
+    return image;
+  });
 
   // ── 유닛 스프라이트시트 ───────────────────────────────────────────────
   const unitWalkSprite = new Image();
   unitWalkSprite.src = './assets/units/ancient_infantry_helmet_walk.png';
   const unitWalkBlueSprite = new Image();
   unitWalkBlueSprite.src = './assets/units/ancient_infantry_helmet_walk_blue.png';
+  const CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES = {
+    E:  ['./assets/units/ancient_cavity_helmet_walk_E.png'],
+    NE: ['./assets/units/ancient_cavity_helmet_walk_NE.png'],
+    N:  ['./assets/units/ancient_cavity_helmet_walk_N.png'],
+    S:  ['./assets/units/ancient_cavity_helmet_walk_S.png'],
+    SE: ['./assets/units/ancient_cavity_helmet_walk_SE.png'],
+  };
+  const CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES = {
+    E:  ['./assets/units/ancient_cavity_helmet_walk_blue_E.png'],
+    NE: ['./assets/units/ancient_cavity_helmet_walk_blue_NE.png'],
+    N:  ['./assets/units/ancient_cavity_helmet_walk_blue_N.png'],
+    S:  ['./assets/units/ancient_cavity_helmet_walk_blue_S.png'],
+    SE: ['./assets/units/ancient_cavity_helmet_walk_blue_SE.png'],
+  };
+  const CAVALRY_DIRECTION_SOURCE_KEY = {
+    E: 'E',
+    NE: 'NE',
+    N: 'N',
+    NW: 'NE',
+    W: 'E',
+    SW: 'SE',
+    S: 'S',
+    SE: 'SE',
+  };
+  const CAVALRY_DIRECTION_FLIP = {
+    E: false,
+    NE: false,
+    N: false,
+    NW: true,
+    W: true,
+    SW: true,
+    S: false,
+    SE: false,
+  };
+  function createImageWithFallbacks(sources) {
+    const image = new Image();
+    const list = Array.isArray(sources) ? sources : [sources];
+    let index = 0;
+    image.onerror = () => {
+      index += 1;
+      if (index < list.length) image.src = list[index];
+    };
+    image.src = list[0];
+    return image;
+  }
+  const cavalryPlayerDirectionSprites = Object.fromEntries(
+    Object.entries(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES)
+      .map(([direction, sources]) => [direction, createImageWithFallbacks(sources)])
+  );
+  const cavalryEnemyDirectionSprites = Object.fromEntries(
+    Object.entries(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES)
+      .map(([direction, sources]) => [direction, createImageWithFallbacks(sources)])
+  );
   const cavalryWalkSprite = new Image();
-  cavalryWalkSprite.src = './assets/units/ancient_cavity_helmet_walk.png';
-  const cavalryWalkBlueSprite = new Image();
-  cavalryWalkBlueSprite.src = './assets/units/ancient_cavity_helmet_walk_blue.png';
-  const cavalryWalkBackSprite = new Image();
-  cavalryWalkBackSprite.src = './assets/units/ancient_cavity_helmet_walk_back.png';
+  cavalryWalkSprite.src = './assets/units/ancient_cavity_helmet_walk_E.png';
+  const cavalryWalkBlueSprite = createImageWithFallbacks(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.E);
+  const cavalryWalkBackSprite = createImageWithFallbacks(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.N);
+  const cavalryWalkBackBlueSprite = createImageWithFallbacks(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.N);
   const unitIdleSprite = new Image();
   unitIdleSprite.src = './assets/units/ancient_infantry_helmet_idle_1.png';
   const unitIdleBlueSprite = new Image();
   unitIdleBlueSprite.src = './assets/units/ancient_infantry_helmet_idle_1_blue.png';
+  const unitDamageEffectSprite = new Image();
+  unitDamageEffectSprite.src = './assets/units/demage.png';
   const gameSpriteImages = [
     fireSprite,
+    ...remainsSprites,
+    ...Object.values(cavalryPlayerDirectionSprites),
+    ...Object.values(cavalryEnemyDirectionSprites),
     unitWalkSprite,
     unitWalkBlueSprite,
     cavalryWalkSprite,
     cavalryWalkBlueSprite,
     cavalryWalkBackSprite,
+    cavalryWalkBackBlueSprite,
     unitIdleSprite,
     unitIdleBlueSprite,
+    unitDamageEffectSprite,
   ];
   const UNIT_WALK_FRAMES = 5;
+  const UNIT_DAMAGE_EFFECT_FRAMES = 5;
+  const UNIT_DAMAGE_EFFECT_DURATION = 0.38;
   const UNIT_WALK_SCALE = 0.85;
   const FIRST_ROW_BONUS_DIVISOR = 50;
   const FOG_BLUR_STRENGTH = 14;
@@ -536,19 +1000,23 @@ import {
   let pixiFogVision  = null; // 영구 재사용 Graphics (vision erase)
   let pixiFogScene   = null; // 영구 재사용 Container
   const pixiUnitSprites = new Map(); // unit.id → PixiSprite
+  const pixiDamageEffectSprites = new Map();
   const pixiWalkTex  = {
     infantry: { player: [], enemy: [] },
     cavalry:  { player: [], enemy: [] },
   };
-  const pixiWalkBackTex = { cavalry: [] }; // 기병 후방(우상향) 스프라이트
+  const pixiWalkBackTex = { cavalry: { player: [], enemy: [] } }; // 기병 후방(우상향) 스프라이트
+  const pixiCavalryDirectionTex = { player: {}, enemy: {} };
   const pixiIdleTex  = {
     infantry: { player: null, enemy: null },
     cavalry:  { player: null, enemy: null },
   };
+  const pixiDamageEffectTex = [];
   let pixiReady      = false;
+  let _pixiRendererW = 0, _pixiRendererH = 0;
   let pixiTerrainCtr = null;
   let pixiTreeCtr    = null;
-  let pixiTreeTex    = null;
+  let pixiTreeTex    = [];
   const pixiChunkSprites = new Map(); // chunkKey → PixiSprite
   const pixiTreeSprites  = [];        // { sprite, worldBx, worldBy }
 
@@ -596,19 +1064,31 @@ import {
 
       // 유닛 텍스처 로드
       const load = url => PixiAssets.load(url).catch(() => null);
-      const [wP, wE, cP, cE, cBack, iP, iE, treeT] = await Promise.all([
+      const loadFirst = async sources => {
+        const list = Array.isArray(sources) ? sources : [sources];
+        for (const url of list) {
+          const texture = await load(url);
+          if (texture) return texture;
+        }
+        return null;
+      };
+      const [wP, wE, cP, cE, cBack, cBackBlue, iP, iE, treeTs, fallbackTreeT, dmgT] = await Promise.all([
         load('./assets/units/ancient_infantry_helmet_walk.png'),
         load('./assets/units/ancient_infantry_helmet_walk_blue.png'),
-        load('./assets/units/ancient_cavity_helmet_walk.png'),
-        load('./assets/units/ancient_cavity_helmet_walk_blue.png'),
-        load('./assets/units/ancient_cavity_helmet_walk_back.png'),
+        loadFirst(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.E),
+        loadFirst(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.E),
+        loadFirst(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.N),
+        loadFirst(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.N),
         load('./assets/units/ancient_infantry_helmet_idle_1.png'),
         load('./assets/units/ancient_infantry_helmet_idle_1_blue.png'),
+        Promise.all(TREE_VARIANT_FILES.map(file => load(`./assets/terrain_tiles_v3/${TREE_VARIANT_DIR}/${file}`))),
         load('./assets/terrain_tiles_v3/objects/trees/tree.png'),
+        load('./assets/units/demage.png'),
       ]);
-      pixiTreeTex = treeT;
+      pixiTreeTex = (treeTs || []).filter(Boolean);
+      if (!pixiTreeTex.length && fallbackTreeT) pixiTreeTex = [fallbackTreeT];
       // 픽셀아트: 모든 유닛 텍스처에 nearest-neighbor 보간 설정
-      [wP, wE, cP, cE, cBack, iP, iE].forEach(tex => { if (tex) tex.source.scaleMode = 'nearest'; });
+      [wP, wE, cP, cE, cBack, cBackBlue, iP, iE].forEach(tex => { if (tex) tex.source.scaleMode = 'nearest'; });
 
       const makeFrames = (tex, type) => {
         if (!tex) return [];
@@ -622,11 +1102,41 @@ import {
       pixiWalkTex.infantry.enemy   = makeFrames(wE, "infantry");
       pixiWalkTex.cavalry.player   = makeFrames(cP, "cavalry");
       pixiWalkTex.cavalry.enemy    = makeFrames(cE, "cavalry");
-      pixiWalkBackTex.cavalry      = makeFrames(cBack, "cavalry");
+      pixiWalkBackTex.cavalry.player = makeFrames(cBack, "cavalry");
+      pixiWalkBackTex.cavalry.enemy  = makeFrames(cBackBlue, "cavalry");
+      const cavalryDirectionEntries = await Promise.all(
+        Object.entries(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES)
+          .map(async ([direction, sources]) => [direction, await loadFirst(sources)])
+      );
+      cavalryDirectionEntries.forEach(([direction, tex]) => {
+        if (tex) tex.source.scaleMode = 'nearest';
+        pixiCavalryDirectionTex.player[direction] = makeFrames(tex, "cavalry");
+      });
+      const enemyCavalryDirectionEntries = await Promise.all(
+        Object.entries(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES)
+          .map(async ([direction, sources]) => [direction, await loadFirst(sources)])
+      );
+      enemyCavalryDirectionEntries.forEach(([direction, tex]) => {
+        if (tex) tex.source.scaleMode = 'nearest';
+        pixiCavalryDirectionTex.enemy[direction] = makeFrames(tex, "cavalry");
+      });
+      if (pixiCavalryDirectionTex.player.E?.length) {
+        pixiWalkTex.cavalry.player = pixiCavalryDirectionTex.player.E;
+      }
+      if (pixiCavalryDirectionTex.enemy.E?.length) {
+        pixiWalkTex.cavalry.enemy = pixiCavalryDirectionTex.enemy.E;
+      }
       if (iP) pixiIdleTex.infantry.player = iP;
       if (iE) pixiIdleTex.infantry.enemy  = iE;
       pixiIdleTex.cavalry.player = pixiWalkTex.cavalry.player[0] || null;
       pixiIdleTex.cavalry.enemy  = pixiWalkTex.cavalry.enemy[0] || null;
+      if (dmgT) {
+        dmgT.source.scaleMode = 'nearest';
+        const fw = dmgT.width / UNIT_DAMAGE_EFFECT_FRAMES;
+        pixiDamageEffectTex.splice(0, pixiDamageEffectTex.length, ...Array.from({ length: UNIT_DAMAGE_EFFECT_FRAMES }, (_, i) =>
+          new Texture({ source: dmgT.source, frame: new PixiRect(i * fw, 0, fw, dmgT.height) })
+        ));
+      }
 
       pixiReady = true;
     } catch (e) {
@@ -634,6 +1144,8 @@ import {
     }
   }
   const FIRST_ROW_DEFENSE_BONUS = 1.5;
+  const RANGED_MIN_DAMAGE = 0.25;
+  const TRACE_MIN_TILE_DISTANCE = 1.0;
 
   function preloadTerrainSprites() {
     const pending = [];
@@ -643,11 +1155,33 @@ import {
     for (let n = 0; n < 8;  n++) terrainSprites.dirt.push(loadImg(`${V3}base_3x3/dirt/dirt_${String(n).padStart(2,"0")}.png`));
     for (let n = 0; n < 12; n++) terrainSprites.plainGrass.push(loadImg(`${V3}base_3x3/plain/plain_${String(n).padStart(2,"0")}.png`));
     for (let n = 0; n < 12; n++) terrainSprites.forestFloor.push(loadImg(`${V3}base_3x3/forest_floor/forest_floor_${String(n).padStart(2,"0")}.png`));
+
+    // 월드 좌표 기반 베이스 텍스처 — 1×1 경계와 무관하게 같은 지형을 연속 샘플링
+    terrainSprites.world.dirt        = loadImg(`${WORLD_TEX}dirt_world.webp`);
+    terrainSprites.world.grass       = loadImg(`${WORLD_TEX}bright_grass_world.webp`);
+    terrainSprites.world.forestFloor = loadImg(`${WORLD_TEX}mountain_grass_world.webp`);
+    terrainSprites.world.road        = loadImg(`${WORLD_TEX}road_world.webp`);
+    terrainSprites.world.river       = loadImg(`${WORLD_TEX}river_world.webp`);
+    terrainSprites.world.riverBank   = loadImg(`${WORLD_TEX}river_bank_world.webp`);
+    terrainSprites.world.wetland     = loadImg(`${WORLD_TEX}wetland_grass_world.webp`);
+    terrainSprites.clusters = TERRAIN_CLUSTER_DEFS.map(def => loadImg(`${CLUSTER_TEX}${def.file}`));
+
     // 나무 오브젝트
     terrainSprites.tree    = loadImg(`${V3}objects/trees/tree.png`);
-    terrainSprites.ruggedMtn = loadImg(`${V3}base_3x3/mountain/mountain_forest_16.png`);
+    terrainSprites.trees   = TREE_VARIANT_FILES.map(file => loadImg(`${V3}${TREE_VARIANT_DIR}/${file}`));
+    terrainSprites.ruggedMtn = [
+      loadImg(`${V3}base_3x3/mountain/mountain_0006_레이어-1.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0005_레이어-2.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0004_레이어-3.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0003_레이어-4.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0002_레이어-5.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0001_레이어-6.png`),
+      loadImg(`${V3}base_3x3/mountain/mountain_0000_레이어-7.png`),
+    ];
     for (let n = 0; n < 16; n += 1)
       terrainSprites.objects.push(loadImg(`./assets/objects/object_sheet_tiles/object_${String(n).padStart(2, "0")}.png`));
+    for (let n = 0; n < 9; n += 1)
+      terrainSprites.buildings.push(loadImg(`./assets/objects/building_tiles/building_${String(n).padStart(2, "0")}.png`));
 
     // 1×1 center 타일 — 지형별 다중 variant 배열
     // 파일: {asset}_center.png + {asset}_center_00.png ~ {asset}_center_05.png (총 7종)
@@ -659,14 +1193,15 @@ import {
       terrainSprites.tiles[asset] = arr;
     }
 
-    // 엣지 마스크 combined_edge_8 — 방향별 5종 변형 (raw: 휘도→알파 변환 전)
+    // 엣지 마스크 EDGE_NEW — 방향별 5종 변형 (raw: 휘도→알파 변환 전)
     const MASK_DIRS = ["N","NE","E","SE","S","SW","W","NW"];
+    const EDGE_NEW_SOURCE_DIR = { N:"S", NE:"SW", E:"W", SE:"NW", S:"N", SW:"NE", W:"E", NW:"SE" };
     const MASK_VARS = 5;
     const rawMasks = {}; // key: "N_00" 등
     for (const d of MASK_DIRS)
       for (let n = 0; n < MASK_VARS; n++)
         rawMasks[`${d}_${String(n).padStart(2,"0")}`] =
-          loadImg(`${V3}masks_1x1/combined_edge_8/edge_mask_${d}_${String(n).padStart(2,"0")}.png`);
+          loadImg(`${V3}masks_1x1/EDGE_NEW/edge_mask_${EDGE_NEW_SOURCE_DIR[d]}_${String(n + 1).padStart(2,"0")}.png`);
 
     let loaded = 0;
     const done = () => {
@@ -721,6 +1256,19 @@ import {
     "LUUU": "SE", "ULUU": "SW", "UULU": "NW", "UUUL": "NE",
   };
 
+  function terrainWorldTexture(tile) {
+    if (tile === "river") return terrainSprites.world.river;
+    if (tile === "wetland") return terrainSprites.world.wetland;
+    if (tile === "road") return terrainSprites.world.road;
+    if (tile === "mountain") return terrainSprites.world.grass;
+    if (tile === "grassland") return terrainSprites.world.grass;
+    return terrainSprites.world.dirt;
+  }
+
+  function terrainWorldToneFilter(tile) {
+    return TERRAIN_WORLD_TONE_FILTERS[tile] || "none";
+  }
+
   function buildTerrainRenderData(terrain) {
     // 4면 방향: NW(-1,0) NE(0,-1) SE(+1,0) SW(0,+1)
     const FACES = [[-1,0], [0,-1], [1,0], [0,1]];
@@ -767,28 +1315,17 @@ import {
       }
     }
 
-    // 2패스: 경계 타일별 마스크 방향 결정
-    // 경계 타일 이웃 = 무조건 U / 하위·동일 우선순위 = L
-    // 코너 갭 포함, 단일 로직으로 처리
+    // 2패스: 경계 타일별 레이어 목록 결정 (Method B: 다중 레이어)
+    // 각 레이어마다 상위 지형 하나씩 처리 → 3개 이상 지형 접합부 정상 처리
     const ALL8 = [...FACES, [-1,-1],[1,-1],[1,1],[-1,1]];
     const borderData = Array.from({length: MAP_HEIGHT}, () => new Array(MAP_WIDTH).fill(null));
+    const SINGLE_FACE_KEYS = new Set(["ULLL","LULL","LLUL","LLLU"]);
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
         if (!isBorder[y][x]) continue;
         const t = terrain.tiles[y][x];
         const p = TERRAIN_PRIORITY[t] ?? 2;
-
-        // 8방향에서 최고 우선순위 지형 탐색 (코너 갭용 대각 포함)
-        let upperT = t, upperP = p;
-        for (const [dx, dy] of ALL8) {
-          const nx = x+dx, ny = y+dy;
-          if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
-          const nt = terrain.tiles[ny][nx];
-          const np = TERRAIN_PRIORITY[nt] ?? 2;
-          if (np > upperP) { upperP = np; upperT = nt; }
-        }
-        if (upperT === t) continue; // 실제 상위 지형 없음
 
         // 4면 이웃 수집
         const nbrs = FACES.map(([dx, dy]) => {
@@ -797,13 +1334,39 @@ import {
           return { p: TERRAIN_PRIORITY[terrain.tiles[ny][nx]] ?? 2, border: isBorder[ny][nx] === 1 };
         }); // [NW, NE, SE, SW]
 
-        // 면 상태 분류: 경계 타일 이웃 → U, 하위/동일 → L
-        const states = nbrs.map(n => (n.border || n.p > p) ? "U" : "L");
-        const key = states.join("");
+        // ALL8에서 상위 지형 종류 수집 (우선순위 오름차순)
+        const upperTSet = new Set();
+        for (const [dx, dy] of ALL8) {
+          const nx = x+dx, ny = y+dy;
+          if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
+          const nt = terrain.tiles[ny][nx];
+          if ((TERRAIN_PRIORITY[nt] ?? 2) > p) upperTSet.add(nt);
+        }
+        if (upperTSet.size === 0) continue;
 
-        const maskDir = key === "UUUU" ? "center" : (MASK_KEY[key] || null);
+        const layers = [];
+        for (const T of [...upperTSet].sort((a, b) =>
+            (TERRAIN_PRIORITY[a] ?? 2) - (TERRAIN_PRIORITY[b] ?? 2))) {
+          const tP = TERRAIN_PRIORITY[T] ?? 2;
+          // 면 상태: 이웃 우선순위 >= T 우선순위이면 U
+          // 코너갭(같은 지형 경계 타일, n.p === p)도 U로 처리 — 다른 지형 border는 제외
+          const states = nbrs.map(n => (n.p >= tP || (n.border && n.p === p)) ? "U" : "L");
+          const key = states.join("");
+          let maskDir;
+          if (key === "UUUU") {
+            maskDir = "center";
+          } else if (MASK_KEY[key]) {
+            maskDir = MASK_KEY[key];
+          } else if (SINGLE_FACE_KEYS.has(key)) {
+            maskDir = key; // 단일 면: 사분면 클립으로 처리
+          } else {
+            continue; // 인식 불가 패턴 스킵
+          }
+          layers.push({ upperT: T, maskDir });
+        }
 
-        borderData[y][x] = { maskDir, lowerT: t, upperT, dbgKey: key };
+        if (layers.length === 0) continue;
+        borderData[y][x] = { layers, lowerT: t };
       }
     }
 
@@ -838,22 +1401,181 @@ import {
         minimapCtx.fillStyle = isBorder[y][x] ? "#909090" : terrainInfo[terrain.tiles[y][x]].color;
         minimapCtx.fillRect(x, y, 1, 1);
       }
-    // 험준산악 16×16 감지 — 청크 정렬 제한 (단일 청크 내에 완전히 들어오는 블록만)
+    // 험준산악 8×8 감지 — 청크 정렬 제한 (단일 청크 내에 완전히 들어오는 블록만)
     const ruggedMtn = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
-    for (let y = 0; y < MAP_HEIGHT - 15; y++) {
-      for (let x = 0; x < MAP_WIDTH - 15; x++) {
-        if (ruggedMtn[y][x]) continue;
-        if (Math.floor(x / CHUNK_TILES) !== Math.floor((x + 15) / CHUNK_TILES)) continue;
-        if (Math.floor(y / CHUNK_TILES) !== Math.floor((y + 15) / CHUNK_TILES)) continue;
-        let ok = true;
-        for (let dy = 0; dy < 16 && ok; dy++)
-          for (let dx = 0; dx < 16 && ok; dx++)
-            if (terrain.tiles[y + dy][x + dx] !== "mountain") ok = false;
-        if (ok && Math.random() < 0.5) {
-          ruggedMtn[y][x] = 1;
-          for (let dy = 0; dy < 16; dy++)
-            for (let dx = 0; dx < 16; dx++)
-              if (dy || dx) ruggedMtn[y + dy][x + dx] = 2;
+    const ruggedMtnVariant = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
+    const ruggedMtnEdge = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
+    const ruggedNoiseSeed = 6721;
+    const ruggedNoiseValue = (xi, yi, seed) => {
+      return (tileHash(xi * 1777 + ruggedNoiseSeed + seed * 2113, yi * 1999 + ruggedNoiseSeed * 2 + seed * 2381) % 10000) / 10000;
+    };
+    const smoothRuggedNoise = (x, y, scale, seed) => {
+      const nx = x / scale;
+      const ny = y / scale;
+      const xi = Math.floor(nx);
+      const yi = Math.floor(ny);
+      const fx = nx - xi;
+      const fy = ny - yi;
+      const sx = fx * fx * (3 - 2 * fx);
+      const sy = fy * fy * (3 - 2 * fy);
+      return ruggedNoiseValue(xi, yi, seed)           * (1 - sx) * (1 - sy)
+           + ruggedNoiseValue(xi + 1, yi, seed)       * sx       * (1 - sy)
+           + ruggedNoiseValue(xi, yi + 1, seed)       * (1 - sx) * sy
+           + ruggedNoiseValue(xi + 1, yi + 1, seed)   * sx       * sy;
+    };
+    const ruggedCoverageNoise = (x, y) => {
+      return smoothRuggedNoise(x, y, 26, 1) * 0.54
+           + smoothRuggedNoise(x + 31, y - 23, 12, 2) * 0.31
+           + smoothRuggedNoise(x - 47, y + 37, 5, 3) * 0.15;
+    };
+    const ruggedCandidateScore = (x, y) => {
+      const cx = x + RUGGED_MTN_SIZE * 0.5;
+      const cy = y + RUGGED_MTN_SIZE * 0.5;
+      const coverage = ruggedCoverageNoise(cx, cy);
+      const localAvg = (
+        ruggedCoverageNoise(cx - 4, cy) +
+        ruggedCoverageNoise(cx + 4, cy) +
+        ruggedCoverageNoise(cx, cy - 4) +
+        ruggedCoverageNoise(cx, cy + 4)
+      ) * 0.25;
+      const lift = Math.max(0, coverage - localAvg);
+      const fine = smoothRuggedNoise(cx + 17, cy - 13, 4, 4);
+      return coverage * 0.82 + fine * 0.12 + lift * 1.55;
+    };
+    const canUseRuggedFootprint = (x, y) => {
+      if (x < 0 || y < 0 || x + RUGGED_MTN_SIZE > MAP_WIDTH || y + RUGGED_MTN_SIZE > MAP_HEIGHT) return false;
+      for (let dy = 0; dy < RUGGED_MTN_SIZE; dy++)
+        for (let dx = 0; dx < RUGGED_MTN_SIZE; dx++)
+          if (terrain.tiles[y + dy][x + dx] !== "mountain") return false;
+      return true;
+    };
+    const hasRuggedNearby = (x, y, padding = 0) => {
+      const x0 = Math.max(0, x - padding);
+      const y0 = Math.max(0, y - padding);
+      const x1 = Math.min(MAP_WIDTH - 1, x + RUGGED_MTN_SIZE - 1 + padding);
+      const y1 = Math.min(MAP_HEIGHT - 1, y + RUGGED_MTN_SIZE - 1 + padding);
+      for (let ty = y0; ty <= y1; ty++)
+        for (let tx = x0; tx <= x1; tx++)
+          if (ruggedMtn[ty][tx]) return true;
+      return false;
+    };
+
+    const canPlaceRugged = (x, y) => {
+      return canUseRuggedFootprint(x, y) && !hasRuggedNearby(x, y, 0);
+    };
+
+    const RUGGED_CLUSTER_MIN_ANCHOR_GAP = 4;
+    const hasReservedAnchorTooClose = (x, y, reserved) => {
+      return reserved.some((block) =>
+        Math.max(Math.abs(x - block.x), Math.abs(y - block.y)) < RUGGED_CLUSTER_MIN_ANCHOR_GAP
+      );
+    };
+
+    const canReserveRugged = (x, y, reserved) => {
+      return canPlaceRugged(x, y) && !hasReservedAnchorTooClose(x, y, reserved);
+    };
+
+    const placeRugged = (x, y) => {
+      const ruggedVariant = tileHash(x * 211 + 19, y * 331 + 43) % 7;
+      ruggedMtn[y][x] = 1;
+      ruggedMtnVariant[y][x] = ruggedVariant;
+      for (let dy = 0; dy < RUGGED_MTN_SIZE; dy++)
+        for (let dx = 0; dx < RUGGED_MTN_SIZE; dx++) {
+          const ty = y + dy;
+          const tx = x + dx;
+          const edgeWeight = (dy === RUGGED_MTN_SIZE - 1 || dx === RUGGED_MTN_SIZE - 1)
+            ? 2
+            : (dy === RUGGED_MTN_SIZE - 2 || dx === RUGGED_MTN_SIZE - 2 || dy === 0 || dx === 0) ? 1 : 0;
+          if (dy || dx) {
+            if (ruggedMtn[ty][tx] !== 1) ruggedMtn[ty][tx] = 2;
+            if (ruggedMtn[ty][tx] !== 1) ruggedMtnEdge[ty][tx] = Math.max(ruggedMtnEdge[ty][tx], edgeWeight);
+          } else {
+            ruggedMtnEdge[ty][tx] = Math.max(ruggedMtnEdge[ty][tx], edgeWeight);
+          }
+        }
+    };
+
+    const ruggedCandidates = [];
+    for (let y = 0; y <= MAP_HEIGHT - RUGGED_MTN_SIZE; y += 1) {
+      for (let x = 0; x <= MAP_WIDTH - RUGGED_MTN_SIZE; x += 1) {
+        if (!canUseRuggedFootprint(x, y)) continue;
+        const score = ruggedCandidateScore(x, y);
+        if (score < 0.40) continue;
+        const scatter = (tileHash(x * 1523 + 83, y * 1777 + 109) % 1000) / 1000;
+        ruggedCandidates.push({ x, y, score: score + scatter * 0.025 });
+      }
+    }
+    ruggedCandidates.sort((a, b) => b.score - a.score);
+
+    const ruggedNeighborDirections = [
+      [ 1, 0], [-1, 0],
+      [0,  1], [0, -1],
+      [ 1,  1], [-1, -1],
+      [ 1, -1], [-1,  1],
+    ];
+    const ruggedNeighborOffsetsFor = (base, seed, guard) => {
+      return ruggedNeighborDirections.map(([dirX, dirY], index) => {
+        const hash = tileHash(
+          base.x * 1291 + seed.x * 17 + index * 97 + guard * 31,
+          base.y * 1451 + seed.y * 19 + index * 89 + guard * 37
+        );
+        if (dirX && dirY) {
+          const stepX = 4 + (hash % 4);
+          const stepY = 4 + ((hash >>> 5) % 4);
+          return [dirX * stepX, dirY * stepY];
+        }
+        const step = 4 + (hash % 4);
+        const skew = ((hash >>> 4) % 5) - 2;
+        return dirX ? [dirX * step, skew] : [skew, dirY * step];
+      });
+    };
+    const buildRuggedCluster = (seed, targetBlocks) => {
+      if (!canReserveRugged(seed.x, seed.y, [])) return [];
+      const reserved = [{ x: seed.x, y: seed.y, score: seed.score }];
+      const seen = new Set([`${seed.x}:${seed.y}`]);
+      let guard = 0;
+      while (reserved.length < targetBlocks && guard < targetBlocks * 16) {
+        guard += 1;
+        const options = [];
+        for (const base of reserved) {
+          for (const [dx, dy] of ruggedNeighborOffsetsFor(base, seed, guard)) {
+            const nx = base.x + dx;
+            const ny = base.y + dy;
+            const key = `${nx}:${ny}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            if (!canReserveRugged(nx, ny, reserved)) continue;
+            const scatter = (tileHash(nx * 1871 + seed.x * 13, ny * 2081 + seed.y * 17) % 1000) / 1000;
+            options.push({ x: nx, y: ny, score: ruggedCandidateScore(nx, ny) + scatter * 0.04 });
+          }
+        }
+        if (!options.length) break;
+        options.sort((a, b) => b.score - a.score);
+        const pickWindow = Math.min(options.length, 1 + (tileHash(seed.x + guard * 37, seed.y + guard * 53) % 3));
+        reserved.push(options[pickWindow - 1]);
+      }
+      return reserved.length >= 3 ? reserved : [];
+    };
+
+    const maxRuggedClusters = Math.max(1, Math.floor(ruggedCandidates.length / 260));
+    let ruggedClusterCount = 0;
+    for (const seed of ruggedCandidates) {
+      if (ruggedClusterCount >= maxRuggedClusters) break;
+      if (seed.score < 0.45) continue;
+      if (hasRuggedNearby(seed.x, seed.y, RUGGED_MTN_SIZE * 2)) continue;
+      const targetBlocks = 3 + (tileHash(seed.x * 43 + 5, seed.y * 59 + 11) % 5);
+      const clusterBlocks = buildRuggedCluster(seed, targetBlocks);
+      if (clusterBlocks.length < 3) continue;
+      clusterBlocks.forEach((block) => placeRugged(block.x, block.y));
+      ruggedClusterCount += 1;
+    }
+
+    if (!ruggedClusterCount) {
+      for (const seed of ruggedCandidates) {
+        const clusterBlocks = buildRuggedCluster(seed, 3);
+        if (clusterBlocks.length >= 3) {
+          clusterBlocks.forEach((block) => placeRugged(block.x, block.y));
+          break;
         }
       }
     }
@@ -867,7 +1589,74 @@ import {
       }
     }
 
-    return { isBorder, borderData, block, variant, ruggedMtn, objectMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false, chunkPixiReady: false };
+    const clusterMap = null;
+
+    const buildingMap = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
+    /*
+    const BUILDING_EDGE_MARGIN = 10;
+    const canUseBuildingFootprint = (x, y) => {
+      if (x + 1 >= MAP_WIDTH || y + 1 >= MAP_HEIGHT) return false;
+      if (x < BUILDING_EDGE_MARGIN || y < BUILDING_EDGE_MARGIN) return false;
+      if (x + 1 >= MAP_WIDTH - BUILDING_EDGE_MARGIN || y + 1 >= MAP_HEIGHT - BUILDING_EDGE_MARGIN) return false;
+      for (let dy = 0; dy < 2; dy += 1) {
+        for (let dx = 0; dx < 2; dx += 1) {
+          const tx = x + dx;
+          const ty = y + dy;
+          if (terrain.tiles[ty][tx] !== "plain" || isBorder[ty][tx] || objectMap[ty][tx]) return false;
+        }
+      }
+      return true;
+    };
+    const canPlaceBuilding = (x, y) => {
+      if (!canUseBuildingFootprint(x, y)) return false;
+      for (let ay = Math.max(0, y - 1); ay <= y + 1 && ay < MAP_HEIGHT; ay += 1) {
+        for (let ax = Math.max(0, x - 1); ax <= x + 1 && ax < MAP_WIDTH; ax += 1) {
+          if (buildingMap[ay][ax]) return false;
+        }
+      }
+      return true;
+    };
+    const buildingCandidates = [];
+    for (let y = 0; y < MAP_HEIGHT - 1; y++) {
+      for (let x = 0; x < MAP_WIDTH - 1; x++) {
+        if (!canUseBuildingFootprint(x, y)) continue;
+        buildingCandidates.push({ x, y, h: tileHash(x + 719, y + 1543) });
+      }
+    }
+    buildingCandidates.sort((a, b) => (b.h - a.h) || (a.y - b.y) || (a.x - b.x));
+    const buildingClusterCount = buildingCandidates.length >= 2 ? 2 : buildingCandidates.length;
+    const buildingSeeds = [];
+    for (const candidate of buildingCandidates) {
+      if (buildingSeeds.length >= buildingClusterCount) break;
+      if (buildingSeeds.some(seed => Math.hypot(seed.x - candidate.x, seed.y - candidate.y) < 24)) continue;
+      buildingSeeds.push(candidate);
+    }
+    const placeBuildingCluster = (seed) => {
+      const targetCount = 6 + (tileHash(seed.x + 811, seed.y + 1619) % 10);
+      const clusterCandidates = buildingCandidates
+        .map(candidate => {
+          const dist = Math.hypot(candidate.x - seed.x, candidate.y - seed.y);
+          const scatter = (tileHash(candidate.x + seed.x * 3, candidate.y + seed.y * 5) % 1000) / 1000;
+          return { ...candidate, dist, score: dist + scatter * 2.5 };
+        })
+        .filter(candidate => candidate.dist <= 24)
+        .sort((a, b) => a.score - b.score);
+      let placed = 0;
+      for (const candidate of clusterCandidates) {
+        if (placed >= targetCount) break;
+        if (!canPlaceBuilding(candidate.x, candidate.y)) continue;
+        const variantRoll = (candidate.h >>> 8) % 100;
+        const buildingVariant = variantRoll < 35
+          ? 0
+          : 1 + ((candidate.h >>> 16) % 8);
+        buildingMap[candidate.y][candidate.x] = 1 + buildingVariant;
+        placed += 1;
+      }
+    };
+    buildingSeeds.forEach(placeBuildingCluster);
+    */
+
+    return { isBorder, borderData, block, variant, ruggedMtn, ruggedMtnVariant, ruggedMtnEdge, clusterMap, objectMap, buildingMap, minimapCanvas, chunkCache: new Map(), chunkTileW: 0, chunkSpritesReady: false, chunkPixiReady: false, prefetchQueue: [], prefetchGen: 0, _prefetchScheduled: false };
   }
 
   function chooseNames() {
@@ -942,6 +1731,12 @@ import {
 
   function formationUnitRadius(formation) {
     return UNIT_RADIUS * troopTypeInfo(formation.troopType).collisionMult;
+  }
+
+  function getUnitRadius(formation) {
+    if (formation._unitRadius == null)
+      formation._unitRadius = UNIT_RADIUS * troopTypeInfo(formation.troopType).collisionMult;
+    return formation._unitRadius;
   }
 
   function troopPopulation(troops, type) {
@@ -1251,9 +2046,22 @@ import {
       for (let y = 0; y < MAP_HEIGHT; y++) {
         for (let x = 0; x < MAP_WIDTH; x++) {
           if (tiles[y][x] !== "plain") continue;
-          if (grassNoise(x, y) > 0.72) tiles[y][x] = "grassland";
+          if (grassNoise(x, y) > 0.58) tiles[y][x] = "grassland";
         }
       }
+      const spread = [];
+      for (let y = 1; y < MAP_HEIGHT - 1; y++) {
+        for (let x = 1; x < MAP_WIDTH - 1; x++) {
+          if (tiles[y][x] !== "plain") continue;
+          const nearGrass =
+            tiles[y - 1][x] === "grassland" ||
+            tiles[y + 1][x] === "grassland" ||
+            tiles[y][x - 1] === "grassland" ||
+            tiles[y][x + 1] === "grassland";
+          if (nearGrass && grassNoise(x + 11, y + 7) > 0.49) spread.push([x, y]);
+        }
+      }
+      spread.forEach(([x, y]) => { tiles[y][x] = "grassland"; });
     }
 
     return { tiles, playerStart, enemyStart };
@@ -1272,6 +2080,8 @@ import {
         vx: 0,
         vy: 0,
         damage: 0,
+        damageEffectTimer: 0,
+        damageEffectFlip: false,
         capacity,
         slotIndex: i,
         slotLocal: vec(),
@@ -1369,6 +2179,8 @@ import {
     tileW: window.innerWidth < 950 ? 16 : DEFAULT_TILE_W,
     battlePhase: "planning",
     battleTime: 0,
+    phaseStartTime: 0,
+    scenarioAggroTime: 0,
     selectedId: 0,
     camera: vec(0, 0),
     dragState: null,
@@ -1392,6 +2204,7 @@ import {
     fires: [],     // 화공 화염 오브젝트 배열
     flood: null,   // 수공 상태 { timer, damageDealt, cleanupTimer }
     mode: "quick",
+    online: null,
     scenarioData: null,
     scenarioPhaseIndex: -1,
     scenarioStep: "none",
@@ -1459,13 +2272,21 @@ import {
     };
   }
 
-  async function loadScenarioBundle(id) {
+  async function loadScenarioDefinition(id) {
     const scenarioRes = await fetch(`./data/scenarios/${id}.json`);
     if (!scenarioRes.ok) throw new Error(`Scenario not found: ${id}`);
-    const scenario = await scenarioRes.json();
+    return scenarioRes.json();
+  }
+
+  async function loadScenarioTerrain(scenario) {
     const terrainRes = await fetch(scenario.terrain);
     if (!terrainRes.ok) throw new Error(`Scenario terrain not found: ${scenario.terrain}`);
-    const terrain = normalizeScenarioTerrain(await terrainRes.json());
+    return normalizeScenarioTerrain(await terrainRes.json());
+  }
+
+  async function loadScenarioBundle(id) {
+    const scenario = await loadScenarioDefinition(id);
+    const terrain = await loadScenarioTerrain(scenario);
     return { scenario, terrain };
   }
 
@@ -1570,8 +2391,9 @@ import {
   preloadTerrainSprites();
   game.spriteCache = buildSpriteCache();
 
+  let _battleTileH = null;
   function getTileH() {
-    return Math.floor(game.tileW / 2);
+    return _battleTileH ?? Math.floor(game.tileW / 2);
   }
 
   function isoPoint(x, y) {
@@ -1615,6 +2437,355 @@ import {
 
   function currentSelection() {
     return game.playerFormations.filter((formation) => formation.id === game.selectedId);
+  }
+
+  function isOnlineMode() {
+    return game.mode === "online" && Boolean(game.online);
+  }
+
+  function withSeededRandom(seed, callback) {
+    const originalRandom = Math.random;
+    initRng(seed);
+    Math.random = seededRandom;
+    try {
+      return callback();
+    } finally {
+      Math.random = originalRandom;
+      resetRng();
+    }
+  }
+
+  let onlineOriginalRandom = null;
+
+  function enableOnlineRandom(seed) {
+    if (!onlineOriginalRandom) onlineOriginalRandom = Math.random;
+    initRng(seed);
+    Math.random = seededRandom;
+  }
+
+  function disableOnlineRandom() {
+    if (onlineOriginalRandom) {
+      Math.random = onlineOriginalRandom;
+      onlineOriginalRandom = null;
+    }
+    resetRng();
+  }
+
+  function createGeneralFromOnlineCommander(commander, fallbackName) {
+    const skillType = commander?.skillType || "kihap";
+    const troopType = normalizeTroopType(commander?.troopType || "infantry");
+    return {
+      templateId: commander?.templateId || commander?.id || null,
+      name: commander?.name || fallbackName,
+      power: Number(commander?.power ?? 75),
+      leadership: Number(commander?.leadership ?? 75),
+      charm: Number(commander?.charm ?? 70),
+      level: Number(commander?.level || 0),
+      exp: Number(commander?.exp || 0),
+      expRequired: Number(commander?.expRequired || 0),
+      portrait: commander?.portrait || null,
+      optionalSkills: Array.isArray(commander?.allowedSkills) ? commander.allowedSkills.filter(skill => skill !== skillType) : [],
+      allowedSkills: Array.isArray(commander?.allowedSkills) ? commander.allowedSkills : [skillType],
+      troopType,
+      troops: Number(commander?.troops || (troopType === "cavalry" ? 2500 : 10000)),
+      skillType,
+      kills: 0,
+      losses: 0,
+      alive: true,
+    };
+  }
+
+  function onlinePlayerBySide(match, side) {
+    return (match.players || []).find(player => Number(player.side) === side) || null;
+  }
+
+  function buildOnlineFormations(terrain, match, worldSide, team) {
+    const player = onlinePlayerBySide(match, worldSide);
+    const commanders = player?.commanders || [];
+    const start = worldSide === 0 ? terrain.playerStart : terrain.enemyStart;
+    const facing = worldSide === 0 ? vec(1, 0) : vec(-1, 0);
+    return Array.from({ length: 5 }, (_unused, index) => {
+      const general = createGeneralFromOnlineCommander(
+        commanders[index],
+        `${worldSide === 0 ? "Blue" : "Red"} ${index + 1}`,
+      );
+      const formation = createFormation(index, team, general, vec(start.x, start.y + (index - 2) * 10), facing);
+      formation.speed = "NORMAL";
+      formation.worldSide = worldSide;
+      formation.skillType = normalizeSkillForGeneral(general, general.skillType, general.troopType);
+      formation.general.skillType = formation.skillType;
+      initializeFormationSlots(formation, false);
+      return formation;
+    });
+  }
+
+  function buildOnlineScenario(match) {
+    const terrain = buildTerrain();
+    const localSide = Number(match.side || 0);
+    const remoteSide = localSide === 0 ? 1 : 0;
+    const sideFormations = new Map([
+      [0, buildOnlineFormations(terrain, match, 0, localSide === 0 ? "player" : "enemy")],
+      [1, buildOnlineFormations(terrain, match, 1, localSide === 1 ? "player" : "enemy")],
+    ]);
+    return {
+      terrain,
+      playerFormations: sideFormations.get(localSide),
+      enemyFormations: sideFormations.get(remoteSide),
+    };
+  }
+
+  function onlineNetTick() {
+    if (!isOnlineMode()) return 0;
+    if (!game.online.simStarted || !Number.isFinite(game.online.startedAtClient)) return game.online.simTick || 0;
+    const tickRate = game.online.tickRate || 30;
+    return Math.max(0, Math.floor((performance.now() - game.online.startedAtClient) / 1000 * tickRate));
+  }
+
+  function onlineFormationsForSide(side) {
+    if (!isOnlineMode()) return game.playerFormations;
+    return Number(side) === game.online.side ? game.playerFormations : game.enemyFormations;
+  }
+
+  function onlineOpponentsForSide(side) {
+    if (!isOnlineMode()) return game.enemyFormations;
+    return Number(side) === game.online.side ? game.enemyFormations : game.playerFormations;
+  }
+
+  function orderedAllFormations() {
+    return [...game.playerFormations, ...game.enemyFormations];
+  }
+
+  function queueOnlineInput(message) {
+    if (!isOnlineMode()) return;
+    if (message.roomId && message.roomId !== game.online.roomId) return;
+    const side = Number(message.side);
+    (message.commands || []).forEach((command) => {
+      const targetTick = Number.isFinite(message.targetTick)
+        ? message.targetTick
+        : onlineNetTick();
+      const list = game.online.commandQueue.get(targetTick) || [];
+      list.push({ side, seq: Number(message.seq || 0), command });
+      game.online.commandQueue.set(targetTick, list);
+    });
+  }
+
+  function drainOnlineCommands(nowTick = onlineNetTick()) {
+    if (!isOnlineMode()) return;
+    game.online.netTick = nowTick;
+    const dueTicks = [];
+    for (const tick of game.online.commandQueue.keys()) {
+      if (tick <= nowTick) dueTicks.push(tick);
+    }
+    dueTicks.sort((a, b) => a - b);
+    for (const tick of dueTicks) {
+      const entries = game.online.commandQueue.get(tick) || [];
+      game.online.commandQueue.delete(tick);
+      entries
+        .sort((a, b) => a.seq - b.seq)
+        .forEach(entry => applyOnlineCommand(entry.side, entry.command));
+    }
+  }
+
+  function sendOnlineCommands(commands) {
+    if (!isOnlineMode() || !commands.length) return false;
+    if (!game.online.simStarted) {
+      showOnlineSyncNotice("상대 전장 확인을 기다리는 중입니다.", "info", 1800);
+      return false;
+    }
+    onlineClient.sendInput(commands);
+    return true;
+  }
+
+  function onlineHashNumber(text) {
+    let hash = 2166136261;
+    String(text).split("").forEach((char) => {
+      hash ^= char.charCodeAt(0);
+      hash = Math.imul(hash, 16777619);
+    });
+    return hash >>> 0;
+  }
+
+  function onlineHashString(text) {
+    return onlineHashNumber(text).toString(16);
+  }
+
+  function onlineDeterministicRoll(...parts) {
+    return onlineHashNumber(parts.join("|")) / 4294967296;
+  }
+
+  function onlineSortedFormations() {
+    return [...game.playerFormations, ...game.enemyFormations]
+      .sort((a, b) => (a.worldSide ?? 0) - (b.worldSide ?? 0) || a.id - b.id);
+  }
+
+  function computeOnlineInitialHash() {
+    if (!isOnlineMode()) return "";
+    const terrainRows = game.terrain.tiles.map(row => row.join("")).join("|");
+    const objectRows = (game.terrain.objects || [])
+      .map(object => `${object.x},${object.y},${object.kind || object.type || ""}`)
+      .join("|");
+    const values = [
+      "online-init-v2",
+      game.online.roomId,
+      game.online.seed,
+      game.online.tickRate,
+      game.online.inputDelayTicks,
+      onlineHashString(terrainRows),
+      onlineHashString(objectRows),
+    ];
+    onlineSortedFormations().forEach((formation) => {
+      values.push(
+        formation.worldSide ?? -1,
+        formation.id,
+        formation.troopType,
+        formation.skillType,
+        formation.density,
+        formation.speed,
+        Math.round(formation.anchor.x * 10),
+        Math.round(formation.anchor.y * 10),
+        Math.round(formation.facing.x * 100),
+        Math.round(formation.facing.y * 100),
+        formation.general.templateId || formation.general.id || formation.general.name,
+        Math.round(formation.general.power * 10),
+        Math.round(formation.general.leadership * 10),
+        Math.round(formation.general.charm * 10),
+        Math.round(formationInitialTroops(formation)),
+        formation.units.length,
+      );
+      formation.units.forEach((unit) => {
+        values.push(Math.round(unit.x * 10), Math.round(unit.y * 10), Math.round(unit.maxDamage || 100));
+      });
+    });
+    return onlineHashString(values.join(","));
+  }
+
+  function computeOnlineStateHash() {
+    const values = [];
+    const formations = onlineSortedFormations();
+    formations.forEach((formation) => {
+      const target = formation.target || null;
+      values.push(
+        formation.worldSide ?? -1,
+        formation.id,
+        Math.round(formation.anchor.x * 10),
+        Math.round(formation.anchor.y * 10),
+        formation.speed,
+        formation.density,
+        Math.round((target?.x ?? -1) * 10),
+        Math.round((target?.y ?? -1) * 10),
+        formation.followTarget?.worldSide ?? -1,
+        formation.followTarget?.id ?? -1,
+        formation.retreating ? 1 : 0,
+        formation.retreated ? 1 : 0,
+        Math.round((formation.retreatLastCheckpoint || 0) * 10),
+        Math.round(formationRemainingTroops(formation)),
+        Math.round(formation.disorder * 100),
+        Math.round((formation.kihapCooldown || 0) * 10),
+        Math.round((formation.skillCooldown || 0) * 10),
+        Math.round((formation.swiftTimer || 0) * 10),
+        Math.round((formation.guardTimer || 0) * 10),
+        Math.round((formation.archeryTimer || 0) * 10),
+      );
+      const stride = Math.max(1, Math.floor(formation.units.length / 8));
+      for (let i = 0, samples = 0; i < formation.units.length && samples < 8; i += stride, samples += 1) {
+        const unit = formation.units[i];
+        values.push(
+          Math.round(unit.x * 10),
+          Math.round(unit.y * 10),
+          Math.round((unit.damage || 0) * 10),
+        );
+      }
+    });
+    return onlineHashString(values.join(","));
+  }
+
+  function maybeSendOnlineChecksum() {
+    if (!isOnlineMode() || game.battlePhase !== "live") return;
+    const tick = game.online.simTick;
+    if (tick - game.online.lastChecksumTick < ONLINE_CHECKSUM_INTERVAL_TICKS) return;
+    game.online.lastChecksumTick = tick;
+    onlineClient.sendChecksum(tick, computeOnlineStateHash());
+  }
+
+  function onlineTargetSimulationTick() {
+    if (!isOnlineMode() || !game.online.simStarted) return game.online?.simTick || 0;
+    return Math.max(0, onlineNetTick() - (game.online.inputDelayTicks || 3));
+  }
+
+  function advanceOnlineSimulationTo(targetTick, maxSteps) {
+    if (!isOnlineMode() || !game.online.simStarted || game.battlePhase !== "live") return 0;
+    game.speedMultiplier = 1;
+    const goalTick = Math.max(0, Math.floor(targetTick));
+    let stepCount = 0;
+    while (game.online.simTick < goalTick && stepCount < maxSteps && game.battlePhase === "live") {
+      game.online.simTick += 1;
+      drainOnlineCommands(game.online.simTick);
+      update(SIMULATION_STEP);
+      stepCount += 1;
+    }
+    return Math.max(0, goalTick - game.online.simTick);
+  }
+
+  function requestOnlineCatchup(reason = "resume") {
+    if (!isOnlineMode() || !game.online.simStarted || game.battlePhase !== "live") return;
+    if (onlineCatchupScheduled) return;
+    onlineCatchupScheduled = true;
+    showOnlineSyncNotice("동기화 따라잡는 중...", "info", 0);
+    const runChunk = () => {
+      onlineCatchupScheduled = false;
+      if (!isOnlineMode() || !game.online.simStarted || game.battlePhase !== "live") {
+        hideOnlineSyncNotice();
+        return;
+      }
+      const remaining = advanceOnlineSimulationTo(onlineTargetSimulationTick(), ONLINE_CATCHUP_CHUNK_STEPS);
+      maybeSendOnlineChecksum();
+      game.hudDirty = true;
+      refreshHud();
+      refreshButtons();
+      render();
+      if (remaining > 0) {
+        onlineCatchupScheduled = true;
+        window.setTimeout(runChunk, 0);
+      } else {
+        showOnlineSyncNotice(reason === "background" ? "백그라운드 동기화 유지 중" : "동기화 완료", "ok", 1200);
+      }
+    };
+    window.setTimeout(runChunk, 0);
+  }
+
+  function collectOnlineResultStats() {
+    const ownInitial = game.playerFormations.reduce((sum, formation) => sum + formationInitialTroops(formation), 0);
+    const ownRemaining = game.playerFormations.reduce((sum, formation) => sum + formationRemainingTroops(formation), 0);
+    const enemyInitial = game.enemyFormations.reduce((sum, formation) => sum + formationInitialTroops(formation), 0);
+    const enemyRemaining = game.enemyFormations.reduce((sum, formation) => sum + formationRemainingTroops(formation), 0);
+    const commanderStats = game.playerFormations.map((formation, index) => ({
+      templateId: formation.general.templateId || formation.general.id || formation.general.name,
+      slotIndex: index,
+      kills: Math.round(Math.max(0, formation.general.kills || 0)),
+      losses: Math.round(Math.max(0, formation.general.losses || 0)),
+      troopsInitial: Math.round(formationInitialTroops(formation)),
+      troopsRemaining: Math.round(formationRemainingTroops(formation)),
+    })).filter(stat => stat.templateId);
+    return {
+      troopsInitial: Math.round(ownInitial),
+      troopsRemaining: Math.round(ownRemaining),
+      kills: Math.round(Math.max(0, enemyInitial - enemyRemaining)),
+      losses: Math.round(Math.max(0, ownInitial - ownRemaining)),
+      commanderStats,
+    };
+  }
+
+  function submitOnlineResult(won) {
+    if (!isOnlineMode() || game.online.resultSubmitted) return;
+    game.online.resultSubmitted = true;
+    const winnerSide = won ? game.online.side : (game.online.side === 0 ? 1 : 0);
+    onlineClient.send({
+      type: "RESULT",
+      winnerSide,
+      durationTick: game.online.simTick,
+      finalHash: computeOnlineStateHash(),
+      stats: collectOnlineResultStats(),
+    });
   }
 
   function computeLocalGridOffsets(count, ratio, spacing) {
@@ -1789,7 +2960,8 @@ import {
     const base = Math.max(0, 2 + speedInfo[formation.speed].defense + densityInfo[formation.density].defense + tileDefense - formation.disorder * 2);
     const defense = base * troopTypeInfo(formation.troopType).meleeDefenseMult;
     const scenarioMult = formation.combatOverrides?.meleeDefenseMult ?? 1;
-    return (formation.troopType === 'cavalry' ? defense + 10 : defense) * scenarioMult;
+    const scenarioBonus = formation.combatOverrides?.meleeDefenseBonus ?? 0;
+    return (formation.troopType === 'cavalry' ? defense + 10 : defense) * scenarioMult + scenarioBonus;
   }
 
   function unitRemainingTroops(unit) {
@@ -1820,6 +2992,60 @@ import {
     return Math.round(Math.max(0, value)).toLocaleString();
   }
 
+  function deathTraceType(formation, unit) {
+    const count = remainsSprites.length || 1;
+    if (isOnlineMode()) {
+      return onlineHashNumber([
+        game.online.seed,
+        "remains",
+        formation.worldSide ?? formation.team,
+        formation.id,
+        unit.id,
+        unit.slotIndex,
+      ].join("|")) % count;
+    }
+    return Math.floor(Math.random() * count);
+  }
+
+  function unitDamageEffectFlip(formation, unit) {
+    const hitIndex = unit.damageEffectHitCount = (unit.damageEffectHitCount || 0) + 1;
+    if (isOnlineMode()) {
+      return onlineHashNumber([
+        game.online.seed,
+        "damageEffectFlip",
+        formation.worldSide ?? formation.team,
+        formation.id,
+        unit.id,
+        unit.slotIndex,
+        hitIndex,
+      ].join("|")) % 2 === 0;
+    }
+    return Math.random() < 0.5;
+  }
+
+  function deathTraceFlip(formation, unit) {
+    if (isOnlineMode()) {
+      return onlineHashNumber([
+        game.online.seed,
+        "remainsFlip",
+        formation.worldSide ?? formation.team,
+        formation.id,
+        unit.id,
+        unit.slotIndex,
+      ].join("|")) % 2 === 0;
+    }
+    return Math.random() < 0.5;
+  }
+
+  function canPlaceDeathTrace(x, y) {
+    const minDistSq = TRACE_MIN_TILE_DISTANCE * TRACE_MIN_TILE_DISTANCE;
+    return !game.traces.some((trace) => {
+      const dx = trace.x - x;
+      const dy = trace.y - y;
+      return dx * dx + dy * dy <= minDistSq;
+    });
+  }
+
   function applyUnitDamage(targetFormation, unit, amount, attackerFormation = null, options = {}) {
     if (!targetFormation || !unit || amount <= 0 || !isUnitAlive(unit)) return 0;
     const prevDamage = unit.damage;
@@ -1827,14 +3053,18 @@ import {
     if (prevDamage >= capacity) return 0;
     const appliedDamage = Math.min(amount, capacity - prevDamage);
     unit.damage = Math.min(capacity, prevDamage + appliedDamage);
+    if (options.meleeEffect === true && appliedDamage > 0 && (unit.damageEffectTimer || 0) <= 0) {
+      unit.damageEffectTimer = UNIT_DAMAGE_EFFECT_DURATION;
+      unit.damageEffectFlip = unitDamageEffectFlip(targetFormation, unit);
+    }
     targetFormation.general.losses += appliedDamage;
     if (attackerFormation && attackerFormation !== targetFormation) {
       attackerFormation.general.kills += appliedDamage;
     }
     if (unit.damage >= capacity && prevDamage < capacity) {
       fillSlotFromBehind(targetFormation, unit);
-      if (options.trace !== false && game.traces.length < 2000 && !isOnWater(unit)) {
-        game.traces.push({ x: unit.x, y: unit.y, type: Math.floor(Math.random() * 3) });
+      if (options.trace !== false && game.traces.length < 2000 && !isOnWater(unit) && canPlaceDeathTrace(unit.x, unit.y)) {
+        game.traces.push({ x: unit.x, y: unit.y, type: deathTraceType(targetFormation, unit), flip: deathTraceFlip(targetFormation, unit) });
       }
     }
     return appliedDamage;
@@ -1906,8 +3136,9 @@ import {
 
   function activateKihap(formation) {
     if (formation.kihapCooldown > 0) return;
+    const durMult = formation.combatOverrides?.skillDurationMult ?? 1;
     formation.units.forEach((u) => {
-      if (isUnitAlive(u)) u.kihapTimer = 4 + Math.random() * 2;
+      if (isUnitAlive(u)) u.kihapTimer = (4 + Math.random() * 2) * durMult;
     });
     formation.disorderAccum = Math.max(0, formation.disorderAccum - 0.1);
     formation.disorder = Math.max(0, formation.disorder - 0.1);
@@ -1935,31 +3166,33 @@ import {
     formation.disorder      = Math.max(0, formation.disorder - 0.1);
     formation.skillCooldown = skillMaxCooldown(formation);
 
+    const durMult = formation.combatOverrides?.skillDurationMult ?? 1;
     switch (formation.skillType) {
       case "kihap": {
-        formation.units.forEach(u => { if (isUnitAlive(u)) u.kihapTimer = 4 + Math.random() * 2; });
+        formation.units.forEach(u => { if (isUnitAlive(u)) u.kihapTimer = (4 + Math.random() * 2) * durMult; });
         formation.kihapCooldown = kihapMaxCooldown(formation);
         if (speechData) tryShowSpeech(formation, randFrom(speechData.kihap), "high");
         break;
       }
       case "swift": {
-        formation.swiftTimer = 12.0;
+        formation.swiftTimer = 12.0 * durMult;
         if (speechData) tryShowSpeech(formation, "전속력으로 돌격한다!", "high");
         break;
       }
       case "guard": {
-        formation.guardTimer = 7.0 + (formation.general.leadership / 100) * 3.0;
+        formation.guardTimer = (7.0 + (formation.general.leadership / 100) * 3.0) * durMult;
         if (speechData) tryShowSpeech(formation, "방패를 굳게 세워라!", "high");
         break;
       }
       case "archery": {
-        formation.archeryTimer = 10.0;
+        formation.archeryTimer = 10.0 * durMult;
         if (speechData) tryShowSpeech(formation, "화살이 하늘을 덮는다!", "high");
         break;
       }
       case "fire": {
         const fwd   = normalize(formation.facing);
         const alive = formation.units.filter(isUnitAlive);
+        const fireDmgMult = formation.combatOverrides?.fireDamageMult ?? 1;
         // 최전방 유닛 위치 탐색 (facing 방향 투영 최대값)
         let maxProj = -Infinity, frontX = formation.anchor.x, frontY = formation.anchor.y;
         alive.forEach(u => {
@@ -1979,11 +3212,11 @@ import {
             if (ptile === "river" || ptile === "wetland") continue;
             particles.push({
               x: px, y: py,
-              duration:  10 + Math.random() * 10,   // 10~20초 개별 지속
+              duration:  (10 + Math.random() * 10) * durMult,
               moveTimer: 1.0 + Math.random() * 0.4,
             });
           }
-        game.fires.push({ particles, dmgTimer: 1.0 });
+        game.fires.push({ particles, dmgTimer: 1.0, dmgMult: fireDmgMult });
         // 화공 사용 후 진형 자동 정지
         if (formation.speed !== "STOP") formation.prevSpeed = formation.speed;
         formation.speed = "STOP";
@@ -2002,7 +3235,7 @@ import {
   // ── 스킬 상태 업데이트 ──────────────────────────────────────────────────
   function updateSkills(dt) {
     if (game.battlePhase !== "live") return;
-    const allF = [...game.playerFormations, ...game.enemyFormations];
+    const allF = orderedAllFormations();
 
     // 스킬 쿨다운 · 지속형 스킬 타이머 감소
     allF.forEach(f => {
@@ -2039,7 +3272,7 @@ import {
           f.units.forEach(u => {
             if (!isUnitAlive(u)) return;
             if (!fire.particles.some(p => len(u.x - p.x, u.y - p.y) < 0.55)) return;
-            applyUnitDamage(f, u, 20);
+            applyUnitDamage(f, u, 20 * (fire.dmgMult ?? 1));
           });
         });
       }
@@ -2051,12 +3284,13 @@ import {
       game.flood.timer -= dt;
       if (game.flood.timer <= 0 && !game.flood.damageDealt) {
         game.flood.damageDealt = true;
+        game.floodDamageDealt = true;
         allF.forEach(f => {
           let hit = false;
           f.units.forEach(u => {
             if (!isUnitAlive(u)) return;
             if (!isOnWater(u)) return;
-            const dmg = applyUnitDamage(f, u, 20, null, { trace: false });
+            const dmg = applyUnitDamage(f, u, 40, null, { trace: false });
             if (dmg > 0) {
               hit = true;
               const angle = Math.random() * Math.PI * 2;
@@ -2105,6 +3339,41 @@ import {
           const dx = entry.unit.x - x;
           const dy = entry.unit.y - y;
           if (dx * dx + dy * dy <= radiusSq) result.push(entry);
+        }
+      }
+    }
+    return result;
+  }
+
+  function buildFireParticleHash(fires) {
+    const cells = new Map();
+    fires.forEach((fire) => {
+      fire.particles.forEach((p) => {
+        const cellX = Math.floor(p.x / SPATIAL_CELL_SIZE);
+        const cellY = Math.floor(p.y / SPATIAL_CELL_SIZE);
+        const key = `${cellX}:${cellY}`;
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key).push(p);
+      });
+    });
+    return { cells, cellSize: SPATIAL_CELL_SIZE };
+  }
+
+  function findNearbyFireParticles(fireHash, x, y, radius) {
+    const { cells, cellSize } = fireHash;
+    const minCX = Math.floor((x - radius) / cellSize);
+    const maxCX = Math.floor((x + radius) / cellSize);
+    const minCY = Math.floor((y - radius) / cellSize);
+    const maxCY = Math.floor((y + radius) / cellSize);
+    const result = [];
+    const rSq = radius * radius;
+    for (let cy = minCY; cy <= maxCY; cy++) {
+      for (let cx = minCX; cx <= maxCX; cx++) {
+        const entries = cells.get(`${cx}:${cy}`);
+        if (!entries) continue;
+        for (const p of entries) {
+          const dx = p.x - x, dy = p.y - y;
+          if (dx * dx + dy * dy <= rSq) result.push(p);
         }
       }
     }
@@ -2163,6 +3432,43 @@ import {
     return formation.speed !== "SLOW";
   }
 
+  const CAVALRY_VISUAL_DIRECTIONS = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
+
+  function visualDirectionFromVector(vector) {
+    if (!vector) return null;
+    const screenX = vector.x - vector.y;
+    const screenY = vector.x + vector.y;
+    if (len(screenX, screenY) < 0.001) return null;
+    const angle = Math.atan2(screenY, screenX);
+    const step = Math.PI / 4;
+    const index = ((Math.round(angle / step) % 8) + 8) % 8;
+    return CAVALRY_VISUAL_DIRECTIONS[index];
+  }
+
+  function cavalryDirectionInfo(direction) {
+    const resolvedDirection = CAVALRY_VISUAL_DIRECTIONS.includes(direction) ? direction : "E";
+    const sourceKey = CAVALRY_DIRECTION_SOURCE_KEY[resolvedDirection] || "E";
+    return {
+      direction: resolvedDirection,
+      sourceKey,
+      flip: !!CAVALRY_DIRECTION_FLIP[resolvedDirection],
+    };
+  }
+
+  function cavalryDirectionSprite(team, direction) {
+    const { sourceKey } = cavalryDirectionInfo(direction);
+    const spriteSet = team === "enemy" ? cavalryEnemyDirectionSprites : cavalryPlayerDirectionSprites;
+    const fallback = team === "enemy" ? cavalryWalkBlueSprite : cavalryWalkSprite;
+    const sprite = spriteSet[sourceKey];
+    return sprite?.naturalWidth > 0 ? sprite : fallback;
+  }
+
+  function cavalryPixiFrames(team, direction) {
+    const { sourceKey } = cavalryDirectionInfo(direction);
+    const frames = pixiCavalryDirectionTex[team]?.[sourceKey];
+    return frames?.length ? frames : pixiWalkTex.cavalry[team];
+  }
+
   function visualFacingLeftFromFormation(formation) {
     return formation.facing.x < -0.05;
   }
@@ -2182,6 +3488,7 @@ import {
     const facing = normalize(formation.facing || vec());
     const hasFormationFacing = len(facing.x, facing.y) > 0.001;
     const velocityAligned = !hasFormationFacing || (unit.vx * facing.x + unit.vy * facing.y) > 0.02;
+    const velocityFacing = speed > 0.001 ? normalize(vec(unit.vx, unit.vy)) : null;
 
     if (typeof unit.visualFacingLeft !== "boolean") {
       unit.visualFacingLeft = visualFacingLeftFromFormation(formation);
@@ -2197,6 +3504,21 @@ import {
       if (speed < MOVE_EXIT) unit.visualMoving = false;
     } else if (speed > MOVE_ENTER) {
       unit.visualMoving = true;
+    }
+
+    if (typeof unit.visualDirection !== "string") {
+      unit.visualDirection = visualDirectionFromVector(hasFormationFacing ? facing : velocityFacing) || "E";
+      unit.visualDirectionChangedAt = -999;
+    }
+
+    const directionVector = hasFormationFacing
+      ? facing
+      : (unit.visualMoving && velocityFacing ? velocityFacing : null);
+    const nextDirection = visualDirectionFromVector(directionVector);
+    if (nextDirection && nextDirection !== unit.visualDirection &&
+        now - (unit.visualDirectionChangedAt ?? -999) >= CHANGE_COOLDOWN) {
+      unit.visualDirection = nextDirection;
+      unit.visualDirectionChangedAt = now;
     }
 
     let nextLeft = unit.visualFacingLeft;
@@ -2234,10 +3556,11 @@ import {
       moving: unit.visualMoving,
       facingLeft: unit.visualFacingLeft,
       facingBack: unit.visualMoving && unit.visualFacingBack,
+      direction: unit.visualDirection,
     };
   }
 
-  function updateFormation(formation, enemySpatialHash, allSpatialHash, dt) {
+  function updateFormation(formation, enemySpatialHash, allSpatialHash, dt, fireHash) {
     const alive = formation.units.filter(isUnitAlive);
     if (!alive.length) return;
     // 정지 상태에서 적 진형을 추적 중이면 방향만 지속 갱신
@@ -2283,9 +3606,15 @@ import {
         return len(slot.x - u.x, slot.y - u.y) >= POSITION_DEFENSE_THRESHOLD;
       }).length;
       const outRatio = outOfPositionCount / alive.length;
-      const distMult = 1 + outRatio * 8.0;
-      const accumRate = 0.001 * terrainMult * distMult * (1 - formation.general.charm / 100 * 0.5);
-      formation.disorderAccum = Math.min(1, formation.disorderAccum + accumRate * dt);
+      if (outRatio > 0.02) {
+        const distMult = 1 + outRatio * 8.0;
+        const accumRate = 0.001 * terrainMult * distMult * (1 - formation.general.charm / 100 * 0.5);
+        formation.disorderAccum = Math.min(1, formation.disorderAccum + accumRate * dt);
+      } else {
+        const charmRecovery = Math.max(0, (formation.general.charm - 50) / 50);
+        const recoveryRate = 0.0005 * charmRecovery;
+        formation.disorderAccum = Math.max(0, formation.disorderAccum - recoveryRate * dt);
+      }
     }
     formation.disorder = Math.min(1, survivalDisorder + formation.disorderAccum);
 
@@ -2351,14 +3680,16 @@ import {
           : 1.0;
 
         if (enemyDist < 0.85) {
-          // 근접 공격 (매 프레임 × dt)
-          const damage = Math.max(0, unitAttack(formation) * attackerBonus * facingMult - unitDefense(enemyTarget.formation, enemyTarget.unit) * defenderBonus * guardDefenseMult);
-          applyUnitDamage(enemyTarget.formation, enemyTarget.unit, damage * dt, formation);
+          // 근접 공격 (매 프레임 × dt) — 방어력 초과 시에도 최소 5% 피해 보장
+          const rawAttack = unitAttack(formation) * attackerBonus * facingMult;
+          const damage = Math.max(1, rawAttack - unitDefense(enemyTarget.formation, enemyTarget.unit) * defenderBonus * guardDefenseMult);
+          applyUnitDamage(enemyTarget.formation, enemyTarget.unit, damage * dt, formation, { meleeEffect: true });
         } else if (canFormationRangedAttack(formation) && unit.rangedCooldown <= 0) {
           // 원거리 공격 (쿨타임 1초)
-          const rangedDamage = Math.max(0, rangedAttack(formation) * facingMult
+          const rangedDamage = Math.max(RANGED_MIN_DAMAGE, rangedAttack(formation) * facingMult
             * rangedDefenseDamageMult(enemyTarget.formation)
-            - (enemyTarget.formation.troopType === 'cavalry' ? 2 : 0));
+            - (enemyTarget.formation.troopType === 'cavalry' ? 2 : 0)
+            - (enemyTarget.formation.combatOverrides?.rangedDefenseBonus ?? 0));
           applyUnitDamage(enemyTarget.formation, enemyTarget.unit, rangedDamage, formation);
           unit.rangedCooldown = 1.0;
           game.projectiles.push({
@@ -2383,9 +3714,10 @@ import {
             const rDir = normalize({ x: rangedOnly.unit.x - unit.x, y: rangedOnly.unit.y - unit.y });
             const rDot = formation.facing.x * rDir.x + formation.facing.y * rDir.y;
             const rFacingMult = rDot >= Math.SQRT2 / 2 ? 1.25 : rDot >= 0 ? 1.0 : 0.75;
-            const rdmg = Math.max(0, rangedAttack(formation) * rFacingMult
+            const rdmg = Math.max(RANGED_MIN_DAMAGE, rangedAttack(formation) * rFacingMult
               * rangedDefenseDamageMult(rangedOnly.formation)
-              - (rangedOnly.formation.troopType === 'cavalry' ? 2 : 0));
+              - (rangedOnly.formation.troopType === 'cavalry' ? 2 : 0)
+              - (rangedOnly.formation.combatOverrides?.rangedDefenseBonus ?? 0));
             applyUnitDamage(rangedOnly.formation, rangedOnly.unit, rdmg, formation);
             unit.rangedCooldown = 1.0;
             game.projectiles.push({
@@ -2402,7 +3734,7 @@ import {
       if (slotDistance > formationSpacing(formation) * 1.8) desired = add(desired, mul(normalize(slotDelta), 1.35));
 
       const CROSS_SEP_RADIUS = 1.8;
-      const unitRadius = formationUnitRadius(formation);
+      const unitRadius = getUnitRadius(formation);
       const nearbyAll = findNearbyUnits(allSpatialHash, unit.x, unit.y, CROSS_SEP_RADIUS);
       for (const entry of nearbyAll) {
         if (entry.unit === unit) continue;
@@ -2412,7 +3744,7 @@ import {
         const dy = unit.y - entry.unit.y;
         const d = len(dx, dy);
         if (d < 0.001) continue;
-        const hardZone = unitRadius + formationUnitRadius(entry.formation);
+        const hardZone = unitRadius + getUnitRadius(entry.formation);
         const cavalryKnockMult = entry.formation.troopType === 'cavalry' ? 2.5 : 1.0;
         if (d < hardZone) {
           const overlap = (hardZone - d) / hardZone;
@@ -2423,11 +3755,11 @@ import {
       }
 
       // 화공 회피: desired 단계에서 방향 힌트 (정규화 전)
-      for (const fire of game.fires) {
-        for (const p of fire.particles) {
+      if (fireHash) {
+        for (const p of findNearbyFireParticles(fireHash, unit.x, unit.y, 1.3)) {
           const dfx = unit.x - p.x, dfy = unit.y - p.y;
           const df = len(dfx, dfy);
-          if (df < 1.3 && df > 0.001)
+          if (df > 0.001)
             desired = add(desired, mul({ x: dfx/df, y: dfy/df }, 2.0));
         }
       }
@@ -2468,14 +3800,14 @@ import {
       unit.vy = lerp(unit.vy, targetV.y, blend);
 
       // 화공 차단: lerp 이후 속도에 직접 강한 반발력 (정규화·관성 우회)
-      for (const fire of game.fires) {
-        for (const p of fire.particles) {
+      if (fireHash) {
+        const FIRE_R = 1.2;
+        for (const p of findNearbyFireParticles(fireHash, unit.x, unit.y, FIRE_R)) {
           const dfx = unit.x - p.x, dfy = unit.y - p.y;
           const df = len(dfx, dfy);
-          const FIRE_R = 1.2;
-          if (df < FIRE_R && df > 0.001) {
+          if (df > 0.001) {
             const t = (FIRE_R - df) / FIRE_R;
-            const strength = t * t * 12.0; // 제곱으로 중심부 강화
+            const strength = t * t * 12.0;
             unit.vx += (dfx / df) * strength * dt;
             unit.vy += (dfy / df) * strength * dt;
           }
@@ -2485,6 +3817,7 @@ import {
       // 오브젝트 타일 통과 차단: 타일 중심에서 강한 반발력
       {
         const objMap = game.terrainRender.objectMap;
+        const buildingMap = game.terrainRender.buildingMap;
         const OBJ_R = 1.0;
         for (let dy = -2; dy <= 2; dy++) {
           for (let dx = -2; dx <= 2; dx++) {
@@ -2497,6 +3830,23 @@ import {
               const t = (OBJ_R - d) / OBJ_R;
               unit.vx += (ex / d) * t * t * 16.0 * dt;
               unit.vy += (ey / d) * t * t * 16.0 * dt;
+            }
+          }
+        }
+        if (buildingMap) {
+          const BUILDING_R = 2.35;
+          for (let dy = -4; dy <= 4; dy++) {
+            for (let dx = -4; dx <= 4; dx++) {
+              const tx = clamp(Math.floor(unit.x) + dx, 0, MAP_WIDTH - 1);
+              const ty = clamp(Math.floor(unit.y) + dy, 0, MAP_HEIGHT - 1);
+              if (!buildingMap[ty][tx]) continue;
+              const ex = unit.x - (tx + 1.0), ey = unit.y - (ty + 1.0);
+              const d = len(ex, ey);
+              if (d < BUILDING_R && d > 0.001) {
+                const t = (BUILDING_R - d) / BUILDING_R;
+                unit.vx += (ex / d) * t * t * 42.0 * dt;
+                unit.vy += (ey / d) * t * t * 42.0 * dt;
+              }
             }
           }
         }
@@ -2654,19 +4004,25 @@ import {
     liveEnemies.forEach((formation, idx) => {
       executeEnemyRole(formation, livePlayers, idx);
     });
+
+    // ── 적군 스킬 자동 발동 ───────────────────────────────────────────
+    liveEnemies.forEach(formation => {
+      if (formation.skillCooldown <= 0 && Math.random() < 0.40) {
+        activateSkill(formation);
+      }
+    });
   }
 
-  function applyPositionCorrection() {
-    const allFormations = [...game.playerFormations, ...game.enemyFormations];
-    const correctionHash = buildSpatialHash(allFormations);
-    const maxRadius = allFormations.reduce((max, formation) => Math.max(max, formationUnitRadius(formation)), UNIT_RADIUS);
+  function applyPositionCorrection(allSpatialHash) {
+    const allFormations = orderedAllFormations();
+    const maxRadius = allFormations.reduce((max, f) => Math.max(max, getUnitRadius(f)), UNIT_RADIUS);
     const searchRadius = maxRadius * 2;
     allFormations.forEach((formation) => {
       formation.units.filter(isUnitAlive).forEach((unit) => {
-        const nearby = findNearbyUnits(correctionHash, unit.x, unit.y, searchRadius);
+        const nearby = findNearbyUnits(allSpatialHash, unit.x, unit.y, searchRadius);
         for (const entry of nearby) {
           if (entry.unit === unit) continue;
-          const minDist = formationUnitRadius(formation) + formationUnitRadius(entry.formation);
+          const minDist = getUnitRadius(formation) + getUnitRadius(entry.formation);
           const dx = unit.x - entry.unit.x;
           const dy = unit.y - entry.unit.y;
           const d = len(dx, dy);
@@ -2687,23 +4043,50 @@ import {
 
       const PLAYER_RETREAT_X = 8;
       const ENEMY_RETREAT_X = MAP_WIDTH - 8;
+      const retreatXForFormation = (formation, fallbackX) => {
+        if (isOnlineMode() && formation.worldSide != null) {
+          return formation.worldSide === 0 ? 0 : MAP_WIDTH;
+        }
+        return fallbackX;
+      };
+      const reachedRetreatEdge = (formation, fallbackTeam) => {
+        if (isOnlineMode() && formation.worldSide != null) {
+          return formation.worldSide === 0
+            ? formation.anchor.x < PLAYER_RETREAT_X
+            : formation.anchor.x > ENEMY_RETREAT_X;
+        }
+        return fallbackTeam === "player"
+          ? formation.anchor.x < PLAYER_RETREAT_X
+          : formation.anchor.x > ENEMY_RETREAT_X;
+      };
 
-      game.playerFormations.forEach((formation) => {
-        if (!formation.retreated && formation.units.some(isUnitAlive) && formation.anchor.x < PLAYER_RETREAT_X) {
+      const allFormations = orderedAllFormations();
+      allFormations.forEach((formation) => {
+        formation.units.forEach((unit) => {
+          if ((unit.damageEffectTimer || 0) > 0) {
+            unit.damageEffectTimer = Math.max(0, unit.damageEffectTimer - dt);
+          }
+        });
+      });
+      allFormations.forEach((formation) => {
+        if (!formation.retreated && formation.units.some(isUnitAlive) && reachedRetreatEdge(formation, formation.team)) {
           formation.retreated = true;
           formation.units.forEach((u) => { u.damage = 100; });
         }
         if (!formation.followTarget) return;
         const alive = formation.followTarget.units.some(isUnitAlive);
-        if (!alive) { formation.followTarget = null; return; }
-        formation.target = formationCenter(formation.followTarget);
-      });
-
-      game.enemyFormations.forEach((formation) => {
-        if (!formation.retreated && formation.units.some(isUnitAlive) && formation.anchor.x > ENEMY_RETREAT_X) {
-          formation.retreated = true;
-          formation.units.forEach((u) => { u.damage = 100; });
+        if (!alive) {
+          if (enemyTargetTooltipEnemy === formation.followTarget) {
+            enemyTargetTooltip.hidden = true;
+            enemyTargetTooltipEnemy = null;
+            clearTimeout(enemyTargetTooltipTimer);
+          }
+          formation.followTarget = null;
+          formation.target = null;
+          formation.targetSetTime = -999;
+          return;
         }
+        formation.target = formationCenter(formation.followTarget);
       });
 
       const checkAutoRetreat = (formation, retreatX) => {
@@ -2712,31 +4095,33 @@ import {
         if (formation.disorder < 0.7) return;
         // 혼란도 0.1 증가마다 체크포인트 발동 (0.7, 0.8, 0.9, 1.0)
         const checkpoint = Math.floor(formation.disorder * 10) / 10;
-        if (checkpoint <= formation.retreatLastCheckpoint) return;
+        if (checkpoint <= Number(formation.retreatLastCheckpoint || 0)) return;
         formation.retreatLastCheckpoint = checkpoint;
         // 혼란도가 높을수록, 매력이 낮을수록 후퇴 확률 상승
         const retreatChance = (checkpoint - 0.6) * 0.6 * (1 - formation.general.charm / 100 * 0.5);
-        if (Math.random() < retreatChance) {
+        const retreatRoll = isOnlineMode()
+          ? onlineDeterministicRoll(game.online.seed, "retreat", formation.worldSide ?? formation.team, formation.id, checkpoint)
+          : Math.random();
+        if (retreatRoll < retreatChance) {
           formation.retreating = true;
+          showRetreatSpeech(formation);
           formation.speed = "FAST";
           formation.followTarget = null;
           formation.target = vec(retreatX, formation.anchor.y);
         }
       };
-      game.playerFormations.forEach((f) => checkAutoRetreat(f, 0));
-      game.enemyFormations.forEach((f) => checkAutoRetreat(f, MAP_WIDTH));
-
-      const allFormations = [...game.playerFormations, ...game.enemyFormations];
+      allFormations.forEach((f) => checkAutoRetreat(f, retreatXForFormation(f, f.team === "player" ? 0 : MAP_WIDTH)));
       allFormations.forEach((f) => { if (f.kihapCooldown > 0) f.kihapCooldown -= dt; });
 
+      const allSpatialHash = buildSpatialHash(allFormations);
+      const fireHash = game.fires.length ? buildFireParticleHash(game.fires) : null;
       const playerSpatialHash = buildSpatialHash(game.playerFormations);
       const enemySpatialHash = buildSpatialHash(game.enemyFormations);
-      const allSpatialHash = buildSpatialHash(allFormations);
-      game.playerFormations.forEach((formation) => updateFormation(formation, enemySpatialHash, allSpatialHash, dt));
-      game.enemyFormations.forEach((formation) => updateFormation(formation, playerSpatialHash, allSpatialHash, dt));
-      applyPositionCorrection();
+      game.playerFormations.forEach((formation) => updateFormation(formation, enemySpatialHash, allSpatialHash, dt, fireHash));
+      game.enemyFormations.forEach((formation) => updateFormation(formation, playerSpatialHash, allSpatialHash, dt, fireHash));
+      applyPositionCorrection(allSpatialHash);
       if (isHistoricalMode()) updateHistoricalAI(dt);
-      else updateAI(dt);
+      else if (!isOnlineMode()) updateAI(dt);
       updateSkills(dt);
       updateSpeechTriggers();
       checkBattleEnd();
@@ -2786,6 +4171,9 @@ import {
     game.terrainRender.chunkTileW = game.tileW;
     game.terrainRender.chunkSpritesReady = terrainSprites.ready;
     game.terrainRender.chunkPixiReady = pixiReady;
+    game.terrainRender.prefetchQueue.length = 0;
+    game.terrainRender.prefetchGen++;
+    game.terrainRender._prefetchScheduled = false;
     if (pixiUnitCtr) {
       for (const { sprite } of pixiTreeSprites) {
         pixiUnitCtr.removeChild(sprite);
@@ -2833,8 +4221,22 @@ import {
       }
     }
 
+    const clusterPadX = game.tileW * 4.5;
+    const clusterPadY = tileH * 4.5;
+    minIsoX -= clusterPadX;
+    maxIsoX += clusterPadX;
+    minIsoY -= clusterPadY;
+    maxIsoY += clusterPadY;
+
     const canvasChunk = createSurface(maxIsoX - minIsoX, maxIsoY - minIsoY);
     const chunkCtx = canvasChunk.getContext("2d");
+
+    // 청크 bake 전반에서 공유하는 임시 캔버스 — createSurface를 타일마다 호출하지 않고 재사용
+    const tileW1 = game.tileW + 4;
+    const tileH1 = Math.ceil(getTileH()) + 4;
+    const sharedTmp = createSurface(tileW1, tileH1);
+    const sharedTmpCtx = sharedTmp.getContext("2d");
+
     const tiles = [];
     for (let y = startY; y < endY; y += 1) {
       for (let x = startX; x < endX; x += 1) {
@@ -2853,112 +4255,388 @@ import {
       drawDiamond(chunkCtx, px, py, isBorder ? "#909090" : terrainInfo[tile].color);
     });
 
+    function punchWetlandDots(ctx, canvasW, canvasH, tileX, tileY) {
+      const previousComposite = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = "destination-out";
+      const numDots = 2 + tileHash(tileX * 7, tileY * 11) % 4;
+      for (let i = 0; i < numDots; i++) {
+        const rx = (tileHash(tileX * 1031 + i * 997,  tileY * 1013 + i * 983) % 10000) / 10000;
+        const ry = (tileHash(tileX * 1013 + i * 991,  tileY * 1031 + i * 977) % 10000) / 10000;
+        const rr = (tileHash(tileX * 1049 + i * 971,  tileY * 1021 + i * 967) % 10000) / 10000;
+        const dcx = (0.15 + rx * 0.70) * canvasW;
+        const dcy = (0.15 + ry * 0.70) * canvasH;
+        const dr  = (0.08 + rr * 0.18) * game.tileW;
+        const grad = ctx.createRadialGradient(dcx, dcy, 0, dcx, dcy, dr);
+        grad.addColorStop(0,    "rgba(0,0,0,1)");
+        grad.addColorStop(0.70, "rgba(0,0,0,1)");
+        grad.addColorStop(1,    "rgba(0,0,0,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(dcx, dcy, dr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = previousComposite;
+    }
+
+    function traceTileDiamond(ctx, px, py, overlap = 0.85) {
+      const halfW = tileWidth / 2 + overlap;
+      const halfH = tileH / 2 + overlap * 0.45;
+      ctx.moveTo(px, py - overlap * 0.2);
+      ctx.lineTo(px + halfW, py + halfH);
+      ctx.lineTo(px, py + tileH + overlap * 0.2);
+      ctx.lineTo(px - halfW, py + halfH);
+      ctx.closePath();
+    }
+
+    function worldPatternFor(ctx, tile, offsetX = 0, offsetY = 0) {
+      const texture = terrainWorldTexture(tile);
+      if (!texture?.naturalWidth) return null;
+      const pattern = ctx.createPattern(texture, "repeat");
+      if (!pattern) return null;
+      if (typeof DOMMatrix !== "undefined" && typeof pattern.setTransform === "function") {
+        const transform = new DOMMatrix();
+        transform.a = TERRAIN_WORLD_TEXTURE_SCALE;
+        transform.d = TERRAIN_WORLD_TEXTURE_SCALE;
+        transform.e = -minIsoX - offsetX;
+        transform.f = -minIsoY - offsetY;
+        pattern.setTransform(transform);
+      }
+      return pattern;
+    }
+
+    function fillWorldDiamond(ctx, tile, x, y, px, py, options = {}) {
+      const w = options.width ?? (tileWidth + 1);
+      const h = options.height ?? (tileH + 1);
+      const drawX = px - w / 2;
+      const drawY = py - 0.25;
+      // sharedTmp 재사용: 크기가 충분하면 clearRect로 초기화, 아니면 새로 할당
+      let tmp, tc;
+      if (sharedTmp.width >= w + 2 && sharedTmp.height >= h + 2) {
+        tmp = sharedTmp; tc = sharedTmpCtx;
+        tc.clearRect(0, 0, tmp.width, tmp.height);
+        tc.globalCompositeOperation = "source-over";
+        tc.globalAlpha = 1;
+      } else {
+        tmp = createSurface(w + 2, h + 2); tc = tmp.getContext("2d");
+      }
+      const pattern = worldPatternFor(tc, tile, drawX, drawY);
+      if (!pattern) return false;
+
+      tc.imageSmoothingEnabled = true;
+      tc.imageSmoothingQuality = "high";
+      tc.filter = terrainWorldToneFilter(tile);
+      tc.fillStyle = pattern;
+      tc.fillRect(0, 0, w + 2, h + 2);
+      tc.filter = "none";
+      if (options.punchWetland) punchWetlandDots(tc, w, h, x, y);
+
+      tc.globalCompositeOperation = "destination-in";
+      tc.beginPath();
+      traceTileDiamond(tc, w / 2, 0.25, 0.8);
+      tc.fillStyle = "#fff";
+      tc.fill();
+      tc.globalCompositeOperation = "source-over";
+
+      ctx.drawImage(tmp, 0, 0, w + 2, h + 2, drawX, drawY, w + 2, h + 2);
+      return true;
+    }
+
     if (terrainSprites.ready) {
       chunkCtx.imageSmoothingEnabled = true;
       chunkCtx.imageSmoothingQuality = "high";
 
-      // Pass 2A: 1×1 center 타일 — 전체 영역 베이스 (경계 타일 포함 모두)
-      chunkCtx.imageSmoothingEnabled = false;
-      tiles.forEach(([, x, y]) => {
-        const tile = game.terrain.tiles[y][x];
-        const variants = terrainSprites.tiles[TERRAIN_ASSET[tile]];
-        if (!variants?.length) return;
-        const sp = variants[tileHash(x, y) % variants.length];
-        if (!sp?.naturalWidth) return;
-        const iso = isoPoint(x, y);
-        const px = iso.x - minIsoX, py = iso.y - minIsoY;
-        const w  = game.tileW + 1.0;
-        const h  = getTileH() + 0.5;
-        chunkCtx.drawImage(sp, px - w / 2, py - 0.25, w, h);
+      // Pass 2A: 월드 좌표 기반 1×1 베이스 — 지형별 경로를 묶어 연속 샘플링
+      ["river", "plain", "grassland", "road", "mountain"].forEach((terrainType) => {
+        const pattern = worldPatternFor(chunkCtx, terrainType);
+        if (!pattern) return;
+
+        chunkCtx.save();
+        chunkCtx.beginPath();
+        let hasTiles = false;
+        tiles.forEach(([, x, y]) => {
+          if (game.terrain.tiles[y][x] !== terrainType) return;
+          const iso = isoPoint(x, y);
+          traceTileDiamond(chunkCtx, iso.x - minIsoX, iso.y - minIsoY);
+          hasTiles = true;
+        });
+        if (hasTiles) {
+          chunkCtx.clip();
+          chunkCtx.filter = terrainWorldToneFilter(terrainType);
+          chunkCtx.fillStyle = pattern;
+          chunkCtx.fillRect(0, 0, canvasChunk.width, canvasChunk.height);
+          chunkCtx.filter = "none";
+        }
+        chunkCtx.restore();
       });
 
-      // Pass 2B: 3×3 베이스 텍스처 — 1×1 위에 덮어씌움 (경계 타일 제외)
-      chunkCtx.imageSmoothingEnabled = true;
-      chunkCtx.imageSmoothingQuality = "high";
+      // 습지는 물 텍스처 위에 습지 텍스처를 얹고 작은 구멍으로 물을 노출시킨다.
       tiles.forEach(([, x, y]) => {
-        if (game.terrainRender.block[y][x] !== 1) return;
-
-        const tile = game.terrain.tiles[y][x];
-        let sprites = null;
-        if (tile === "plain")          sprites = terrainSprites.dirt;
-        else if (tile === "grassland") sprites = terrainSprites.plainGrass;
-        else if (tile === "mountain")  sprites = terrainSprites.forestFloor;
-        if (!sprites) return;
-
-        const v  = game.terrainRender.variant[y][x] % sprites.length;
-        const sp = sprites[v];
-        if (!sp?.naturalWidth) return;
-
+        if (game.terrain.tiles[y][x] !== "wetland") return;
         const iso = isoPoint(x, y);
-        const px  = iso.x - minIsoX, py = iso.y - minIsoY;
-        const w   = game.tileW * 3;
-        const h   = Math.round(w * sp.naturalHeight / sp.naturalWidth);
-        chunkCtx.drawImage(sp, px - w / 2, py, w, h);
+        const px = iso.x - minIsoX;
+        const py = iso.y - minIsoY;
+        fillWorldDiamond(chunkCtx, "river", x, y, px, py);
+        fillWorldDiamond(chunkCtx, "wetland", x, y, px, py, { punchWetland: true });
       });
     }
 
-    // Pass 2C: 경계 타일 3레이어 합성
+    const detailPatchSettingsFor = (terrainType) => {
+      if (!TERRAIN_DETAIL_PATCH_INDICES[terrainType]?.length) return null;
+      return {
+        baseAlpha: terrainType === "grassland" ? 0.58 : 0.38,
+        drawChance: terrainType === "grassland" ? 0.40 : 0.36,
+      };
+    };
+
+    const drawDetailPatchAt = (ctx, terrainType, x, y, originX, originY, alphaScale = 1) => {
+      const patchIndices = TERRAIN_DETAIL_PATCH_INDICES[terrainType];
+      const settings = detailPatchSettingsFor(terrainType);
+      if (!patchIndices?.length || !settings) return false;
+      if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return false;
+
+      const hash = tileHash(x * 3187 + (terrainType === "grassland" ? 113 : 197), y * 3761 + (terrainType === "grassland" ? 191 : 263));
+      if ((hash % 1000) / 1000 > settings.drawChance) return false;
+
+      const patchGroupHash = tileHash(Math.floor(x / 5) * 1553 + 31, Math.floor(y / 5) * 1877 + 47);
+      const patchIndex = patchIndices[(patchGroupHash + (hash >>> 8)) % patchIndices.length];
+      const patchImg = terrainSprites.clusters[patchIndex];
+      const def = TERRAIN_CLUSTER_DEFS[patchIndex];
+      if (!patchImg?.naturalWidth || !def) return false;
+
+      const iso = isoPoint(x, y);
+      const px = iso.x - originX + (((hash >>> 12) % 1000) / 1000 - 0.5) * game.tileW * 1.5;
+      const py = iso.y - originY + (((hash >>> 22) % 1000) / 1000 - 0.5) * tileH * 1.4;
+      const jitterScale = 0.76 + ((hash >>> 4) % 1000) / 1000 * 0.34;
+      const assetSizeScale = patchImg.naturalWidth / TERRAIN_CLUSTER_BASE_ASSET_WIDTH;
+      const drawW = game.tileW * TERRAIN_DETAIL_PATCH_BASE_DRAW_TILES * assetSizeScale * (def.scale ?? 1) * jitterScale;
+      const drawH = Math.round(drawW * patchImg.naturalHeight / patchImg.naturalWidth);
+      const flip = ((hash >>> 10) & 1);
+      ctx.globalAlpha = TERRAIN_DETAIL_PATCH_OPACITY * settings.baseAlpha * alphaScale * (0.82 + ((hash >>> 2) % 1000) / 1000 * 0.24);
+      ctx.save();
+      if (flip) {
+        ctx.translate(px, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(patchImg, -drawW / 2, py - drawH * 0.44, drawW, drawH);
+      } else {
+        ctx.drawImage(patchImg, px - drawW / 2, py - drawH * 0.44, drawW, drawH);
+      }
+      ctx.restore();
+      return true;
+    };
+
+    const drawMaskedDetailPatchTile = (ctx, terrainType, tileX, tileY, drawX, drawY, w, h, maskCv = null) => {
+      if (!TERRAIN_DETAIL_PATCH_ENABLED || !terrainSprites.ready || !terrainSprites.clusters?.length) return false;
+      if (!TERRAIN_DETAIL_PATCH_INDICES[terrainType]?.length) return false;
+
+      // sharedTmp 재사용
+      let tmp, tc;
+      if (sharedTmp.width >= w + 2 && sharedTmp.height >= h + 2) {
+        tmp = sharedTmp; tc = sharedTmpCtx;
+        tc.clearRect(0, 0, tmp.width, tmp.height);
+        tc.globalCompositeOperation = "source-over";
+        tc.globalAlpha = 1;
+      } else {
+        tmp = createSurface(w + 2, h + 2); tc = tmp.getContext("2d");
+      }
+      tc.imageSmoothingEnabled = true;
+      tc.imageSmoothingQuality = "high";
+      const prevAlpha = tc.globalAlpha;
+      const localPad = 3;
+      for (let ay = tileY - localPad; ay <= tileY + localPad; ay += 1) {
+        for (let ax = tileX - localPad; ax <= tileX + localPad; ax += 1) {
+          drawDetailPatchAt(tc, terrainType, ax, ay, minIsoX + drawX, minIsoY + drawY, 0.88);
+        }
+      }
+      tc.globalAlpha = prevAlpha;
+      tc.globalCompositeOperation = "destination-in";
+      if (maskCv) {
+        tc.drawImage(maskCv, 0, 0, w, h);
+      } else {
+        tc.beginPath();
+        traceTileDiamond(tc, w / 2, 0.25, 0.8);
+        tc.fillStyle = "#fff";
+        tc.fill();
+      }
+      tc.globalCompositeOperation = "source-over";
+      ctx.drawImage(tmp, 0, 0, w + 2, h + 2, drawX, drawY, w + 2, h + 2);
+      return true;
+    };
+
+    // 경계 타일에서 월드 텍스처 + 디테일 패치를 단일 temp 캔버스에 합성 후 마스크 1회 적용
+    const drawBorderTile = (ctx, terrainType, tileX, tileY, px, py, options = {}, maskCv = null, quarterDir = null) => {
+      const w = options.width ?? (tileWidth + 1);
+      const h = options.height ?? (tileH + 1);
+      const drawX = px - w / 2;
+      const drawY = py - 0.25;
+
+      let tmp, tc;
+      if (sharedTmp.width >= w + 2 && sharedTmp.height >= h + 2) {
+        tmp = sharedTmp; tc = sharedTmpCtx;
+        tc.clearRect(0, 0, tmp.width, tmp.height);
+        tc.globalCompositeOperation = "source-over";
+        tc.globalAlpha = 1;
+      } else {
+        tmp = createSurface(w + 2, h + 2); tc = tmp.getContext("2d");
+      }
+
+      const pattern = worldPatternFor(tc, terrainType, drawX, drawY);
+      if (!pattern) return false;
+      tc.imageSmoothingEnabled = true;
+      tc.imageSmoothingQuality = "high";
+      tc.filter = terrainWorldToneFilter(terrainType);
+      tc.fillStyle = pattern;
+      tc.fillRect(0, 0, w + 2, h + 2);
+      tc.filter = "none";
+      if (options.punchWetland) punchWetlandDots(tc, w, h, tileX, tileY);
+
+      if (TERRAIN_DETAIL_PATCH_ENABLED && terrainSprites.clusters?.length && TERRAIN_DETAIL_PATCH_INDICES[terrainType]?.length) {
+        const localPad = 3;
+        for (let ay = tileY - localPad; ay <= tileY + localPad; ay++) {
+          for (let ax = tileX - localPad; ax <= tileX + localPad; ax++) {
+            drawDetailPatchAt(tc, terrainType, ax, ay, minIsoX + drawX, minIsoY + drawY, 0.88);
+          }
+        }
+      }
+
+      tc.globalAlpha = 1;
+      tc.globalCompositeOperation = "destination-in";
+      if (maskCv) {
+        tc.drawImage(maskCv, 0, 0, w, h);
+      } else if (quarterDir) {
+        // 단일 면 사분면 클립: 다이아몬드 꼭짓점 좌표 (traceTileDiamond와 동일)
+        const overlap = 0.8;
+        const qpx = w / 2, qpy = 0.25;
+        const halfW = tileWidth / 2 + overlap;
+        const halfH = tileH / 2 + overlap * 0.45;
+        const topX = qpx,          topY = qpy - overlap * 0.2;
+        const rightX = qpx + halfW, rightY = qpy + halfH;
+        const botX = qpx,          botY = qpy + tileH + overlap * 0.2;
+        const leftX = qpx - halfW,  leftY = qpy + halfH;
+        const cqx = qpx, cqy = (topY + botY) / 2;
+        let v0x, v0y, v1x, v1y;
+        if      (quarterDir === "ULLL") { v0x = topX;   v0y = topY;   v1x = leftX;  v1y = leftY;  }
+        else if (quarterDir === "LULL") { v0x = topX;   v0y = topY;   v1x = rightX; v1y = rightY; }
+        else if (quarterDir === "LLUL") { v0x = rightX; v0y = rightY; v1x = botX;   v1y = botY;   }
+        else                            { v0x = botX;   v0y = botY;   v1x = leftX;  v1y = leftY;  }
+        tc.beginPath();
+        tc.moveTo(cqx, cqy); tc.lineTo(v0x, v0y); tc.lineTo(v1x, v1y);
+        tc.closePath();
+        // 외부 모서리 → 중심 방향으로 페이드아웃
+        const midEdgeX = (v0x + v1x) / 2, midEdgeY = (v0y + v1y) / 2;
+        const grad = tc.createLinearGradient(midEdgeX, midEdgeY, cqx, cqy);
+        grad.addColorStop(0, "rgba(255,255,255,1)");
+        grad.addColorStop(1, "rgba(255,255,255,0)");
+        tc.fillStyle = grad;
+        tc.fill();
+      } else {
+        tc.beginPath();
+        traceTileDiamond(tc, w / 2, 0.25, 0.8);
+        tc.fillStyle = "#fff";
+        tc.fill();
+      }
+      tc.globalCompositeOperation = "source-over";
+      ctx.drawImage(tmp, 0, 0, w + 2, h + 2, drawX, drawY, w + 2, h + 2);
+      return true;
+    };
+
+    if (TERRAIN_DETAIL_PATCH_ENABLED && terrainSprites.ready && terrainSprites.clusters?.length) {
+      chunkCtx.imageSmoothingEnabled = true;
+      chunkCtx.imageSmoothingQuality = "high";
+      const prevAlpha = chunkCtx.globalAlpha;
+
+      const drawDetailPatchTerrain = (terrainType) => {
+        const patchIndices = TERRAIN_DETAIL_PATCH_INDICES[terrainType];
+        if (!patchIndices?.length) return;
+
+        chunkCtx.save();
+        chunkCtx.beginPath();
+        let hasTerrainTiles = false;
+        tiles.forEach(([, x, y]) => {
+          if (game.terrain.tiles[y][x] !== terrainType) return;
+          const iso = isoPoint(x, y);
+          traceTileDiamond(chunkCtx, iso.x - minIsoX, iso.y - minIsoY);
+          hasTerrainTiles = true;
+        });
+        if (!hasTerrainTiles) {
+          chunkCtx.restore();
+          return;
+        }
+        chunkCtx.clip();
+
+        const anchorPad = 7;
+        const anchorStartX = Math.max(0, startX - anchorPad);
+        const anchorStartY = Math.max(0, startY - anchorPad);
+        const anchorEndX = Math.min(MAP_WIDTH, endX + anchorPad);
+        const anchorEndY = Math.min(MAP_HEIGHT, endY + anchorPad);
+
+        for (let y = anchorStartY; y < anchorEndY; y += 1) {
+          for (let x = anchorStartX; x < anchorEndX; x += 1) {
+            if (game.terrain.tiles[y][x] !== terrainType) continue;
+            drawDetailPatchAt(chunkCtx, terrainType, x, y, minIsoX, minIsoY);
+          }
+        }
+        chunkCtx.restore();
+      };
+
+      drawDetailPatchTerrain("plain");
+      drawDetailPatchTerrain("grassland");
+      drawDetailPatchTerrain("mountain");
+      chunkCtx.globalAlpha = prevAlpha;
+    }
+
+    // Pass 2C: 경계 타일 — 상위 지형 월드 텍스처에 1×1 알파 마스크 적용
     chunkCtx.imageSmoothingEnabled = true;
     chunkCtx.imageSmoothingQuality = "high";
 
     tiles.forEach(([, x, y]) => {
       const bd = game.terrainRender.borderData[y][x];
       if (!bd) return;
+      if (!terrainSprites.ready || !TERRAIN_1X1_MASK_ENABLED) return;
 
       const iso = isoPoint(x, y);
       const px = iso.x - minIsoX;
       const py = iso.y - minIsoY;
-      const w  = game.tileW;
 
-      // ── 3레이어 합성 (스프라이트 로드 완료 시) ─────────────────────────
-      if (terrainSprites.ready) {
-        const lowerVars = terrainSprites.tiles[TERRAIN_ASSET[bd.lowerT]];
-        const upperVars = terrainSprites.tiles[TERRAIN_ASSET[bd.upperT]];
-        const lowerImg = lowerVars?.[tileHash(x, y)     % (lowerVars?.length || 1)];
-        const upperImg = upperVars?.[tileHash(x+1, y+1) % (upperVars?.length || 1)];
-        if (lowerImg?.naturalWidth && upperImg?.naturalWidth) {
-          const h = Math.round(w * lowerImg.naturalHeight / lowerImg.naturalWidth);
-
-          // 레이어 1: 하위 지형 (전체 타일)
-          chunkCtx.drawImage(lowerImg, px - w / 2, py, w, h);
-
-          // 레이어 2+3: 상위 지형 + 알파마스크
-          if (bd.maskDir === "center") {
-            // center: 마스크 없이 상위 지형 전체
-            chunkCtx.drawImage(upperImg, px - w / 2, py, w, h);
-          } else if (bd.maskDir) {
-            const maskArr = terrainSprites.masks[bd.maskDir];
-            const maskCv = maskArr?.length
-              ? maskArr[tileHash(x, y) % maskArr.length]
-              : null;
-            if (maskCv) {
-              const mW = maskCv.width, mH = maskCv.height;
-              const tmp = createSurface(mW, mH);
-              const tc  = tmp.getContext("2d");
-              tc.drawImage(upperImg, 0, 0, mW, mH);
-              tc.globalCompositeOperation = "destination-in";
-              tc.drawImage(maskCv, 0, 0, mW, mH);
-              chunkCtx.drawImage(tmp, px - w / 2, py, w, h);
-            }
-          }
-          // maskDir === null: 하위 지형만 (레이어1 이미 그림)
+      for (const { upperT, maskDir } of bd.layers) {
+        const punchWetland = upperT === "wetland";
+        if (maskDir === "center") {
+          drawBorderTile(chunkCtx, upperT, x, y, px, py, { punchWetland });
+        } else if (maskDir === "ULLL" || maskDir === "LULL" || maskDir === "LLUL" || maskDir === "LLLU") {
+          drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, null, maskDir);
+        } else if (maskDir) {
+          const maskArr = terrainSprites.masks[maskDir];
+          const maskCv = maskArr?.length ? maskArr[tileHash(x, y) % maskArr.length] : null;
+          if (!maskCv) continue;
+          drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, maskCv);
         }
       }
-
     });
 
     // Pass 3A: 험준산악 — 청크 정렬 보장, 단일 청크 내 안전 렌더링
-    const ruggedImg = terrainSprites.ruggedMtn;
-    if (ruggedImg?.naturalWidth) {
+    const ruggedSprites = terrainSprites.ruggedMtn;
+    if (ruggedSprites?.length) {
       chunkCtx.imageSmoothingEnabled = true;
       chunkCtx.imageSmoothingQuality = "high";
-      tiles.forEach(([, x, y]) => {
+      const ruggedAnchors = [];
+      const ruggedStartX = Math.max(0, startX - RUGGED_MTN_SIZE);
+      const ruggedStartY = Math.max(0, startY - RUGGED_MTN_SIZE);
+      const ruggedEndX = Math.min(MAP_WIDTH, endX + RUGGED_MTN_SIZE);
+      const ruggedEndY = Math.min(MAP_HEIGHT, endY + RUGGED_MTN_SIZE);
+      for (let y = ruggedStartY; y < ruggedEndY; y += 1) {
+        for (let x = ruggedStartX; x < ruggedEndX; x += 1) {
+          if (game.terrainRender.ruggedMtn[y][x] === 1) ruggedAnchors.push([x + y, x, y]);
+        }
+      }
+      ruggedAnchors.sort((a, b) => a[0] - b[0]);
+      ruggedAnchors.forEach(([, x, y]) => {
         if (game.terrainRender.ruggedMtn[y][x] !== 1) return;
+        const ruggedImg = ruggedSprites[game.terrainRender.ruggedMtnVariant?.[y]?.[x] % ruggedSprites.length];
+        if (!ruggedImg?.naturalWidth) return;
         const iso = isoPoint(x, y);
         const px  = iso.x - minIsoX;
         const py  = iso.y - minIsoY;
-        const w   = game.tileW * 16;
-        const h   = tileH * 16;
+        const w   = game.tileW * 8;
+        const h   = tileH * 8;
         chunkCtx.drawImage(ruggedImg, px - w / 2, py, w, h);
       });
     }
@@ -2984,16 +4662,138 @@ import {
     }
 
     // Pass 3: 나무 — 캔버스 드로잉 + 월드 좌표 수집 (Y정렬 분리 시 활용)
+    const buildingSprites = terrainSprites.buildings;
+    if (buildingSprites?.length && game.terrainRender.buildingMap) {
+      chunkCtx.imageSmoothingEnabled = true;
+      chunkCtx.imageSmoothingQuality = "high";
+      const prevAlpha = chunkCtx.globalAlpha;
+      chunkCtx.globalAlpha = 0.8;
+      tiles.forEach(([, x, y]) => {
+        const buildingIndex = game.terrainRender.buildingMap[y][x] - 1;
+        if (buildingIndex < 0) return;
+        const buildingImg = buildingSprites[buildingIndex % buildingSprites.length];
+        if (!buildingImg?.naturalWidth) return;
+        const iso = isoPoint(x + 1, y + 1);
+        const px = iso.x - minIsoX;
+        const py = iso.y - minIsoY;
+        const w = game.tileW * 2;
+        const h = Math.round(w * buildingImg.naturalHeight / buildingImg.naturalWidth);
+        chunkCtx.drawImage(buildingImg, px - w / 2, py + tileH * 0.5 - h, w, h);
+      });
+      chunkCtx.globalAlpha = prevAlpha;
+    }
+
     const trees = [];
-    const treeImg = terrainSprites.tree;
-    if (treeImg?.naturalWidth) {
-      const tW = Math.round(game.tileW * 11 / 24);
-      const tH = Math.round(game.tileW * 22 / 24);
+    const treeImages = (terrainSprites.trees || []).filter(img => img?.naturalWidth);
+    if (!treeImages.length && terrainSprites.tree?.naturalWidth) treeImages.push(terrainSprites.tree);
+    if (TERRAIN_TREE_RENDER_ENABLED && treeImages.length) {
+      const treeBaseH = game.tileW * 22 / 24;
+      const treeVariantScale = (variantIndex) => TREE_VARIANT_HEIGHT_SCALE[variantIndex % TREE_VARIANT_HEIGHT_SCALE.length] ?? 1;
+      const treeDrawSize = (img, variantIndex, scale = 1) => {
+        const stH = Math.round(treeBaseH * scale * treeVariantScale(variantIndex));
+        const stW = Math.max(1, Math.round(stH * img.naturalWidth / img.naturalHeight));
+        return { stW, stH };
+      };
+      const chooseTreeVariant = (tx, ty, ruggedVal, edgeWeight, slotIndex) => {
+        const variantCount = treeImages.length;
+        if (variantCount <= 1) return 0;
+        const h = tileHash(tx * 2671 + slotIndex * 97, ty * 3253 + slotIndex * 131);
+        const pool = ruggedVal === 2
+          ? [0, 0, 1, 1, 2, 3, 7]
+          : edgeWeight > 0
+            ? [0, 1, 3, 4, 5, 6, 7]
+            : [0, 0, 1, 1, 2, 3, 4, 5, 6, 7];
+        return pool[h % pool.length] % variantCount;
+      };
+      const drawTreeShadow = ({ worldBx, worldBy, scale, variantIndex }) => {
+        const treeImg = treeImages[variantIndex % treeImages.length] || treeImages[0];
+        const { stW, stH } = treeDrawSize(treeImg, variantIndex, scale ?? 1);
+        const localX = worldBx - minIsoX;
+        const localY = worldBy - minIsoY;
+        const shadowW = clamp(stW * 0.98, game.tileW * 0.78, game.tileW * 2.20);
+        const shadowH = clamp(tileH * (0.34 + stW / Math.max(stH, 1) * 0.18), tileH * 0.32, tileH * 0.78);
+        const shadowAlpha = clamp(0.24 + stW / Math.max(game.tileW * 3.5, 1) * 0.13, 0.24, 0.42);
+
+        chunkCtx.save();
+        chunkCtx.globalCompositeOperation = "multiply";
+        chunkCtx.translate(localX + game.tileW * 0.12, localY + tileH * 0.18);
+        chunkCtx.scale(shadowW / 2, shadowH / 2);
+        const grad = chunkCtx.createRadialGradient(0, 0, 0, 0, 0, 1);
+        grad.addColorStop(0, `rgba(24,30,18,${shadowAlpha})`);
+        grad.addColorStop(0.68, `rgba(24,30,18,${shadowAlpha * 0.58})`);
+        grad.addColorStop(1, "rgba(24,30,18,0)");
+        chunkCtx.fillStyle = grad;
+        chunkCtx.beginPath();
+        chunkCtx.arc(0, 0, 1, 0, Math.PI * 2);
+        chunkCtx.fill();
+        chunkCtx.restore();
+      };
+      const canUseSparseTreeTile = (x, y, terrainType) => {
+        if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return false;
+        if (game.terrain.tiles[y][x] !== terrainType) return false;
+        if (game.terrainRender.isBorder?.[y]?.[x]) return false;
+        if (game.terrainRender.objectMap?.[y]?.[x] || game.terrainRender.buildingMap?.[y]?.[x]) return false;
+        return true;
+      };
+      const sparseTreeClusterSlots = (x, y, terrainType) => {
+        const targetCount = 2 + (tileHash(x * 1699 + 41, y * 2069 + 73) % 3);
+        const offsets = [
+          [1, 0], [-1, 0], [0, 1], [0, -1],
+          [1, 1], [-1, -1], [1, -1], [-1, 1],
+          [2, 0], [-2, 0], [0, 2], [0, -2],
+        ].sort((a, b) => {
+          const ah = tileHash((x + a[0]) * 2221 + 11, (y + a[1]) * 2551 + 17);
+          const bh = tileHash((x + b[0]) * 2221 + 11, (y + b[1]) * 2551 + 17);
+          return ah - bh;
+        });
+        const slots = canUseSparseTreeTile(x, y, terrainType) ? [{ tx: x, ty: y }] : [];
+        for (const [dx, dy] of offsets) {
+          if (slots.length >= targetCount) break;
+          const sx = x + dx;
+          const sy = y + dy;
+          if (canUseSparseTreeTile(sx, sy, terrainType)) slots.push({ tx: sx, ty: sy });
+        }
+        return slots.length ? slots : [{ tx: x, ty: y }];
+      };
 
       for (let ty = startY; ty < endY; ty++) {
         for (let tx = startX; tx < endX; tx++) {
-          if (game.terrain.tiles[ty][tx] !== "mountain") continue;
-          if (game.terrainRender.ruggedMtn[ty][tx]) continue;
+          const tile = game.terrain.tiles[ty][tx];
+          const isMountainTree = tile === "mountain";
+          if (!isMountainTree && tile !== "grassland") continue;
+          if (!isMountainTree) {
+            if (!canUseSparseTreeTile(tx, ty, tile)) continue;
+            const sparseRoll = (tileHash(tx * 4337 + 17, ty * 4933 + 29) % 100000) / 100000;
+            const sparseChance = tile === "grassland" ? 0.0045 : 0.0012;
+            if (sparseRoll > sparseChance) continue;
+          }
+          const ruggedVal = isMountainTree ? game.terrainRender.ruggedMtn[ty][tx] : 0;
+
+          // 험준산악 경계 판별 — 인접 블록 여부와 무관하게 블록 내 상대 위치로 결정
+          let edgeWeight = 0; // 0: 내부(스킵), 1: 북서/북동 변, 2: 남서/남동 외곽 변, 1(2nd): 남서/남동 2번째 행/열
+          if (isMountainTree && ruggedVal === 2) {
+            const ax = Math.floor(tx / CHUNK_TILES) * CHUNK_TILES;
+            const ay = Math.floor(ty / CHUNK_TILES) * CHUNK_TILES;
+            const relX = tx - ax; // 0..15
+            const relY = ty - ay; // 0..15
+            const C = CHUNK_TILES - 1; // 15
+
+            // 남서(relY 최대)/남동(relX 최대) 방향이 가장 잘 보이는 변 → 2타일 두께
+            const onSW  = relY === C;       // 남서쪽 외곽 변
+            const onSE  = relX === C;       // 남동쪽 외곽 변
+            const onSW2 = relY === C - 1;   // 남서쪽 2번째 행
+            const onSE2 = relX === C - 1;   // 남동쪽 2번째 열
+            const onNW  = relX === 0;       // 북서쪽 변
+            const onNE  = relY === 0;       // 북동쪽 변
+
+            if      (onSW || onSE)          edgeWeight = 2;
+            else if (onSW2 || onSE2)        edgeWeight = 1;
+            else if (onNW  || onNE)         edgeWeight = 1;
+            edgeWeight = game.terrainRender.ruggedMtnEdge?.[ty]?.[tx] ?? edgeWeight;
+            if (edgeWeight === 0) continue; // 내부 타일: 나무 없음
+          } else if (isMountainTree && ruggedVal !== 0) {
+            continue; // 앵커 타일(=1): 건너뜀
+          }
 
           const iso = isoPoint(tx, ty);
           const cx  = iso.x - minIsoX;
@@ -3003,39 +4803,68 @@ import {
           const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xFFFFFFFF; };
 
           const r = rng();
-          const count = r < 0.1 ? 0 : r < 0.4 ? 2 : 1;
+          // 험준산악 가장자리: 모든 변 동일하게 0~2그루
+          const sparseSlots = isMountainTree ? null : sparseTreeClusterSlots(tx, ty, tile);
+          const count = isMountainTree
+            ? (ruggedVal === 0
+              ? (r < 0.1 ? 0 : r < 0.4 ? 2 : 1)
+              : (r < 0.25 ? 0 : r < 0.65 ? 1 : 2))
+            : sparseSlots.length;
           for (let i = 0; i < count; i++) {
+            const treeTx = isMountainTree ? tx : sparseSlots[i].tx;
+            const treeTy = isMountainTree ? ty : sparseSlots[i].ty;
+            const treeIso = isMountainTree ? iso : isoPoint(treeTx, treeTy);
+            const treeCx = treeIso.x - minIsoX;
+            const treeCy = treeIso.y - minIsoY + tileH / 2;
             let bx, by;
             for (let attempt = 0; attempt < 8; attempt++) {
               const rx = (rng() - 0.5) * game.tileW;
               const ry = (rng() - 0.5) * tileH;
               if (Math.abs(rx) / (game.tileW / 2) + Math.abs(ry) / (tileH / 2) <= 1) {
-                bx = cx + rx;
-                by = cy + ry;
+                bx = treeCx + rx;
+                by = treeCy + ry;
                 break;
               }
             }
-            if (bx === undefined) { bx = cx; by = cy; }
-            const scale = 0.85 + rng() * 0.30; // ±15% 사이즈 지터
-            const hue = (rng() - 0.5) * 36;   // ±18deg (색상 5% 지터)
-            const sat = 95 + rng() * 10;       // 95%~105% (채도 5% 지터)
-            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: tx, tileY: ty, scale, hue, sat });
+            if (bx === undefined) { bx = treeCx; by = treeCy; }
+            const scale = 0.85 + rng() * 0.30;
+            const variantIndex = chooseTreeVariant(treeTx, treeTy, ruggedVal, isMountainTree ? edgeWeight : 1, i);
+            trees.push({ worldBx: bx + minIsoX, worldBy: by + minIsoY, tileX: treeTx, tileY: treeTy, scale, variantIndex });
           }
         }
       }
 
       // PIXI_TREE_SPRITES 비활성 시 캔버스에 직접 드로잉
-      if (!(PIXI_TREE_SPRITES && pixiReady && pixiTreeTex)) {
+      trees.forEach(drawTreeShadow);
+
+      if (!(PIXI_TREE_SPRITES && pixiReady && pixiTreeTex?.length)) {
         trees.sort((a, b) => a.worldBy - b.worldBy);
         chunkCtx.imageSmoothingEnabled = true;
         chunkCtx.imageSmoothingQuality = "high";
-        for (const { worldBx, worldBy, scale, hue, sat } of trees) {
-          const stW = Math.round(tW * (scale ?? 1));
-          const stH = Math.round(tH * (scale ?? 1));
-          chunkCtx.filter = `hue-rotate(${hue.toFixed(1)}deg) saturate(${sat.toFixed(1)}%)`;
-          chunkCtx.drawImage(treeImg, worldBx - minIsoX - stW / 2, worldBy - minIsoY - stH, stW, stH);
+        const prevTreeAlpha = chunkCtx.globalAlpha;
+        chunkCtx.globalAlpha = prevTreeAlpha * TREE_TONE_ALPHA;
+        // variantIndex별로 그룹화하여 filter 변경 횟수를 최소화 (N_trees → N_variants)
+        const treeBrightness = Math.round(TREE_TONE_BRIGHTNESS * 100);
+        const treeSaturation = Math.round(TREE_TONE_SATURATION * 94);
+        const fixedFilter = `brightness(${treeBrightness}%) saturate(${treeSaturation}%)`;
+        const byVariant = new Map();
+        for (const tree of trees) {
+          const vi = tree.variantIndex;
+          if (!byVariant.has(vi)) byVariant.set(vi, []);
+          byVariant.get(vi).push(tree);
+        }
+        chunkCtx.filter = fixedFilter;
+        // 각 변종을 Y정렬 후 그리되 filter는 변종이 바뀔 때만 1회 변경
+        for (const [, group] of byVariant) {
+          group.sort((a, b) => a.worldBy - b.worldBy);
+          for (const { worldBx, worldBy, scale, variantIndex } of group) {
+            const treeImg = treeImages[variantIndex % treeImages.length] || treeImages[0];
+            const { stW, stH } = treeDrawSize(treeImg, variantIndex, scale ?? 1);
+            chunkCtx.drawImage(treeImg, worldBx - minIsoX - stW / 2, worldBy - minIsoY - stH, stW, stH);
+          }
         }
         chunkCtx.filter = "none";
+        chunkCtx.globalAlpha = prevTreeAlpha;
       }
     }
 
@@ -3060,9 +4889,9 @@ import {
     return effDist;
   }
 
-  // 한 방향으로 광선을 쏘아 시야 한계(60 유효타일)까지의 실제 도달 거리 반환
+  // 한 방향으로 광선을 쏘아 시야 한계(50 유효타일)까지의 실제 도달 거리 반환
   function castRay(fromX, fromY, dirX, dirY) {
-    const VISION_LIMIT = 60;
+    const VISION_LIMIT = 50;
     const STEP = 0.5;
     let effDist = 0;
     let realDist = 0;
@@ -3161,6 +4990,7 @@ import {
     pixiGlowGfx.clear();
 
     const visibleIds = new Set();
+    const visibleDamageEffectIds = new Set();
 
     visible.forEach(({ formation, unit }, depth) => {
       visibleIds.add(unit.id);
@@ -3208,11 +5038,19 @@ import {
       const visualFacing = updateUnitVisualFacing(formation, unit);
       const moving = visualFacing.moving;
       const facingBack = visualFacing.facingBack;
+      const cavalryDirection = troopType === 'cavalry'
+        ? cavalryDirectionInfo(visualFacing.direction)
+        : null;
       if (hasPixiSprites(troopType)) {
-        if (moving) {
-          const fi = Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % troopWalkFrames(troopType);
-          if (facingBack && troopType === 'cavalry' && pixiWalkBackTex.cavalry.length > 0) {
-            sprite.texture = pixiWalkBackTex.cavalry[fi];
+        const fi = moving
+          ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % troopWalkFrames(troopType)
+          : 0;
+        if (cavalryDirection) {
+          const frames = cavalryPixiFrames(formation.team, cavalryDirection.direction);
+          sprite.texture = frames[fi] || pixiIdleTex.cavalry[formation.team];
+        } else if (moving) {
+          if (facingBack && troopType === 'cavalry' && pixiWalkBackTex.cavalry[formation.team]?.length > 0) {
+            sprite.texture = pixiWalkBackTex.cavalry[formation.team][fi];
           } else {
             sprite.texture = pixiWalkTex[troopType][formation.team][fi];
           }
@@ -3223,10 +5061,37 @@ import {
 
       sprite.x = cx;
       sprite.y = cy;
-      sprite.scale.x = visualFacing.facingLeft ? -spScale : spScale;
+      sprite.scale.x = (cavalryDirection ? cavalryDirection.flip : visualFacing.facingLeft) ? -spScale : spScale;
       sprite.scale.y = spScale;
       sprite.zIndex  = unit.x + unit.y;
       sprite.visible = true;
+
+      const effectTimer = unit.damageEffectTimer || 0;
+      const effectFrame = effectTimer > 0 && pixiDamageEffectTex.length
+        ? Math.min(UNIT_DAMAGE_EFFECT_FRAMES - 1, Math.floor((1 - effectTimer / UNIT_DAMAGE_EFFECT_DURATION) * UNIT_DAMAGE_EFFECT_FRAMES))
+        : -1;
+      let effectSprite = pixiDamageEffectSprites.get(unit.id);
+      if (effectFrame >= 0) {
+        if (!effectSprite) {
+          effectSprite = new PixiSprite();
+          effectSprite.anchor.set(0.5, 1);
+          pixiUnitCtr.addChild(effectSprite);
+          pixiDamageEffectSprites.set(unit.id, effectSprite);
+        }
+        const effectTex = pixiDamageEffectTex[effectFrame];
+        const effectScale = effectTex ? (dh * 1.08) / effectTex.height : spScale;
+        effectSprite.texture = effectTex;
+        effectSprite.x = cx;
+        effectSprite.y = cy;
+        effectSprite.scale.x = unit.damageEffectFlip ? -effectScale : effectScale;
+        effectSprite.scale.y = effectScale;
+        effectSprite.zIndex = unit.x + unit.y + 0.02;
+        effectSprite.alpha = 0.5;
+        effectSprite.visible = true;
+        visibleDamageEffectIds.add(unit.id);
+      } else if (effectSprite) {
+        effectSprite.visible = false;
+      }
     });
 
     // 살아있지만 현재 비가시 유닛은 hide (destroy 안 함 — 다시 보일 수 있음)
@@ -3244,6 +5109,14 @@ import {
         sprite.visible = false;
       }
     }
+    for (const [id, sprite] of pixiDamageEffectSprites) {
+      if (!aliveIds.has(id)) {
+        sprite.destroy();
+        pixiDamageEffectSprites.delete(id);
+      } else if (!visibleDamageEffectIds.has(id)) {
+        sprite.visible = false;
+      }
+    }
   }
 
   function renderFog() {
@@ -3252,7 +5125,20 @@ import {
     const W = canvas.clientWidth;
     const H = canvas.clientHeight;
     const tileH = getTileH();
-    const NUM_RAYS = 120; // 3° 간격
+    const NUM_RAYS = 60; // 6° 간격
+
+    // 4프레임마다 재계산 — 부대가 이동 중이면 2프레임마다
+    game._fogFrame = (game._fogFrame || 0) + 1;
+    const anyMoving = game.playerFormations.some(f => f.speed !== "STOP" && f.units.some(isUnitAlive));
+    const fogInterval = anyMoving ? 2 : 4;
+    const sizeChanged = !game._fogBlurCanvas ||
+      game._fogBlurCanvas.width !== Math.ceil(W) ||
+      game._fogBlurCanvas.height !== Math.ceil(H);
+
+    if (!sizeChanged && game._fogFrame % fogInterval !== 0) {
+      if (game._fogBlurCanvas) ctx.drawImage(game._fogBlurCanvas, 0, 0);
+      return;
+    }
 
     if (!game._fogCanvas || game._fogCanvas.width !== Math.ceil(W) || game._fogCanvas.height !== Math.ceil(H)) {
       game._fogCanvas = createSurface(W, H);
@@ -3272,7 +5158,7 @@ import {
 
       const center = formationCenter(f);
 
-      // 120 방향으로 광선을 쏘아 시야 폴리곤 꼭짓점 수집
+      // NUM_RAYS 방향으로 광선을 쏘아 시야 폴리곤 꼭짓점 수집
       const pts = [];
       for (let i = 0; i < NUM_RAYS; i++) {
         const angle = (i / NUM_RAYS) * Math.PI * 2;
@@ -3295,13 +5181,58 @@ import {
     });
 
     fCtx.globalCompositeOperation = "source-over";
-    ctx.filter = "blur(28px)";
-    ctx.drawImage(fog, 0, 0);
-    ctx.filter = "none";
+    if (sizeChanged) {
+      game._fogBlurCanvas = createSurface(W, H);
+    }
+    const fogBlur = game._fogBlurCanvas;
+    const bCtx = fogBlur.getContext("2d");
+    bCtx.clearRect(0, 0, W, H);
+    bCtx.filter = "blur(18px)";
+    bCtx.drawImage(fog, 0, 0);
+    bCtx.filter = "none";
+    ctx.drawImage(fogBlur, 0, 0);
+  }
+
+  function scheduleTerrainPrefetch(minCX, maxCX, minCY, maxCY) {
+    const tr = game.terrainRender;
+    const cache = tr.chunkCache;
+    const queue = tr.prefetchQueue;
+    const inQueue = new Set(queue.map(([cx, cy]) => chunkKey(cx, cy)));
+    const pad = 2;
+    for (let cy = minCY - pad; cy <= maxCY + pad; cy++) {
+      for (let cx = minCX - pad; cx <= maxCX + pad; cx++) {
+        if (cx >= minCX && cx <= maxCX && cy >= minCY && cy <= maxCY) continue;
+        if (cx < 0 || cy < 0 || cx > Math.ceil(MAP_WIDTH / CHUNK_TILES) || cy > Math.ceil(MAP_HEIGHT / CHUNK_TILES)) continue;
+        const key = chunkKey(cx, cy);
+        if (cache.has(key) || inQueue.has(key)) continue;
+        inQueue.add(key);
+        queue.push([cx, cy]);
+      }
+    }
+    if (queue.length === 0 || tr._prefetchScheduled) return;
+    tr._prefetchScheduled = true;
+    const gen = tr.prefetchGen;
+    const bake = (deadline) => {
+      if (tr.prefetchGen !== gen) { tr._prefetchScheduled = false; return; }
+      while (queue.length > 0) {
+        if (deadline && deadline.timeRemaining() < 2) break;
+        const [cx, cy] = queue.shift();
+        const key = chunkKey(cx, cy);
+        if (!cache.has(key)) cache.set(key, createTerrainChunk(cx, cy));
+      }
+      if (queue.length > 0) {
+        if (window.requestIdleCallback) requestIdleCallback(bake, { timeout: 1000 });
+        else setTimeout(() => bake(null), 0);
+      } else {
+        tr._prefetchScheduled = false;
+      }
+    };
+    if (window.requestIdleCallback) requestIdleCallback(bake, { timeout: 1000 });
+    else setTimeout(() => bake(null), 0);
   }
 
   function renderMap() {
-    ensureTerrainChunkCache();
+    if (game.battlePhase !== "live") ensureTerrainChunkCache();
     const origin = viewportOrigin();
     const samples = [
       toTile(0, 0),
@@ -3333,14 +5264,19 @@ import {
       if (!chunk) {
         chunk = createTerrainChunk(chunkX, chunkY);
         game.terrainRender.chunkCache.set(key, chunk);
-        if (PIXI_TREE_SPRITES && pixiReady && pixiTreeTex && chunk.trees.length > 0) {
-          const tW = Math.round(game.tileW * 11 / 24);
-          const tH = Math.round(game.tileW * 22 / 24);
-          for (const { worldBx, worldBy, tileX, tileY, scale } of chunk.trees) {
-            const tspr = new PixiSprite(pixiTreeTex);
-            tspr.width  = Math.round(tW * (scale ?? 1));
-            tspr.height = Math.round(tH * (scale ?? 1));
+        if (TERRAIN_TREE_RENDER_ENABLED && PIXI_TREE_SPRITES && pixiReady && pixiTreeTex?.length && chunk.trees.length > 0) {
+          const treeBaseH = game.tileW * 22 / 24;
+          for (const { worldBx, worldBy, tileX, tileY, scale, variantIndex } of chunk.trees) {
+            const tex = pixiTreeTex[variantIndex % pixiTreeTex.length] || pixiTreeTex[0];
+            const variantScale = TREE_VARIANT_HEIGHT_SCALE[variantIndex % TREE_VARIANT_HEIGHT_SCALE.length] ?? 1;
+            const targetH = Math.round(treeBaseH * (scale ?? 1) * variantScale);
+            const targetW = Math.max(1, Math.round(targetH * tex.width / tex.height));
+            const tspr = new PixiSprite(tex);
+            tspr.width  = targetW;
+            tspr.height = targetH;
             tspr.anchor.set(0.5, 1.0);
+            tspr.alpha = TREE_TONE_ALPHA;
+            tspr.tint = TREE_PIXI_TINT;
             tspr.zIndex = tileX + tileY;
             pixiUnitCtr.addChild(tspr);
             pixiTreeSprites.push({ sprite: tspr, worldBx, worldBy });
@@ -3349,10 +5285,11 @@ import {
       }
       ctx.drawImage(chunk.canvas, chunk.worldX - game.camera.x + origin.x, chunk.worldY - game.camera.y + origin.y);
     });
+    scheduleTerrainPrefetch(minChunkX, maxChunkX, minChunkY, maxChunkY);
   }
 
   function renderMapPixi() {
-    ensureTerrainChunkCache();
+    if (game.battlePhase !== "live") ensureTerrainChunkCache();
     const origin = viewportOrigin();
 
     // 지형/나무 컨테이너에 카메라 오프셋 적용 (스프라이트는 월드 좌표 고정)
@@ -3464,17 +5401,25 @@ import {
       const alive = f.units.filter(isUnitAlive);
       if (!alive.length) return false;
       const center = formationCenter(f);
-      return effectiveDistance(center.x, center.y, unit.x, unit.y) <= 60;
+      return effectiveDistance(center.x, center.y, unit.x, unit.y) <= 50;
     });
+  }
+
+  function isEnemyFormationVisible(formation) {
+    if (!formation || formation.team !== "enemy") return false;
+    if (game.battlePhase !== "live") return true;
+    return formation.units.some((unit) => isUnitAlive(unit) && isEnemyVisible(unit));
   }
 
   // ── 말풍선 시스템 ────────────────────────────────────────────────────
   function randFrom(arr) {
     if (!arr || !arr.length) return null;
+    if (isOnlineMode()) return arr[0];
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
   function tryShowSpeech(formation, text, priority = "low") {
+    if (isOnlineMode()) return;
     if (!text || !speechData) return;
     if (game.battlePhase !== "live") return;
     if (game.battleTime < formation.speechCooldown) return;
@@ -3485,12 +5430,21 @@ import {
   }
 
   function tryShowSpeechCommand(formation, text) {
+    if (isOnlineMode()) return;
     // 명령 계기 (저확률, 전투 전에도 발동)
     if (!text || !speechData) return;
     if (game.battleTime < formation.speechCooldown) return;
     if (Math.random() > 0.30) return;
     formation.speechBubble = { text, expiry: game.battleTime + 2.0 };
     formation.speechCooldown = game.battleTime + 5.0;
+  }
+
+  function showRetreatSpeech(formation) {
+    if (isOnlineMode() || !speechData?.retreat) return;
+    const text = randFrom(speechData.retreat);
+    if (!text) return;
+    formation.speechBubble = { text, expiry: game.battleTime + 2.5 };
+    formation.speechCooldown = game.battleTime + 10.0;
   }
 
   function getClockHour(fromFormation, toFormation) {
@@ -3512,12 +5466,11 @@ import {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    game.playerFormations.forEach(formation => {
+    const drawBubble = (formation, bgColor, fgColor) => {
       const b = formation.speechBubble;
       if (!b) return;
       if (now > b.expiry) { formation.speechBubble = null; return; }
 
-      // 페이드 인/아웃
       const age = 2.0 - (b.expiry - now);
       const alpha = Math.min(1, age * 6) * Math.min(1, (b.expiry - now) * 3.5);
       ctx.globalAlpha = alpha;
@@ -3527,19 +5480,16 @@ import {
       const dh = Math.round(troopRenderHeight(formation.troopType));
       const by = s.y + tileH / 2 - dh - 18;
 
-      // 텍스트 측정
       ctx.font = "bold 12px 'Noto Serif KR', serif";
       const tw = ctx.measureText(b.text).width;
       const pad = 12, bw = tw + pad * 2, bh = 28, br = 9;
       const lx = bx - bw / 2, ty = by - bh;
 
-      // 그림자
       ctx.shadowColor = "rgba(0,0,0,0.30)";
       ctx.shadowBlur = 6;
       ctx.shadowOffsetY = 3;
 
-      // 배경 + 꼬리 (테두리 없음)
-      ctx.fillStyle = "rgba(255, 251, 225, 0.72)";
+      ctx.fillStyle = bgColor;
       ctx.beginPath();
       ctx.moveTo(lx + br, ty);
       ctx.lineTo(lx + bw - br, ty);
@@ -3547,7 +5497,7 @@ import {
       ctx.lineTo(lx + bw, ty + bh - br);
       ctx.quadraticCurveTo(lx + bw, ty + bh, lx + bw - br, ty + bh);
       ctx.lineTo(bx + 7, ty + bh);
-      ctx.lineTo(bx,     ty + bh + 10);  // 꼬리 끝
+      ctx.lineTo(bx,     ty + bh + 10);
       ctx.lineTo(bx - 7, ty + bh);
       ctx.lineTo(lx + br, ty + bh);
       ctx.quadraticCurveTo(lx, ty + bh, lx, ty + bh - br);
@@ -3557,10 +5507,12 @@ import {
       ctx.fill();
       ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
-      // 텍스트
-      ctx.fillStyle = "#3a2200";
+      ctx.fillStyle = fgColor;
       ctx.fillText(b.text, bx, ty + bh / 2);
-    });
+    };
+
+    game.playerFormations.forEach(f => drawBubble(f, "rgba(255, 251, 225, 0.72)", "#3a2200"));
+    game.enemyFormations.forEach(f => drawBubble(f, "rgba(255, 228, 220, 0.72)", "#4a1200"));
 
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -3615,6 +5567,18 @@ import {
         }
       });
     });
+
+    // 적군 혼란도 상승 말풍선
+    game.enemyFormations.forEach(formation => {
+      if (formation.retreated || formation.retreating) return;
+      if (!formation.units.some(isUnitAlive)) return;
+      if (formation.disorder > 0.6 && !formation.speechDisorderTriggered) {
+        formation.speechDisorderTriggered = true;
+        tryShowSpeech(formation, randFrom(speechData.disorder), "high");
+      } else if (formation.disorder < 0.3) {
+        formation.speechDisorderTriggered = false;
+      }
+    });
   }
 
   function renderUnits() {
@@ -3635,7 +5599,7 @@ import {
     const canvasUnitMetrics = (formation) => {
       const troopType = normalizeTroopType(formation.troopType);
       if (!externalUnitLoaded) {
-        const fallbackScale = game.tileW / 20;
+        const fallbackScale = formation._cachedRenderScale ?? (game.tileW / 20);
         return { troopType, frameW: SPRITE_W, frameH: SPRITE_H, drawW: Math.round(SPRITE_W * fallbackScale), drawH: Math.round(SPRITE_H * fallbackScale), spriteScale: fallbackScale };
       }
       const teamSprite = troopType === "cavalry"
@@ -3645,7 +5609,7 @@ import {
           : unitWalkSprite;
       const frameW = teamSprite.naturalWidth / troopWalkFrames(troopType);
       const frameH = teamSprite.naturalHeight;
-      const spriteScale = troopRenderScale(troopType);
+      const spriteScale = formation._cachedRenderScale ?? troopRenderScale(troopType);
       return {
         troopType,
         frameW,
@@ -3677,6 +5641,36 @@ import {
     });
     ctx.restore();
 
+    // ── Pass 1.5: 글로우 패스 (스프라이트보다 먼저, 배치 처리) ──────────────
+    units.forEach(({ formation, unit }) => {
+      const screen = toScreen(unit.x, unit.y);
+      const cx = screen.x;
+      const cy = screen.y + tileH / 2;
+      const { troopType, drawW, drawH } = canvasUnitMetrics(formation);
+      const targetSlot = add(formation.anchor, worldFromLocal(formation, unit.slotLocal));
+      const slotDist = len(targetSlot.x - unit.x, targetSlot.y - unit.y);
+      const firstRowBonusActive = unit.isFirstRow && slotDist < 1.5;
+      const positionBonusActive = !firstRowBonusActive && slotDist < POSITION_DEFENSE_THRESHOLD;
+      const kihapActive = unit.kihapTimer > 0;
+      const skillBuffActive = formation.swiftTimer > 0
+        || formation.archeryTimer > 0
+        || (formation.guardTimer > 0 && slotDist < POSITION_DEFENSE_THRESHOLD);
+      if (firstRowBonusActive || positionBonusActive || kihapActive || skillBuffActive) {
+        const strongGlow  = firstRowBonusActive || kihapActive || skillBuffActive;
+        const cavalryScale = troopType === 'cavalry' ? 0.80 : 1.0;
+        const glowAlpha   = strongGlow ? 0.24 : 0.14;
+        const glowSize    = strongGlow
+          ? { x: 0.60 * cavalryScale, y: 0.50 * cavalryScale }
+          : { x: 0.50 * cavalryScale, y: 0.40 * cavalryScale };
+        ctx.fillStyle = formation.team === 'player'
+          ? `rgba(255,60,60,${glowAlpha})`
+          : `rgba(255,170,70,${glowAlpha})`;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - drawH * 0.35, drawW * glowSize.x, drawH * glowSize.y, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
     // ── Pass 2: 스프라이트 ────────────────────────────────────────────────
     ctx.imageSmoothingEnabled = false;
     units.forEach(({ formation, unit }) => {
@@ -3686,15 +5680,6 @@ import {
       const metrics = canvasUnitMetrics(formation);
       const { troopType, drawW, drawH } = metrics;
 
-      const targetSlot = add(formation.anchor, worldFromLocal(formation, unit.slotLocal));
-      const slotDist = len(targetSlot.x - unit.x, targetSlot.y - unit.y);
-      const firstRowBonusActive = unit.isFirstRow && slotDist < 1.5;
-      const positionBonusActive = !firstRowBonusActive && slotDist < POSITION_DEFENSE_THRESHOLD;
-      const kihapActive = unit.kihapTimer > 0;
-      const skillBuffActive = formation.swiftTimer > 0
-        || formation.archeryTimer > 0
-        || (formation.guardTimer > 0 && slotDist < POSITION_DEFENSE_THRESHOLD);
-
       const visualFacing = updateUnitVisualFacing(formation, unit);
       const isMoving = visualFacing.moving;
       const isFacingBack = visualFacing.facingBack;
@@ -3702,57 +5687,86 @@ import {
       const frameIdx = isMoving ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % frameCount : 0;
       const facingLeft = visualFacing.facingLeft;
       const spriteSet = externalUnitLoaded ? null : game.spriteCache[formation.team][frameIdx];
-      const sprite = externalUnitLoaded ? null : (firstRowBonusActive || kihapActive || skillBuffActive
-        ? (facingLeft ? spriteSet.bonusLeft : spriteSet.bonusRight)
-        : (facingLeft ? spriteSet.left      : spriteSet.right));
+      const sprite = externalUnitLoaded ? null : ((() => {
+        const targetSlot2 = add(formation.anchor, worldFromLocal(formation, unit.slotLocal));
+        const slotDist2 = len(targetSlot2.x - unit.x, targetSlot2.y - unit.y);
+        const frb = unit.isFirstRow && slotDist2 < 1.5;
+        const kihap = unit.kihapTimer > 0;
+        const skillBuff = formation.swiftTimer > 0 || formation.archeryTimer > 0 || (formation.guardTimer > 0 && slotDist2 < POSITION_DEFENSE_THRESHOLD);
+        return (frb || kihap || skillBuff)
+          ? (facingLeft ? spriteSet.bonusLeft : spriteSet.bonusRight)
+          : (facingLeft ? spriteSet.left : spriteSet.right);
+      })());
 
       const drawX = cx - drawW / 2;
       const drawY = cy - drawH;
 
-      // 보너스 이펙트: 선두행은 강하게, 일반 정위치는 은은하게 표시
-      if (firstRowBonusActive || positionBonusActive || kihapActive || skillBuffActive) {
-        const strongGlow  = firstRowBonusActive || kihapActive || skillBuffActive;
-        const cavalryScale = troopType === 'cavalry' ? 0.80 : 1.0; // 기병 글로우 크기 축소
-        const glowAlpha   = strongGlow ? 0.24 : 0.14;
-        const glowSize    = strongGlow
-          ? { x: 0.60 * cavalryScale, y: 0.50 * cavalryScale }
-          : { x: 0.50 * cavalryScale, y: 0.40 * cavalryScale };
-        const glowColor   = formation.team === 'player'
-          ? `rgba(255,60,60,${glowAlpha})`
-          : `rgba(255,170,70,${glowAlpha})`;
-        ctx.save();
-        ctx.fillStyle = glowColor;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy - drawH * 0.35, drawW * glowSize.x, drawH * glowSize.y, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
       if (externalUnitLoaded) {
-        const teamSprite = troopType === "cavalry"
-          ? (isFacingBack && cavalryWalkBackSprite.naturalWidth > 0
-              ? cavalryWalkBackSprite
-              : (formation.team === 'enemy' ? cavalryWalkBlueSprite : cavalryWalkSprite))
-          : formation.team === 'enemy'
-            ? (isMoving && unitWalkBlueSprite.naturalWidth > 0 ? unitWalkBlueSprite : unitIdleBlueSprite)
-            : (isMoving ? unitWalkSprite : unitIdleSprite);
+        const cavalryDirection = troopType === "cavalry"
+          ? cavalryDirectionInfo(visualFacing.direction)
+          : null;
+        const teamSprite = cavalryDirection
+          ? cavalryDirectionSprite(formation.team, cavalryDirection.direction)
+          : troopType === "cavalry"
+            ? (isFacingBack
+                ? (formation.team === 'enemy'
+                    ? (cavalryWalkBackBlueSprite.naturalWidth > 0 ? cavalryWalkBackBlueSprite : cavalryWalkBlueSprite)
+                    : (cavalryWalkBackSprite.naturalWidth > 0 ? cavalryWalkBackSprite : cavalryWalkSprite))
+                : (formation.team === 'enemy' ? cavalryWalkBlueSprite : cavalryWalkSprite))
+            : formation.team === 'enemy'
+              ? (isMoving && unitWalkBlueSprite.naturalWidth > 0 ? unitWalkBlueSprite : unitIdleBlueSprite)
+              : (isMoving ? unitWalkSprite : unitIdleSprite);
         const usesWalkSheet = isMoving || troopType === "cavalry";
         const frameW = usesWalkSheet ? teamSprite.naturalWidth / troopWalkFrames(troopType) : teamSprite.naturalWidth;
         const frameH = teamSprite.naturalHeight;
         const sx = usesWalkSheet ? frameIdx * frameW : 0;
         const drawUnitX = cx - drawW / 2;
         const drawUnitY = cy - drawH;
-        ctx.save();
-        if (facingLeft) {
+        const shouldFlip = cavalryDirection ? cavalryDirection.flip : facingLeft;
+        if (shouldFlip) {
+          ctx.save();
           ctx.translate(cx, 0);
           ctx.scale(-1, 1);
           ctx.drawImage(teamSprite, sx, 0, frameW, frameH, -drawW / 2, drawUnitY, drawW, drawH);
+          ctx.restore();
         } else {
           ctx.drawImage(teamSprite, sx, 0, frameW, frameH, drawUnitX, drawUnitY, drawW, drawH);
         }
-        ctx.restore();
       } else {
         ctx.drawImage(sprite, drawX, drawY, drawW, drawH);
+      }
+      if ((unit.damageEffectTimer || 0) > 0 && unitDamageEffectSprite.naturalWidth > 0) {
+        const effectFrameW = unitDamageEffectSprite.naturalWidth / UNIT_DAMAGE_EFFECT_FRAMES;
+        const effectFrameH = unitDamageEffectSprite.naturalHeight;
+        const effectFrame = Math.min(
+          UNIT_DAMAGE_EFFECT_FRAMES - 1,
+          Math.floor((1 - unit.damageEffectTimer / UNIT_DAMAGE_EFFECT_DURATION) * UNIT_DAMAGE_EFFECT_FRAMES)
+        );
+        const effectDrawH = drawH * 1.08;
+        const effectDrawW = effectDrawH * (effectFrameW / effectFrameH);
+        if (unit.damageEffectFlip) {
+          ctx.save();
+          ctx.translate(cx, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            unitDamageEffectSprite,
+            effectFrame * effectFrameW, 0, effectFrameW, effectFrameH,
+            Math.round(-effectDrawW / 2),
+            Math.round(cy - effectDrawH),
+            Math.round(effectDrawW),
+            Math.round(effectDrawH)
+          );
+          ctx.restore();
+        } else {
+          ctx.drawImage(
+            unitDamageEffectSprite,
+            effectFrame * effectFrameW, 0, effectFrameW, effectFrameH,
+            Math.round(cx - effectDrawW / 2),
+            Math.round(cy - effectDrawH),
+            Math.round(effectDrawW),
+            Math.round(effectDrawH)
+          );
+        }
       }
     });
     ctx.imageSmoothingEnabled = true;
@@ -3844,9 +5858,37 @@ import {
     ctx.strokeStyle = "rgba(55, 25, 15, 0.65)";
     ctx.fillStyle   = "rgba(55, 25, 15, 0.60)";
     ctx.lineWidth = 1;
-    game.traces.forEach(({ x, y, type }) => {
+    game.traces.forEach(({ x, y, type, flip }) => {
       const s = toScreen(x, y);
       const cx = s.x, cy = s.y + tileH / 2;
+      const remains = remainsSprites[type % remainsSprites.length];
+      if (remains?.complete && remains.naturalWidth > 0) {
+        const drawW = game.tileW * 1.3;
+        const drawH = drawW * (remains.naturalHeight / remains.naturalWidth);
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        if (flip) {
+          ctx.translate(cx, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            remains,
+            Math.round(-drawW / 2),
+            Math.round(cy - drawH * 0.58),
+            Math.round(drawW),
+            Math.round(drawH),
+          );
+        } else {
+          ctx.drawImage(
+            remains,
+            Math.round(cx - drawW / 2),
+            Math.round(cy - drawH * 0.58),
+            Math.round(drawW),
+            Math.round(drawH),
+          );
+        }
+        ctx.restore();
+        return;
+      }
       if (type === 0) {
         // X 형태
         ctx.beginPath();
@@ -4153,7 +6195,8 @@ import {
     renderFormationSelection();
 
     if (pixiReady) {
-      if (pixiApp.renderer.width !== Math.ceil(width) || pixiApp.renderer.height !== Math.ceil(height)) {
+      if (width !== _pixiRendererW || height !== _pixiRendererH) {
+        _pixiRendererW = width; _pixiRendererH = height;
         pixiApp.renderer.resize(width, height);
       }
       renderUnitsPixi();
@@ -4169,6 +6212,7 @@ import {
     renderPlayerTargets();
     renderScenarioMarkers();
     renderSpeechBubbles();
+    updateEnemyTargetTooltipPosition();
     if (game.battlePhase !== "live") renderMinimap();
   }
 
@@ -4219,6 +6263,7 @@ import {
 
   function refreshButtons() {
     const selected = currentSelection()[0];
+    if (isOnlineMode()) game.speedMultiplier = 1;
     if (selected) selected.density = normalizeDensityForTroopType(selected.troopType, selected.density);
 
     // 속도·밀도 버튼 활성 상태
@@ -4233,11 +6278,14 @@ import {
     // 상단 버튼
     phaseButton.textContent = game.battlePhase === "planning" ? "전투 개시" : "전투 진행 중";
     phaseButton.disabled = game.battlePhase !== "planning";
-    speedToggleButton.disabled = game.battlePhase !== "live";
+    speedToggleButton.disabled = game.battlePhase !== "live" || isOnlineMode();
     speedToggleButton.classList.toggle("active", game.speedMultiplier === 2);
     speedToggleButton.textContent = game.speedMultiplier === 2 ? "기본속도" : "2배속";
-    troopAdjustBtn.hidden = isHistoricalMode();
+    phaseButton.hidden = isOnlineMode();
+    speedToggleButton.hidden = isOnlineMode();
+    troopAdjustBtn.hidden = isHistoricalMode() || isOnlineMode();
     troopAdjustBtn.disabled = game.battlePhase !== "planning" || isHistoricalMode();
+    endBattleBtn.hidden = isHistoricalMode();
     if (isScenarioSceneActive()) {
       phaseButton.disabled = true;
       speedToggleButton.disabled = true;
@@ -4331,10 +6379,128 @@ import {
     }
   }
 
+  function setFormationSpeed(formation, newSpeed, showSpeech = true) {
+    if (!formation || formation.retreating) return;
+    if (newSpeed === "STOP") {
+      if (formation.speed === "STOP") {
+        formation.speed = formation.prevSpeed || "NORMAL";
+      } else {
+        formation.prevSpeed = formation.speed;
+        formation.speed = "STOP";
+        formation.target = null;
+        if (showSpeech && speechData) tryShowSpeechCommand(formation, randFrom(speechData.speed_stop));
+      }
+      return;
+    }
+    if (formation.speed === "STOP") formation.prevSpeed = newSpeed;
+    formation.speed = newSpeed;
+    if (showSpeech && newSpeed === "SLOW" && speechData)
+      tryShowSpeechCommand(formation, "현재 진형을 유지한채 이동하라.");
+    if (showSpeech && newSpeed === "FAST" && speechData)
+      tryShowSpeechCommand(formation, randFrom(speechData.speed_fast));
+  }
+
+  function setFormationDensity(formation, newDensity, showSpeech = true) {
+    if (!formation || formation.retreating) return;
+    if (!isDensityAllowed(formation.troopType, newDensity)) return;
+    formation.density = newDensity;
+    initializeFormationSlots(formation, true);
+    if (showSpeech && speechData) {
+      const key = newDensity === "TIGHT" ? "density_tight"
+                : newDensity === "WIDE"  ? "density_wide" : null;
+      if (key) tryShowSpeechCommand(formation, randFrom(speechData[key]));
+    }
+  }
+
+  function adjustFormationRatio(formation, delta) {
+    if (!formation || formation.retreating) return;
+    formation.ratio = clamp(formation.ratio + delta, 0.33, 3.0);
+    initializeFormationSlots(formation, true);
+  }
+
+  function moveFormation(formation, tile, clickedEnemy = null) {
+    if (!formation || formation.retreating) return;
+    if (clickedEnemy) {
+      formation.followTarget = clickedEnemy;
+      formation.target = formationCenter(clickedEnemy);
+      formation.targetSetTime = game.battleTime;
+      const desiredFacing = normalize(sub(formation.target, formation.anchor));
+      if (canTurnWhileMoving(formation)) applyTurnRule(formation, desiredFacing);
+      return;
+    }
+    formation.followTarget = null;
+    const desiredFacing = normalize(sub(tile, formation.anchor));
+    if (canTurnWhileMoving(formation)) applyTurnRule(formation, desiredFacing);
+    if (formation.speed === "STOP") {
+      if (game.battlePhase === "planning") {
+        formation.target = vec(tile.x, tile.y);
+        formation.targetSetTime = game.battleTime;
+      }
+    } else {
+      formation.target = vec(tile.x, tile.y);
+      formation.targetSetTime = game.battleTime;
+    }
+  }
+
+  function toggleFormationStop(formation, showSpeech = true) {
+    if (!formation || formation.retreating) return;
+    if (formation.speed === "STOP") {
+      formation.speed = formation.prevSpeed || "NORMAL";
+    } else {
+      formation.prevSpeed = formation.speed;
+      formation.speed = "STOP";
+      formation.target = null;
+      if (showSpeech && speechData) tryShowSpeechCommand(formation, randFrom(speechData.speed_stop));
+    }
+  }
+
+  function applyOnlineCommand(side, command) {
+    if (!command) return;
+    if (command.type === "START_BATTLE") {
+      startLiveBattle();
+      return;
+    }
+    const formation = onlineFormationsForSide(side).find(f => f.id === command.formationId);
+    if (!formation) return;
+    switch (command.type) {
+      case "MOVE": {
+        const targetEnemy = command.targetEnemyId == null ? null
+          : onlineOpponentsForSide(side).find(f => f.id === command.targetEnemyId);
+        moveFormation(formation, vec(command.tx, command.ty), targetEnemy);
+        if (targetEnemy && side === game.online.side) showEnemyTargetTooltip(targetEnemy);
+        break;
+      }
+      case "SET_SPEED":
+        setFormationSpeed(formation, command.speed, side === game.online.side);
+        break;
+      case "SET_DENSITY":
+        setFormationDensity(formation, command.density, side === game.online.side);
+        break;
+      case "ADJUST_RATIO":
+        adjustFormationRatio(formation, Number(command.delta || 0));
+        break;
+      case "USE_SKILL":
+        activateSkill(formation);
+        break;
+      case "TOGGLE_STOP":
+        toggleFormationStop(formation, side === game.online.side);
+        break;
+    }
+    game.hudDirty = true;
+  }
+
   buttons.speed.forEach((button) => {
     button.addEventListener("click", () => {
       if (isScenarioSceneActive()) return;
       const newSpeed = button.dataset.speed;
+      if (isOnlineMode()) {
+        sendOnlineCommands(currentSelection().map(formation => ({
+          type: "SET_SPEED",
+          formationId: formation.id,
+          speed: newSpeed,
+        })));
+        return;
+      }
       currentSelection().forEach((formation) => {
         if (formation.retreating) return;
         if (newSpeed === "STOP") {
@@ -4369,6 +6535,14 @@ import {
     button.addEventListener("click", () => {
       if (isScenarioSceneActive()) return;
       const newDensity = button.dataset.density;
+      if (isOnlineMode()) {
+        sendOnlineCommands(currentSelection().map(formation => ({
+          type: "SET_DENSITY",
+          formationId: formation.id,
+          density: newDensity,
+        })));
+        return;
+      }
       currentSelection().forEach((formation) => {
         if (formation.retreating) return;
         if (!isDensityAllowed(formation.troopType, newDensity)) return;
@@ -4387,6 +6561,14 @@ import {
 
   buttons.ratioDown.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "ADJUST_RATIO",
+        formationId: formation.id,
+        delta: -0.3,
+      })));
+      return;
+    }
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       formation.ratio = clamp(formation.ratio - 0.3, 0.33, 3.0);
@@ -4397,6 +6579,14 @@ import {
 
   buttons.ratioUp.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "ADJUST_RATIO",
+        formationId: formation.id,
+        delta: 0.3,
+      })));
+      return;
+    }
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       formation.ratio = clamp(formation.ratio + 0.3, 0.33, 3.0);
@@ -4412,6 +6602,12 @@ import {
   function startLiveBattle() {
     if (game.battlePhase !== "planning") return;
     game.battlePhase = "live";
+    _battleTileH = Math.floor(game.tileW / 2);
+    ensureTerrainChunkCache();
+    const allF2 = [...game.playerFormations, ...game.enemyFormations];
+    allF2.forEach((f) => {
+      f._cachedRenderScale = troopRenderScale(normalizeTroopType(f.troopType));
+    });
     if (isMobile()) setTopbarCollapsed(true);
     const allF = [...game.playerFormations, ...game.enemyFormations];
     allF.forEach((f) => { f.kihapCooldown = kihapMaxCooldown(f); f.skillCooldown = skillMaxCooldown(f); });
@@ -4424,11 +6620,33 @@ import {
 
   phaseButton.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands([{ type: "START_BATTLE" }]);
+      return;
+    }
     startLiveBattle();
+  });
+
+  endBattleBtn.addEventListener("click", () => {
+    if (isOnlineMode()) {
+      if (game.battlePhase === "live" && !game.online?.resultSubmitted) {
+        submitOnlineResult(false);
+      }
+      game.battlePhase = "ended";
+      showBattleResult(false);
+      onlineClient.disconnect();
+      if (game.online?.isGuest) {
+        onlineClient.isGuest = false;
+        onlineClient.player = null;
+      }
+      return;
+    }
+    setScreen("home");
   });
 
   speedToggleButton.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) return;
     if (game.battlePhase !== "live") return;
     // 정지 상태에서 배속 토글 → 정지 전 속도로 복귀
     currentSelection().forEach((formation) => {
@@ -4441,12 +6659,26 @@ import {
 
   kihapBtn.addEventListener("click", () => {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "USE_SKILL",
+        formationId: formation.id,
+      })));
+      return;
+    }
     currentSelection().forEach((formation) => activateSkill(formation));
     refreshButtons();
   });
 
   function toggleStop() {
     if (isScenarioSceneActive()) return;
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "TOGGLE_STOP",
+        formationId: formation.id,
+      })));
+      return;
+    }
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
       if (formation.speed === "STOP") {
@@ -4529,6 +6761,41 @@ import {
     game.dragState = null;
   });
 
+  // ── 적 진형 이동목표 툴팁 ───────────────────────────────────────────
+  let enemyTargetTooltipTimer = null;
+  let enemyTargetTooltipEnemy = null;
+
+  function updateEnemyTargetTooltipPosition() {
+    if (!enemyTargetTooltipEnemy || enemyTargetTooltip.hidden) return;
+    const center = formationCenter(enemyTargetTooltipEnemy);
+    const sc = toScreen(center.x, center.y);
+    enemyTargetTooltip.style.left = `${sc.x + 3}px`;
+    enemyTargetTooltip.style.top = `${sc.y + 3}px`;
+    const initial = formationInitialTroops(enemyTargetTooltipEnemy);
+    const remaining = formationRemainingTroops(enemyTargetTooltipEnemy);
+    enemyTargetBarFill.style.width = `${(remaining / Math.max(1, initial)) * 100}%`;
+  }
+
+  function showEnemyTargetTooltip(enemy) {
+    if (!enemy || !enemyTargetTooltip) return;
+    const maxTroops = game.enemyFormations.reduce(
+      (m, f) => Math.max(m, formationInitialTroops(f)), 1);
+    const initial = formationInitialTroops(enemy);
+    const remaining = formationRemainingTroops(enemy);
+    enemyTargetTooltipEnemy = enemy;
+    enemyTargetNameEl.textContent = enemy.general.name;
+    enemyTargetBarTrack.style.width = `${(initial / maxTroops) * 70}px`;
+    enemyTargetBarFill.style.width = `${(remaining / Math.max(1, initial)) * 100}%`;
+    enemyTargetTooltip.style.transform = "translate(-50%, calc(-100% - 16px))";
+    updateEnemyTargetTooltipPosition();
+    enemyTargetTooltip.hidden = false;
+    clearTimeout(enemyTargetTooltipTimer);
+    enemyTargetTooltipTimer = setTimeout(() => {
+      enemyTargetTooltip.hidden = true;
+      enemyTargetTooltipEnemy = null;
+    }, 5000);
+  }
+
   // ── 이동 명령 헬퍼 (우클릭 / 터치 공용) ─────────────────────────────
   function issueMoveCommand(offsetX, offsetY) {
     if (isScenarioSceneActive()) return;
@@ -4537,9 +6804,20 @@ import {
     let minDist = 8.0;
     for (const f of game.enemyFormations) {
       if (!f.units.some(isUnitAlive)) continue;
+      if (!isEnemyFormationVisible(f)) continue;
       const center = formationCenter(f);
       const d = len(center.x - tile.x, center.y - tile.y);
       if (d < minDist) { minDist = d; clickedEnemy = f; }
+    }
+    if (isOnlineMode()) {
+      sendOnlineCommands(currentSelection().map(formation => ({
+        type: "MOVE",
+        formationId: formation.id,
+        tx: tile.x,
+        ty: tile.y,
+        targetEnemyId: clickedEnemy?.id ?? null,
+      })));
+      return;
     }
     currentSelection().forEach((formation) => {
       if (formation.retreating) return;
@@ -4564,6 +6842,7 @@ import {
         }
       }
     });
+    if (clickedEnemy) showEnemyTargetTooltip(clickedEnemy);
   }
 
   // ── 터치 컨트롤 ───────────────────────────────────────────────────────
@@ -4619,6 +6898,7 @@ import {
 
       // 핀치 줌
       const ratio = dist / touchState.lastDist;
+      if (game.battlePhase === "live") { touchState.lastDist = dist; return; }
       const levels = TOUCH_ZOOM_LEVELS;
       const idx = levels.indexOf(game.tileW);
       const curIdx = idx !== -1 ? idx : levels.length - 1;
@@ -4681,6 +6961,7 @@ import {
 
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
+    if (game.battlePhase === "live") return;
     const old = game.tileW;
     const idx = ZOOM_LEVELS.indexOf(old);
     const curIdx = idx !== -1 ? idx : ZOOM_LEVELS.length - 1;
@@ -4705,13 +6986,24 @@ import {
     const dt = Math.min(0.05, (now - tick.last) / 1000);
     tick.last = now;
     if (game.paused) { requestAnimationFrame(tick); return; }
-    game.simulationAccumulator = Math.min(game.simulationAccumulator + dt * game.speedMultiplier, SIMULATION_STEP * MAX_SIMULATION_STEPS);
-    let stepCount = 0;
-    while (game.simulationAccumulator >= SIMULATION_STEP && stepCount < MAX_SIMULATION_STEPS) {
-      update(SIMULATION_STEP);
-      game.simulationAccumulator -= SIMULATION_STEP;
-      stepCount += 1;
+    if (isOnlineMode()) {
+      const remaining = advanceOnlineSimulationTo(
+        onlineTargetSimulationTick(),
+        document.hidden ? ONLINE_MAX_INLINE_CATCHUP_STEPS : MAX_SIMULATION_STEPS,
+      );
+      if (remaining > ONLINE_CATCHUP_CHUNK_STEPS && !onlineCatchupScheduled) {
+        requestOnlineCatchup("resume");
+      }
+    } else {
+      game.simulationAccumulator = Math.min(game.simulationAccumulator + dt * game.speedMultiplier, SIMULATION_STEP * MAX_SIMULATION_STEPS);
+      let stepCount = 0;
+      while (game.simulationAccumulator >= SIMULATION_STEP && stepCount < MAX_SIMULATION_STEPS) {
+        update(SIMULATION_STEP);
+        game.simulationAccumulator -= SIMULATION_STEP;
+        stepCount += 1;
+      }
     }
+    maybeSendOnlineChecksum();
     // ── 선택 진형 사망 시 자동 선택 (2초 대기) ────────────────────────
     if (game.battlePhase === 'live') {
       const sel = game.playerFormations.find(f => f.id === game.selectedId);
@@ -4743,6 +7035,15 @@ import {
   }
 
   // ── 전투 종료 감지 ──────────────────────────────────────────────────
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) requestOnlineCatchup("resume");
+  });
+  window.addEventListener("focus", () => requestOnlineCatchup("resume"));
+  window.addEventListener("pageshow", () => requestOnlineCatchup("resume"));
+  window.setInterval(() => {
+    if (document.hidden) requestOnlineCatchup("background");
+  }, 1000);
+
   function getBattleOutcome() {
     const playerAlive = game.playerFormations.some(f =>
       !f.retreated && f.units.some(isUnitAlive));
@@ -4777,12 +7078,16 @@ import {
     game.battleEndPending = false;
     game.battleEndTimer = 0;
     game.battlePhase = "ended";
-    showBattleResult(finalOutcome ? finalOutcome.won : game.battleEndWon);
+    const won = finalOutcome ? finalOutcome.won : game.battleEndWon;
+    submitOnlineResult(won);
+    if (isOnlineMode()) disableOnlineRandom();
+    showBattleResult(won);
   }
 
   // ── 시나리오 초기화 공통 ────────────────────────────────────────────
   function resetGameState() {
     game.battlePhase         = "planning";
+    _battleTileH = null;
     game.battleTime          = 0;
     game.simulationAccumulator = 0;
     game.speedMultiplier     = 1;
@@ -4799,6 +7104,7 @@ import {
     game.traces              = [];
     game.fires               = [];
     game.flood               = null;
+    game.floodDamageDealt    = false;
     game.hudRefreshAccumulator = 0;
     game.hudDirty            = true;
     game.speechEnemySighted  = new Set();
@@ -4809,6 +7115,7 @@ import {
     game.scenarioStep        = "none";
     game.scenarioAggro       = false;
     game.scenarioMarkerRevealUntil = 0;
+    game.scenarioClearRecorded = false;
     speedToggleButton.classList.remove("active");
   }
 
@@ -4830,6 +7137,7 @@ import {
       const gen = { ...g, kills: 0, losses: 0, alive: true };
       const f = createFormation(i, "player", gen,
         vec(terrain.playerStart.x, terrain.playerStart.y + (i - 2) * 10), vec(1, 0));
+      f.speed = "NORMAL";
       f.skillType = normalizeSkillForGeneral(gen, g.skillType || f.skillType, gen.troopType);
       f.general.skillType = f.skillType;
       initializeFormationSlots(f, false);
@@ -4839,6 +7147,7 @@ import {
       const gen = { ...g, kills: 0, losses: 0, alive: true };
       const f = createFormation(i, "enemy", gen,
         vec(terrain.enemyStart.x, terrain.enemyStart.y + (i - 2) * 10), vec(-1, 0));
+      f.speed = "NORMAL";
       f.skillType = normalizeSkillForGeneral(gen, g.skillType || f.skillType, gen.troopType);
       f.general.skillType = f.skillType;
       initializeFormationSlots(f, false);
@@ -4849,7 +7158,9 @@ import {
 
   // ── 빠른 전투 진입 ──────────────────────────────────────────────────
   function enterQuickBattle(isNew) {
+    disableOnlineRandom();
     game.mode = "quick";
+    game.online = null;
     game.scenarioData = null;
     resetScenarioRuntime();
     let terrain, pGens, eGens;
@@ -4871,6 +7182,70 @@ import {
     refreshButtons();
   }
 
+  function enterOnlineBattle(match) {
+    enableOnlineRandom(match.seed);
+    const { terrain, playerFormations, enemyFormations } = buildOnlineScenario(match);
+    applyScenario(terrain, playerFormations, enemyFormations);
+    game.mode = "online";
+    game.online = {
+      roomId: match.roomId,
+      side: Number(match.side || 0),
+      seed: match.seed,
+      tickRate: Number(match.tickRate || 30),
+      inputDelayTicks: Number(match.inputDelayTicks || 3),
+      receivedAt: performance.now(),
+      startedAt: null,
+      serverNow: Number(match.serverNow || Date.now()),
+      startedAtClient: null,
+      netTick: 0,
+      simTick: 0,
+      lastChecksumTick: 0,
+      commandQueue: new Map(),
+      resultSubmitted: false,
+      simStarted: false,
+      waitingForSimStart: true,
+      initialHash: null,
+      players: match.players || [],
+      isGuest: Boolean(onlineClient.isGuest),
+    };
+    game.speedMultiplier = 1;
+    game.paused = false;
+    pauseOverlay.hidden = true;
+    game.selectedId = playerFormations[0]?.id ?? 0;
+    setScreen("battle");
+    centerCameraOn(formationCenter(game.playerFormations[0]));
+    refreshHud();
+    refreshButtons();
+    const initialHash = computeOnlineInitialHash();
+    game.online.initialHash = initialHash;
+    onlineClient.sendClientLoaded(initialHash, match.protocol || "thin-relay-scheduled-lockstep");
+    showOnlineSyncNotice("전장 구성 완료. 상대 확인을 기다리는 중...", "info", 0);
+  }
+
+  function startOnlineSimulation(message) {
+    if (!isOnlineMode() || message.roomId !== game.online.roomId) return;
+    const startedAt = Number(message.startedAt || Date.now());
+    const serverNow = Number(message.serverNow || startedAt);
+    game.online.startedAt = startedAt;
+    game.online.serverNow = serverNow;
+    game.online.startedAtClient = performance.now() + (startedAt - serverNow);
+    game.online.tickRate = Number(message.tickRate || game.online.tickRate || 30);
+    game.online.inputDelayTicks = Number(message.inputDelayTicks || game.online.inputDelayTicks || 3);
+    game.online.simTick = 0;
+    game.online.netTick = 0;
+    game.online.lastChecksumTick = 0;
+    game.online.commandQueue.clear();
+    game.online.simStarted = true;
+    game.online.waitingForSimStart = false;
+    game.speedMultiplier = 1;
+    game.paused = false;
+    pauseOverlay.hidden = true;
+    startLiveBattle();
+    refreshHud();
+    refreshButtons();
+    showOnlineSyncNotice("양쪽 전장 확인 완료. 전투를 시작합니다.", "ok", 2200);
+  }
+
   function hideScenarioOverlays() {
     if (scenarioHud) scenarioHud.hidden = true;
     if (scenarioDialogue) scenarioDialogue.hidden = true;
@@ -4878,12 +7253,14 @@ import {
   }
 
   function applyHistoricalScenario(scenario, terrain) {
+    disableOnlineRandom();
     const playerFormations = scenario.player.formations.map((spec, index) =>
       createFormationFromScenarioSpec(spec, "player", index));
     const enemyFormations = scenario.enemy.formations.map((spec, index) =>
       createFormationFromScenarioSpec(spec, "enemy", index));
     applyScenario(terrain, playerFormations, enemyFormations);
     game.mode = "historical";
+    game.online = null;
     game.scenarioData = scenario;
     game.scenarioPhaseIndex = -1;
     game.selectedId = playerFormations[0]?.id ?? 0;
@@ -4892,8 +7269,11 @@ import {
 
   async function enterHistoricalScenario(id = "cannae") {
     try {
+      showGameLoadingScreen(SCENARIO_LOADING_META[id] || null);
       showBattleLoadingMask();
-      const { scenario, terrain } = await loadScenarioBundle(id);
+      const scenario = await loadScenarioDefinition(id);
+      updateGameLoadingScenarioRoster(scenario.player?.formations || [], scenario.enemy?.formations || []);
+      const terrain = await loadScenarioTerrain(scenario);
       applyHistoricalScenario(scenario, terrain);
       setScreen("battle");
       centerCameraOn(formationCenter(game.playerFormations[0]));
@@ -4902,6 +7282,7 @@ import {
       beginScenarioPhase(0);
     } catch (error) {
       console.error(error);
+      gameLoadingScreen.style.display = "none";
       setScreen("home");
       const toast = document.getElementById("homeToast");
       toast.textContent = "역사 시나리오를 불러오지 못했습니다.";
@@ -4910,20 +7291,66 @@ import {
     }
   }
 
+  function recordHistoricalScenarioClear() {
+    const scenarioId = game.scenarioData?.id;
+    if (!scenarioId || !onlineClient.token || game.scenarioClearRecorded) return;
+    game.scenarioClearRecorded = true;
+    onlineClient.recordScenarioClear(scenarioId)
+      .then(() => {
+        if (onlineClient.player) {
+          onlineLoadoutDraft = normalizeOnlineLoadout(onlineClient.player.commanders || []);
+        }
+      })
+      .catch(error => console.warn("[online] scenario clear save failed", error));
+  }
+
+  function showVictoryDialogue() {
+    const lines = game.scenarioData?.victoryDialogue || [];
+    const line = lines[game.scenarioDialogueIndex];
+    if (!line) {
+      game.scenarioStep = "complete";
+      game.scenarioSceneLocked = false;
+      hideScenarioOverlays();
+      recordHistoricalScenarioClear();
+      showBattleResult(true);
+      return;
+    }
+    if (line.camera) centerCameraOn(vec(line.camera.x, line.camera.y));
+    scenarioDialogue.hidden = false;
+    scenarioBriefing.hidden = true;
+    scenarioHud.hidden = false;
+    scenarioDialogueSpeaker.textContent = line.speaker || "";
+    scenarioDialogueText.textContent = line.text || "";
+    scenarioDialoguePortrait.src = line.portrait || "";
+    scenarioDialoguePortrait.hidden = !line.portrait;
+    scenarioTitle.textContent = game.scenarioData.name + " - 전투 종료";
+  }
+
   function beginScenarioPhase(index) {
     const phases = game.scenarioData?.phases || [];
     if (index >= phases.length) {
       game.battlePhase = "ended";
-      game.scenarioStep = "complete";
-      game.scenarioSceneLocked = false;
-      hideScenarioOverlays();
-      showBattleResult(true);
+      game.scenarioSceneLocked = true;
+      const vd = game.scenarioData?.victoryDialogue;
+      if (vd?.length) {
+        game.scenarioStep = "victoryDialogue";
+        game.scenarioDialogueIndex = 0;
+        showVictoryDialogue();
+        updateScenarioHud();
+      } else {
+        game.scenarioStep = "complete";
+        game.scenarioSceneLocked = false;
+        hideScenarioOverlays();
+        recordHistoricalScenarioClear();
+        showBattleResult(true);
+      }
       return;
     }
     game.scenarioPhaseIndex = index;
     game.scenarioDialogueIndex = 0;
     game.scenarioObjectiveState = {};
     game.scenarioSkillUseCounts = {};
+    game.phaseStartTime = game.battleTime;
     game.scenarioStep = "dialogue";
     game.scenarioSceneLocked = true;
     game.scenarioMarkers = [];
@@ -5020,6 +7447,12 @@ import {
           formation.disorderAccum = Math.max(formation.disorderAccum, effect.value ?? 0);
           formation.disorder = Math.max(formation.disorder, effect.value ?? 0);
         });
+      } else if (effect.type === "addDisorder") {
+        formations.forEach((formation) => {
+          const newVal = Math.min(1.0, formation.disorder + (effect.value ?? 0));
+          formation.disorderAccum = newVal;
+          formation.disorder = newVal;
+        });
       } else if (effect.type === "combatOverrides") {
         formations.forEach((formation) => {
           formation.combatOverrides = {
@@ -5034,6 +7467,7 @@ import {
             y: formation.anchor.y
           });
           formation.retreating = true;
+          showRetreatSpeech(formation);
           formation.followTarget = null;
           formation.target = vec(target.x, target.y);
           formation.speed = effect.speed || "FAST";
@@ -5173,6 +7607,8 @@ import {
       const total = objective.formationIds.reduce((sum, id) =>
         sum + (game.scenarioSkillUseCounts[`${id}:${objective.skillType}`] || 0), 0);
       state.complete = total >= (objective.count || 1);
+    } else if (objective.type === "floodDamageDealt") {
+      state.complete = !!game.floodDamageDealt;
     } else if (objective.type === "surviveSeconds") {
       const formations = (objective.formationIds || []).map(id => scenarioFormation(id, objective.team || "player")).filter(Boolean);
       const ratiosOk = formations.every(formation => formationRatio(formation) >= (objective.minRatio ?? 0));
@@ -5392,6 +7828,7 @@ import {
       const ratio = formationRatio(formation);
       if (ratio <= 0.5) {
         formation.retreating = true;
+        showRetreatSpeech(formation);
         formation.followTarget = null;
         formation.target = vec(MAP_WIDTH, formation.anchor.y);
         formation.speed = "FAST";
@@ -5426,11 +7863,14 @@ import {
     const runScenarioAiAction = (action) => {
       if (action.afterObjective && !game.scenarioObjectiveState[action.afterObjective]?.complete) return;
       if (action.untilObjective && game.scenarioObjectiveState[action.untilObjective]?.complete) return;
+      if (action.startAfterSeconds && (game.battleTime - game.phaseStartTime) < action.startAfterSeconds) return;
+      if (action.delayAfterAggro != null && (!game.scenarioAggro || (game.battleTime - game.scenarioAggroTime) < action.delayAfterAggro)) return;
       if (action.type === "routeAtRatio") {
         const formation = actionFormation(action);
         if (!formation || formation.retreating || formation.retreated) return;
         if (formationRatio(formation) <= (action.ratio ?? 0.5)) {
           formation.retreating = true;
+          showRetreatSpeech(formation);
           formation.followTarget = null;
           const target = actionTarget(action, formation) || { x: MAP_WIDTH, y: formation.anchor.y };
           formation.target = vec(target.x, target.y);
@@ -5464,6 +7904,7 @@ import {
     if (phaseAi?.actions?.length) {
       if (phaseAi.aggroOnEnemyLoss && !game.scenarioAggro && game.enemyFormations.some(f => (f.general.losses || 0) > 0)) {
         game.scenarioAggro = true;
+        game.scenarioAggroTime = game.battleTime;
       }
       if (game.scenarioAggro && phaseAi.aggroActions?.length) {
         phaseAi.aggroActions.forEach(runScenarioAiAction);
@@ -5729,6 +8170,7 @@ import {
     });
     savedPlayerGenerals = game.playerFormations.map(f => ({ ...f.general }));
     savedEnemyGenerals  = game.enemyFormations.map(f => ({ ...f.general }));
+    showGameLoadingScreen();
     setScreen("battle");
     game.hudDirty = true;
     refreshHud();
@@ -5738,9 +8180,68 @@ import {
   // ── 전투 결과 화면 ──────────────────────────────────────────────────
   function showBattleResult(won) {
     setTopbarCollapsed(false);
+    const isGuest = isOnlineMode() && Boolean(game.online?.isGuest);
+    const onlineResult = isOnlineMode() && !isGuest;
+    const isScenarioVictory = isHistoricalMode() && won;
+    const isScenarioDefeat  = isHistoricalMode() && !won;
+    const replayBtn = document.getElementById("resultReplay");
+    const newBattleBtn = document.getElementById("resultNewBattle");
+    const homeBtn = document.getElementById("resultHome");
+    if (battleResultScreen) battleResultScreen.dataset.online = isOnlineMode() ? "true" : "false";
+    const confirmBtn = document.getElementById("resultConfirm");
+    const retryBtn = document.getElementById("resultScenarioRetry");
+    const scenarioHeader = document.getElementById("resultScenarioHeader");
+    const scenarioIcon = document.getElementById("resultScenarioIcon");
+    const scenarioResultBadge = scenarioHeader?.querySelector(".result-scenario-success-badge");
+
+    const localBattleResult = !isOnlineMode();
+    if (battleResultScreen) battleResultScreen.dataset.cardResult = (isOnlineMode() || localBattleResult) ? "true" : "false";
+
+    if (isScenarioVictory) {
+      if (replayBtn) replayBtn.hidden = true;
+      if (newBattleBtn) newBattleBtn.hidden = true;
+      if (homeBtn) homeBtn.hidden = true;
+      if (confirmBtn) confirmBtn.hidden = false;
+      if (retryBtn) retryBtn.hidden = true;
+      if (scenarioHeader) scenarioHeader.hidden = true;
+    } else if (isScenarioDefeat) {
+      if (replayBtn) replayBtn.hidden = true;
+      if (newBattleBtn) newBattleBtn.hidden = true;
+      if (homeBtn) {
+        homeBtn.hidden = false;
+        homeBtn.textContent = "시나리오 선택";
+      }
+      if (confirmBtn) confirmBtn.hidden = true;
+      if (retryBtn) retryBtn.hidden = false;
+      if (scenarioHeader) scenarioHeader.hidden = true;
+    } else {
+      if (replayBtn) replayBtn.hidden = isOnlineMode();
+      if (newBattleBtn) newBattleBtn.hidden = isOnlineMode();
+      if (homeBtn) {
+        homeBtn.hidden = false;
+        homeBtn.textContent = onlineResult ? "온라인 로비로" : "홈 화면";
+      }
+      if (confirmBtn) confirmBtn.hidden = true;
+      if (retryBtn) retryBtn.hidden = true;
+      if (scenarioHeader) scenarioHeader.hidden = true;
+    }
+
     const verdict = document.getElementById("resultVerdict");
-    verdict.textContent = won ? "승 리" : "패 배";
+    verdict.textContent = isScenarioVictory
+      ? `${game.scenarioData.name} 승리`
+      : won ? "승 리" : "패 배";
     verdict.className   = `result-verdict ${won ? "victory" : "defeat"}`;
+    if (isHistoricalMode()) {
+      verdict.textContent = `${game.scenarioData?.name || ""} ${won ? "승리" : "패배"}`.trim();
+      if (scenarioIcon) {
+        scenarioIcon.src = historicalScenarioIconSrc(game.scenarioData?.id);
+        scenarioIcon.alt = game.scenarioData?.name || "";
+      }
+      if (scenarioResultBadge) {
+        scenarioResultBadge.textContent = won ? "성공" : "실패";
+        scenarioResultBadge.classList.toggle("is-failed", !won);
+      }
+    }
 
     document.getElementById("resultTime").textContent =
       game.battleTime.toFixed(1);
@@ -5777,18 +8278,1998 @@ import {
     document.getElementById("resultEnemyRemaining").textContent =
       formatTroops(eRemain);
 
+    renderBattleResultCommanderCards();
     setScreen("battleResult");
+  }
+
+  function battleResultProgressContainer() {
+    const panel = document.querySelector("#battleResultScreen .result-panel");
+    if (!panel) return null;
+    let container = document.getElementById("resultCommanderProgress");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "resultCommanderProgress";
+      container.className = "result-commander-progress";
+      const totals = panel.querySelector(".result-totals");
+      panel.insertBefore(container, totals?.nextSibling || panel.querySelector(".result-actions"));
+    }
+    return container;
+  }
+
+  function renderBattleResultOnlineCommanderCards() {
+    const container = battleResultProgressContainer();
+    if (!container) return;
+    if (!isOnlineMode()) {
+      container.hidden = true;
+      container.innerHTML = "";
+      return;
+    }
+    container.hidden = false;
+    const progress = onlineLastResult?.my?.commanderProgress || [];
+    const progressBySlot = new Map();
+    const progressByTemplate = new Map();
+    progress.forEach((item, index) => {
+      if (Number.isInteger(item.slotIndex)) progressBySlot.set(item.slotIndex, item);
+      if (item.templateId) progressByTemplate.set(item.templateId, item);
+      progressBySlot.set(index, item);
+    });
+    const pending = !onlineLastResult;
+    const guest = Boolean(game.online?.isGuest);
+    const cards = game.playerFormations.map((formation, index) => {
+      const templateId = formation.general.templateId || formation.general.id || formation.general.name;
+      const progressItem = progressBySlot.get(index) || progressByTemplate.get(templateId) || null;
+      return {
+        ...formation.general,
+        ...progressItem,
+        templateId,
+        name: progressItem?.name || formation.general.name,
+        portrait: progressItem?.portrait || formation.general.portrait,
+        slotIndex: index,
+        battleKills: Math.round(Math.max(0, formation.general.kills || 0)),
+        battleLosses: Math.round(Math.max(0, formation.general.losses || 0)),
+        battleRemaining: Math.round(formationRemainingTroops(formation)),
+        levelAfter: progressItem?.levelAfter ?? formation.general.level ?? 0,
+        expAfter: progressItem?.expAfter ?? formation.general.exp ?? 0,
+        gainedExp: progressItem?.gainedExp ?? 0,
+        nextRequiredExp: progressItem?.nextRequiredExp ?? progressItem?.requiredExp ?? 0,
+        leveledUp: Boolean(progressItem?.leveledUp),
+        hasProgress: Boolean(progressItem),
+      };
+    });
+    if (!cards.length) {
+      container.innerHTML = `<div class="result-growth-title">장수 결과</div><div class="result-growth-empty">표시할 아군 장수 정보가 없습니다.</div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="result-growth-title">장수 결과</div>
+      <div class="result-growth-grid">
+        ${cards.map(item => {
+          const levelAfter = item.levelAfter ?? item.levelBefore ?? 0;
+          const isMax = levelAfter >= 50;
+          const expAfter = item.expAfter || 0;
+          const nextReq = item.nextRequiredExp ?? item.requiredExp ?? 0;
+          const expPct = isMax ? 100 : (nextReq > 0 ? Math.min(100, expAfter / nextReq * 100) : 0);
+          const gainedExp = item.gainedExp || 0;
+          const expLabel = isMax ? "MAX" : `${formatTroops(expAfter)} / ${formatTroops(nextReq)}`;
+          const note = guest
+            ? "게스트 경기는 장수 경험치가 저장되지 않습니다."
+            : pending
+              ? "장수 성장 집계 중입니다."
+              : item.hasProgress
+                ? (gainedExp > 0 ? "이번 경기 경험치가 반영되었습니다." : "이번 경기에서 반영되는 경험치가 없습니다.")
+                : "이번 경기에서 반영되는 경험치가 없습니다.";
+          const levelUpIcon = item.leveledUp
+            ? `<img class="result-growth-levelup-icon" src="./assets/ui/levelup_icon.png" alt="" aria-hidden="true" draggable="false" />`
+            : "";
+          return `
+            <div class="result-growth-card ${item.leveledUp ? "is-level-up" : ""}">
+              ${onlinePortraitMarkup(item, "result-growth-portrait", { overlayHtml: levelUpIcon })}
+              <div class="result-growth-main">
+                ${item.leveledUp ? `<div class="result-growth-levelup-row"><span class="result-growth-levelup">LEVEL UP</span></div>` : ""}
+                <div class="result-growth-header">
+                  <span class="result-growth-name">${escapeHtml(item.name || item.templateId)}</span>
+                  <div class="result-growth-lv-badge">
+                    <span class="result-growth-lv">Lv ${levelAfter}</span>
+                  </div>
+                </div>
+                <div class="result-growth-exp-row">
+                  <div class="result-growth-expbar">
+                    <div class="result-growth-expbar-fill" style="width:${expPct.toFixed(1)}%"></div>
+                  </div>
+                  <span class="result-growth-exp-text">${gainedExp > 0 ? `+${formatTroops(gainedExp)} EXP · ` : ""}${expLabel}</span>
+                </div>
+                <div class="result-growth-battle-stats">
+                  <div class="result-growth-battle-stat"><span>격파</span><strong>${formatTroops(item.battleKills)}</strong></div>
+                  <div class="result-growth-battle-stat"><span>손실</span><strong>${formatTroops(item.battleLosses)}</strong></div>
+                  <div class="result-growth-battle-stat"><span>잔여</span><strong>${formatTroops(item.battleRemaining)}</strong></div>
+                </div>
+                <div class="result-growth-note">${escapeHtml(note)}</div>
+              </div>
+            </div>`;
+        }).join("")}
+      </div>
+    `;
+    settleOnlinePortraitLoading(container);
+  }
+
+  function renderBattleResultQuickCommanderCards() {
+    const container = battleResultProgressContainer();
+    if (!container) return;
+    if (isOnlineMode()) {
+      container.hidden = true;
+      container.innerHTML = "";
+      return;
+    }
+    container.hidden = false;
+    const cards = game.playerFormations.map((formation, index) => ({
+      ...formation.general,
+      slotIndex: index,
+      battleKills: Math.round(Math.max(0, formation.general.kills || 0)),
+      battleLosses: Math.round(Math.max(0, formation.general.losses || 0)),
+      battleRemaining: Math.round(formationRemainingTroops(formation)),
+    }));
+    if (!cards.length) {
+      container.innerHTML = `<div class="result-growth-title">장수별 전투 결과</div><div class="result-growth-empty">표시할 장수 결과가 없습니다.</div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="result-growth-title">장수별 전투 결과</div>
+      <div class="result-growth-grid">
+        ${cards.map(item => `
+          <div class="result-growth-card is-battle-only">
+            ${onlinePortraitMarkup(item, "result-growth-portrait")}
+            <div class="result-growth-main">
+              <div class="result-growth-header">
+                <span class="result-growth-name">${escapeHtml(item.name || `Commander ${item.slotIndex + 1}`)}</span>
+              </div>
+              <div class="result-growth-battle-stats">
+                <div class="result-growth-battle-stat"><span>격파</span><strong>${formatTroops(item.battleKills)}</strong></div>
+                <div class="result-growth-battle-stat"><span>손실</span><strong>${formatTroops(item.battleLosses)}</strong></div>
+                <div class="result-growth-battle-stat"><span>잔여</span><strong>${formatTroops(item.battleRemaining)}</strong></div>
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+    settleOnlinePortraitLoading(container);
+  }
+
+  function renderBattleResultCommanderCards() {
+    if (isOnlineMode()) {
+      renderBattleResultOnlineCommanderCards();
+      return;
+    }
+    renderBattleResultQuickCommanderCards();
+  }
+
+  function renderBattleResultOnlineProgress() {
+    return renderBattleResultOnlineCommanderCards();
+    const container = battleResultProgressContainer();
+    if (!container) return;
+    if (!isOnlineMode()) {
+      container.hidden = true;
+      container.innerHTML = "";
+      return;
+    }
+    if (game.online?.isGuest) {
+      container.hidden = false;
+      container.innerHTML = `<div class="result-guest-notice">로그인 이후에 게임결과를 저장할 수 있습니다.</div>`;
+      return;
+    }
+    const progress = onlineLastResult?.my?.commanderProgress || [];
+    if (!onlineLastResult) {
+      container.hidden = false;
+      container.innerHTML = `<div class="result-growth-title">장수 성장 집계 중...</div>`;
+      return;
+    }
+    if (!progress.length) {
+      container.hidden = false;
+      container.innerHTML = `<div class="result-growth-title">장수 성장</div><div class="result-growth-empty">이번 경기에서 반영된 장수 경험치가 없습니다.</div>`;
+      return;
+    }
+    container.hidden = false;
+    const growthStatRow = (label, bVal, aVal) => {
+      if (bVal == null && aVal == null) return "";
+      const b = bVal ?? aVal;
+      const a = aVal ?? bVal;
+      const diff = (a != null && b != null) ? a - b : 0;
+      const cls = diff > 0 ? "rg-up" : diff < 0 ? "rg-dn" : "";
+      const diffBadge = diff > 0
+        ? `<span class="rg-stat-diff">+${diff}</span>`
+        : diff < 0 ? `<span class="rg-stat-diff rg-dn">${diff}</span>` : "";
+      return `
+        <div class="rg-stat-row">
+          <span class="rg-stat-name">${label}</span>
+          <span class="rg-stat-before">${b ?? "-"}</span>
+          <span class="rg-stat-arrow">→</span>
+          <span class="rg-stat-after ${cls}">${a ?? "-"}</span>
+          ${diffBadge}
+        </div>`;
+    };
+    container.innerHTML = `
+      <div class="result-growth-title">장수 성장</div>
+      <div class="result-growth-grid">
+        ${progress.map(item => {
+          const before = item.statsBefore || {};
+          const after = item.statsAfter || {};
+          const levelAfter = item.levelAfter ?? item.levelBefore ?? 0;
+          const isMax = levelAfter >= 50;
+          const expAfter = item.expAfter || 0;
+          const nextReq = item.nextRequiredExp ?? item.requiredExp ?? 0;
+          const expPct = isMax ? 100 : (nextReq > 0 ? Math.min(100, expAfter / nextReq * 100) : 0);
+          const gainedExp = item.gainedExp || 0;
+          const expLabel = isMax
+            ? "MAX"
+            : `${formatTroops(expAfter)} / ${formatTroops(nextReq)}`;
+          const levelUpIcon = item.leveledUp
+            ? `<img class="result-growth-levelup-icon" src="./assets/ui/levelup_icon.png" alt="" aria-hidden="true" draggable="false" />`
+            : "";
+          return `
+            <div class="result-growth-card ${item.leveledUp ? "is-level-up" : ""}">
+              ${onlinePortraitMarkup(item, "result-growth-portrait", { overlayHtml: levelUpIcon })}
+              <div class="result-growth-main">
+                ${item.leveledUp ? `<div class="result-growth-levelup-row"><span class="result-growth-levelup">LEVEL UP</span></div>` : ""}
+                <div class="result-growth-header">
+                  <span class="result-growth-name">${escapeHtml(item.name || item.templateId)}</span>
+                  <div class="result-growth-lv-badge">
+                    <span class="result-growth-lv">Lv ${levelAfter}</span>
+                  </div>
+                </div>
+                <div class="result-growth-exp-row">
+                  <div class="result-growth-expbar">
+                    <div class="result-growth-expbar-fill" style="width:${expPct.toFixed(1)}%"></div>
+                  </div>
+                  <span class="result-growth-exp-text">${gainedExp > 0 ? `+${formatTroops(gainedExp)} EXP · ` : ""}${expLabel}</span>
+                </div>
+              </div>
+            </div>`;
+        }).join("")}
+      </div>
+    `;
+    settleOnlinePortraitLoading(container);
   }
 
   // ── 새 화면 이벤트 핸들러 ────────────────────────────────────────────
   // 홈: 빠른 전투
+  function setOnlineStatus(text) {
+    if (onlineMatchStatus) onlineMatchStatus.textContent = text;
+    if (onlineAuthStatus) onlineAuthStatus.textContent = text;
+  }
+
+  function showOnlineSyncNotice(text, tone = "info", durationMs = 5000) {
+    if (!onlineSyncNotice) return;
+    window.clearTimeout(onlineSyncNoticeTimer);
+    onlineSyncNotice.textContent = text;
+    onlineSyncNotice.dataset.tone = tone;
+    onlineSyncNotice.hidden = false;
+    if (durationMs > 0) {
+      onlineSyncNoticeTimer = window.setTimeout(hideOnlineSyncNotice, durationMs);
+    }
+  }
+
+  function hideOnlineSyncNotice() {
+    if (!onlineSyncNotice) return;
+    window.clearTimeout(onlineSyncNoticeTimer);
+    onlineSyncNoticeTimer = null;
+    onlineSyncNotice.hidden = true;
+    onlineSyncNotice.textContent = "";
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    })[char]);
+  }
+
+  function onlineCardFor(element) {
+    return element?.closest?.(".online-card") || null;
+  }
+
+  function makeOnlineButton(id, label, className = "btn-stone") {
+    let button = document.getElementById(id);
+    if (!button) {
+      button = document.createElement("button");
+      button.id = id;
+      button.type = "button";
+      button.className = className;
+      button.textContent = label;
+    }
+    return button;
+  }
+
+  function syncOnlineHeaderActions() {
+    const header = onlineScreen?.querySelector(".online-header");
+    if (!header || !onlineBackBtn) return;
+    let headerActions = header.querySelector(".online-header-actions");
+    if (!headerActions) {
+      headerActions = document.createElement("div");
+      headerActions.className = "online-header-actions";
+      header.appendChild(headerActions);
+    }
+    if (!headerActions.contains(onlineBackBtn)) headerActions.appendChild(onlineBackBtn);
+    if (!onlineLogoutBtn) onlineLogoutBtn = makeOnlineButton("onlineLogoutBtn", "로그아웃");
+    onlineLogoutBtn.textContent = "로그아웃";
+    if (!headerActions.contains(onlineLogoutBtn)) headerActions.appendChild(onlineLogoutBtn);
+    onlineLogoutBtn.hidden = !onlineClient.player || !["commanders", "match"].includes(onlinePage);
+  }
+
+  function ensureOnlineUiScaffold() {
+    const authCard = onlineCardFor(onlineAuthForm);
+    const commanderCard = onlineCardFor(onlineCommanders);
+    const matchCard = onlineCardFor(onlineMatchStatus);
+    const recentCard = onlineCardFor(onlineRecentMatches);
+    const leaderboardCard = onlineCardFor(onlineLeaderboard);
+    const header = onlineScreen?.querySelector(".online-header");
+    let commanderPoolCard = document.getElementById("onlineCommanderPoolCard");
+    if (!commanderPoolCard && commanderCard?.parentElement) {
+      commanderPoolCard = document.createElement("section");
+      commanderPoolCard.id = "onlineCommanderPoolCard";
+      commanderPoolCard.className = "online-card";
+      commanderPoolCard.innerHTML = `<h3>전체 장수</h3><div id="onlineCommanderPool" class="online-commander-pool" data-online-commander-pool></div>`;
+      commanderCard.parentElement.insertBefore(commanderPoolCard, commanderCard.nextSibling);
+    }
+    onlineCommanderPool = document.getElementById("onlineCommanderPool");
+
+    authCard?.classList.add("online-page-card", "online-auth-card");
+    commanderCard?.classList.add("online-page-card", "online-commanders-card");
+    commanderCard?.classList.remove("online-card--wide");
+    commanderPoolCard?.classList.add("online-page-card", "online-pool-card-page");
+    matchCard?.classList.add("online-page-card", "online-match-card");
+    recentCard?.classList.add("online-page-card", "online-records-card", "online-card--wide");
+    leaderboardCard?.classList.add("online-page-card", "online-records-card");
+
+    const commanderTitle = commanderCard?.querySelector("h3");
+    if (commanderTitle) commanderTitle.textContent = "출전장수";
+
+    if (authCard && !onlineAuthStatus) {
+      onlineAuthStatus = document.createElement("div");
+      onlineAuthStatus.id = "onlineAuthStatus";
+      onlineAuthStatus.className = "online-status";
+      onlineAuthStatus.textContent = "로그인 후 온라인 대전을 시작할 수 있습니다.";
+      authCard.appendChild(onlineAuthStatus);
+    }
+
+    syncOnlineHeaderActions();
+
+    if (commanderCard) {
+      if (onlineProfile && onlineProfile.parentElement !== commanderCard) {
+        commanderCard.insertBefore(onlineProfile, onlineCommanders);
+      }
+      let actions = commanderCard.querySelector(".online-loadout-actions");
+      if (!actions) {
+        actions = document.createElement("div");
+        actions.className = "online-actions online-loadout-actions";
+        commanderCard.appendChild(actions);
+      }
+      let loadoutHint = commanderCard.querySelector(".online-loadout-action-hint");
+      if (!loadoutHint) {
+        loadoutHint = document.createElement("div");
+        loadoutHint.className = "online-loadout-action-hint";
+        loadoutHint.textContent = "전투에 출전할 장수 5명을 설정해주세요.";
+        commanderCard.insertBefore(loadoutHint, actions);
+      }
+      onlineRecordsBtn = makeOnlineButton("onlineRecordsBtn", "전적/랭킹");
+      onlineProfileEditBtn = makeOnlineButton("onlineProfileEditBtn", "프로필 수정");
+      onlineSaveLoadoutBtn = makeOnlineButton("onlineSaveLoadoutBtn", "편성 저장");
+      onlineGoMatchBtn = makeOnlineButton("onlineGoMatchBtn", "매칭 화면으로", "btn-primary");
+      onlineLogoutBtn = onlineLogoutBtn || makeOnlineButton("onlineLogoutBtn", "로그아웃");
+      onlineLogoutBtn.hidden = false;
+      [onlineProfileEditBtn, onlineSaveLoadoutBtn, onlineGoMatchBtn].forEach((button) => {
+        if (!actions.contains(button)) actions.appendChild(button);
+      });
+      if (onlineRecordsBtn) {
+        onlineRecordsBtn.hidden = true;
+        if (actions.contains(onlineRecordsBtn)) actions.removeChild(onlineRecordsBtn);
+      }
+      if (onlineSaveLoadoutBtn) {
+        onlineSaveLoadoutBtn.hidden = true;
+        if (actions.contains(onlineSaveLoadoutBtn)) actions.removeChild(onlineSaveLoadoutBtn);
+      }
+    }
+
+    if (matchCard) {
+      if (!onlineMatchPlayerInfo) {
+        onlineMatchPlayerInfo = document.createElement("div");
+        onlineMatchPlayerInfo.id = "onlineMatchPlayerInfo";
+        onlineMatchPlayerInfo.className = "online-profile";
+        matchCard.insertBefore(onlineMatchPlayerInfo, onlineMatchStatus);
+      }
+      if (!onlineMatchRoster) {
+        onlineMatchRoster = document.createElement("div");
+        onlineMatchRoster.id = "onlineMatchRoster";
+        onlineMatchRoster.className = "online-match-roster";
+        matchCard.insertBefore(onlineMatchRoster, onlineMatchStatus);
+      }
+      if (!matchCard.querySelector(".online-search-anim")) {
+        const anim = document.createElement("div");
+        anim.className = "online-search-anim";
+        anim.setAttribute("aria-hidden", "true");
+        matchCard.insertBefore(anim, onlineMatchStatus);
+      }
+      if (!onlineOpponentPreview) {
+        onlineOpponentPreview = document.createElement("div");
+        onlineOpponentPreview.id = "onlineOpponentPreview";
+        onlineOpponentPreview.className = "online-opponent-preview";
+        onlineOpponentPreview.hidden = true;
+        matchCard.insertBefore(onlineOpponentPreview, onlineResultSummary || onlineMatchStatus.nextSibling);
+      }
+      let actions = matchCard.querySelector(".online-actions");
+      if (!actions) {
+        actions = document.createElement("div");
+        actions.className = "online-actions online-match-actions";
+        matchCard.appendChild(actions);
+      }
+      actions.classList.add("online-match-actions");
+      onlineReadyBtn = makeOnlineButton("onlineReadyBtn", "게임 시작", "btn-primary");
+      onlineReadyBtn.disabled = true;
+      onlineBackToCommandersBtn = makeOnlineButton("onlineBackToCommandersBtn", "편성으로");
+      onlineMatchLogoutBtn = makeOnlineButton("onlineMatchLogoutBtn", "로그아웃");
+      [onlineQueueBtn, onlineLeaveQueueBtn, onlineReadyBtn, onlineBackToCommandersBtn, onlineMatchLogoutBtn]
+        .filter(Boolean)
+        .forEach((button) => {
+          if (!actions.contains(button)) actions.appendChild(button);
+        });
+      if (onlineMatchLogoutBtn) onlineMatchLogoutBtn.hidden = true;
+      let columns = matchCard.querySelector(".online-match-columns");
+      if (!columns) {
+        columns = document.createElement("div");
+        columns.className = "online-match-columns";
+        columns.innerHTML = `<div class="online-match-left"></div><div class="online-match-right"></div>`;
+        matchCard.querySelector("h3")?.after(columns);
+      }
+      const left = columns.querySelector(".online-match-left");
+      const right = columns.querySelector(".online-match-right");
+      const anim = matchCard.querySelector(".online-search-anim");
+      if (left) {
+        left.appendChild(onlineMatchPlayerInfo);
+        left.appendChild(onlineMatchRoster);
+      }
+      if (right) {
+        if (anim) right.appendChild(anim);
+        right.appendChild(onlineOpponentPreview);
+        if (onlineResultSummary) right.appendChild(onlineResultSummary);
+      }
+      matchCard.appendChild(onlineMatchStatus);
+      matchCard.appendChild(actions);
+      if (!onlineInvitePanel) {
+        onlineInvitePanel = document.createElement("div");
+        onlineInvitePanel.id = "onlineInvitePanel";
+        onlineInvitePanel.className = "online-invite-panel";
+        onlineInvitePanel.innerHTML = `
+          <div id="onlineInviteLinkArea" class="online-invite-link-area" hidden>
+            <input id="onlineInviteLinkInput" class="online-invite-link-input" readonly />
+            <button id="onlineInviteCopyBtn" class="btn-stone" type="button">복사</button>
+          </div>
+          <div id="onlineInviteStatus" class="online-invite-status"></div>
+        `;
+      }
+      // 매번 마지막에 append해서 다른 요소들이 앞으로 재배치돼도 항상 맨 아래에 위치
+      matchCard.appendChild(onlineInvitePanel);
+      // 매칭 화면 진입 시마다 초대 패널 초기화 (이전 코드 잔존 방지)
+      const createInviteBtn = makeOnlineButton("onlineCreateInviteBtn", "친구초대 링크 만들기");
+      if (createInviteBtn && !actions.contains(createInviteBtn)) {
+        actions.insertBefore(createInviteBtn, onlineMatchLogoutBtn || null);
+      }
+      const inviteLinkArea  = document.getElementById("onlineInviteLinkArea");
+      const inviteStatusEl  = document.getElementById("onlineInviteStatus");
+      if (createInviteBtn) {
+        createInviteBtn.textContent = "친구초대 링크 만들기";
+        createInviteBtn.disabled = false;
+      }
+      if (inviteLinkArea)  inviteLinkArea.hidden = true;
+      if (inviteStatusEl)  inviteStatusEl.textContent = "";
+      if (inviteLinkArea) {
+        const inp = document.getElementById("onlineInviteLinkInput");
+        if (inp) inp.value = "";
+      }
+      if (pendingInviteCode && !onlineClient.token) {
+        let guestPanel = document.getElementById("onlineGuestInvitePanel");
+        if (!guestPanel) {
+          guestPanel = document.createElement("div");
+          guestPanel.id = "onlineGuestInvitePanel";
+          guestPanel.className = "online-guest-invite-panel";
+          guestPanel.innerHTML = `
+            <div class="online-invite-notice">초대 링크로 접속했습니다.</div>
+            <div class="online-actions">
+              <button id="onlineGuestJoinBtn" class="btn-primary" type="button">게스트로 참가</button>
+            </div>
+            <div class="online-invite-hint">로그인하면 전적이 저장됩니다.</div>
+          `;
+          const authCard2 = onlineCardFor(onlineAuthForm);
+          authCard2?.appendChild(guestPanel);
+        }
+      }
+    }
+
+    const recordCards = [recentCard, leaderboardCard].filter(Boolean);
+    if (recordCards.length && !onlineRecordsBackBtn) {
+      onlineRecordsBackBtn = makeOnlineButton("onlineRecordsBackBtn", "돌아가기");
+      const actions = document.createElement("div");
+      actions.className = "online-actions online-records-actions";
+      actions.appendChild(onlineRecordsBackBtn);
+      recordCards[0].parentElement?.insertBefore(actions, recordCards[0]);
+    }
+    syncOnlineHeaderActions();
+  }
+
+  function setOnlinePage(page) {
+    ensureOnlineUiScaffold();
+    if (page === "records" && onlinePage !== "records") onlinePreviousPage = onlinePage;
+    onlinePage = page;
+    const onlinePanel = onlineScreen?.querySelector(".online-panel");
+    if (onlinePanel) onlinePanel.dataset.onlinePage = page;
+    const authCard = onlineCardFor(onlineAuthForm);
+    const commanderCard = onlineCardFor(onlineCommanders);
+    const commanderPoolCard = document.getElementById("onlineCommanderPoolCard");
+    const matchCard = onlineCardFor(onlineMatchStatus);
+    const recentCard = onlineCardFor(onlineRecentMatches);
+    const leaderboardCard = onlineCardFor(onlineLeaderboard);
+    const recordsActions = document.querySelector(".online-records-actions");
+    if (authCard) authCard.hidden = page !== "auth";
+    if (commanderCard) commanderCard.hidden = page !== "commanders";
+    if (commanderPoolCard) commanderPoolCard.hidden = page !== "commanders";
+    if (matchCard) matchCard.hidden = page !== "match";
+    if (recentCard) recentCard.hidden = page !== "records";
+    if (leaderboardCard) leaderboardCard.hidden = page !== "records";
+    if (recordsActions) recordsActions.hidden = page !== "records";
+    syncOnlineHeaderActions();
+    if (page === "commanders" && onlineClient.player) {
+      renderOnlineLoadoutEditor();
+    }
+  }
+
+  function onlineSkillLabel(skill) {
+    return ({
+      kihap: "기합",
+      swift: "신속",
+      guard: "사수",
+      fire: "화공",
+      flood: "수공",
+      archery: "신궁",
+    })[skill] || skill;
+  }
+
+  function onlineCatalogItem(templateId) {
+    return (onlineClient.catalog || []).find(item => item.id === templateId)
+      || null;
+  }
+
+  function onlineCommanderUnlocked(commander) {
+    if (!commander) return false;
+    if (commander.unlocked === true) return true;
+    if (commander.unlocked === false) return false;
+    return commander.source === "quick";
+  }
+
+  function onlineScenarioName(scenarioId) {
+    return ({
+      gaugamela: "가우가멜라 전투",
+      cannae: "칸나에 전투",
+      bomangpa: "박망파 전투",
+      gwiju: "귀주대첩",
+      jupil: "주필산 전투",
+      kalka: "칼카강 전투",
+      yiling: "이릉 대첩",
+      tours: "투르 푸아티에 전투",
+    })[scenarioId] || scenarioId || "해당 시나리오";
+  }
+
+  function onlineCommanderLockMessage(commander) {
+    if (onlineCommanderUnlocked(commander)) return "";
+    return `역사 시나리오에서 ${onlineScenarioName(commander?.unlockScenarioId || commander?.source)}을 먼저 클리어 해야 합니다.`;
+  }
+
+  function onlineCommanderLevelLabel(commander) {
+    const level = Number(commander?.level || 0);
+    return level >= 50 ? `Lv ${level} MAX` : `Lv ${level}`;
+  }
+
+  function onlineCommanderStatsText(commander) {
+    if (!commander) return "";
+    const base = commander.basePower != null
+      ? ` · base ${commander.basePower}/${commander.baseLeadership}/${commander.baseCharm}`
+      : "";
+    return `${commander.power}/${commander.leadership}/${commander.charm}${base}`;
+  }
+
+  function normalizeOnlineLoadout(commanders = onlineClient.player?.commanders || []) {
+    const catalog = onlineClient.catalog || [];
+    const unlockedCatalog = catalog.filter(onlineCommanderUnlocked);
+    return Array.from({ length: 5 }, (_unused, index) => {
+      const current = commanders[index] || {};
+      const template = onlineCatalogItem(current.templateId) || unlockedCatalog[index] || unlockedCatalog[0] || current;
+      const troopType = current.troopType || template?.troopType || "infantry";
+      const allowedSkills = troopType === "cavalry" ? ["kihap"] : (template?.allowedSkills || [template?.skillType || "kihap"]);
+      const skillType = allowedSkills.includes(current.skillType) ? current.skillType : allowedSkills[0];
+      return {
+        slotIndex: index,
+        templateId: template?.id || current.templateId,
+        troopType,
+        troops: Number(current.troops || (troopType === "cavalry" ? 2500 : 10000)),
+        skillType,
+      };
+    });
+  }
+
+  function readOnlineLoadoutDraft() {
+    const rows = [...document.querySelectorAll("[data-online-loadout-slot]")];
+    if (!rows.length) return onlineLoadoutDraft;
+    return rows.map((row, index) => {
+      const templateId = row.dataset.templateId || row.querySelector("[data-field='templateId']")?.value || onlineLoadoutDraft[index]?.templateId || null;
+      const troopType = normalizeTroopType(row.dataset.troopType || row.querySelector("[data-field='troopType']")?.value || "infantry");
+      const template = onlineCatalogItem(templateId);
+      if (!template) {
+        return {
+          slotIndex: index,
+          templateId: null,
+          troopType,
+          troops: 0,
+          skillType: "kihap",
+        };
+      }
+      const allowedSkills = onlineAllowedSkills(template, troopType);
+      const rawSkill = row.dataset.skillType || row.querySelector("[data-field='skillType']")?.value || onlineLoadoutDraft[index]?.skillType || "kihap";
+      return {
+        slotIndex: index,
+        templateId,
+        troopType,
+        troops: normalizeTroopsForType(Number(row.querySelector("[data-field='troops']")?.value || onlineLoadoutDraft[index]?.troops || 0), troopType),
+        skillType: allowedSkills.includes(rawSkill) ? rawSkill : allowedSkills[0],
+      };
+    });
+  }
+
+  function onlinePortraitMarkup(commander, className = "online-loadout-portrait", options = {}) {
+    const overlayHtml = options.overlayHtml || "";
+    if (commander?.portrait) {
+      return `<div class="${className} online-portrait-loading" data-online-portrait><img src="${escapeHtml(commander.portrait)}" alt="${escapeHtml(commander.name || "")}" loading="eager" decoding="async" />${overlayHtml}</div>`;
+    }
+    return `<div class="${className}">${escapeHtml((commander?.name || "?").slice(0, 1))}${overlayHtml}</div>`;
+  }
+
+  function settleOnlinePortraitLoading(root = onlineScreen) {
+    root?.querySelectorAll?.("[data-online-portrait]").forEach((portrait) => {
+      const img = portrait.querySelector("img");
+      if (!img) {
+        portrait.classList.remove("online-portrait-loading");
+        return;
+      }
+      const markReady = () => {
+        portrait.classList.remove("online-portrait-loading");
+        portrait.classList.add("online-portrait-ready");
+      };
+      const markFailed = () => {
+        portrait.classList.remove("online-portrait-loading");
+        portrait.classList.add("online-portrait-failed");
+      };
+      if (img.complete) {
+        if (img.naturalWidth > 0) markReady();
+        else markFailed();
+        return;
+      }
+      img.addEventListener("load", markReady, { once: true });
+      img.addEventListener("error", markFailed, { once: true });
+    });
+  }
+
+  function onlineAllowedSkills(template, troopType) {
+    if (troopType === "cavalry") return ["kihap"];
+    const skills = Array.isArray(template?.allowedSkills)
+      ? template.allowedSkills
+      : [template?.skillType || "kihap"];
+    return skills.filter(skill => SKILL_DEF[skill]);
+  }
+
+  function onlineLoadoutPopulation(item) {
+    return troopPopulation(item?.troops || 0, item?.troopType || "infantry");
+  }
+
+  const ONLINE_TROOP_STEP = 250;
+
+  function onlineRoundTroops(troops) {
+    return Math.max(0, Math.round(Number(troops || 0) / ONLINE_TROOP_STEP) * ONLINE_TROOP_STEP);
+  }
+
+  function onlineMinPopulationForType(type) {
+    return troopPopulation(minTroopsForType(type), type);
+  }
+
+  function onlineLoadoutTotalPopulation() {
+    return onlineLoadoutDraft.reduce((sum, item) => sum + onlineLoadoutPopulation(item), 0);
+  }
+
+  function onlineLoadoutMaxTroops(slotIndex, troopType) {
+    const otherMinPopulation = onlineLoadoutDraft.reduce((sum, item, index) =>
+      index === slotIndex || !item?.templateId ? sum : sum + onlineMinPopulationForType(item?.troopType || "infantry"), 0);
+    const availablePopulation = Math.max(
+      onlineMinPopulationForType(troopType),
+      POPULATION_BUDGET - otherMinPopulation,
+    );
+    return Math.max(
+      minTroopsForType(troopType),
+      Math.floor(availablePopulation / troopPopulationCost(troopType) / ONLINE_TROOP_STEP) * ONLINE_TROOP_STEP,
+    );
+  }
+
+  function onlineClampTroops(slotIndex, troopType, troops) {
+    return Math.min(
+      onlineLoadoutMaxTroops(slotIndex, troopType),
+      Math.max(minTroopsForType(troopType), onlineRoundTroops(troops))
+    );
+  }
+
+  function normalizeOnlineLoadoutBudget(lockedIndex = -1) {
+    onlineLoadoutDraft = onlineLoadoutDraft.map((item, index) => {
+      if (!onlineCatalogItem(item?.templateId)) {
+        return {
+          slotIndex: index,
+          templateId: null,
+          troopType: normalizeTroopType(item?.troopType || "infantry"),
+          troops: 0,
+          skillType: "kihap",
+        };
+      }
+      const troopType = normalizeTroopType(item?.troopType || "infantry");
+      return {
+        ...item,
+        slotIndex: index,
+        troopType,
+        troops: onlineClampTroops(index, troopType, item?.troops || minTroopsForType(troopType)),
+      };
+    });
+    if (onlineLoadoutDraft.some(item => !item.templateId)) return;
+
+    const adjustOneStep = (direction, allowLocked = false) => {
+      const indices = onlineLoadoutDraft
+        .map((_item, index) => index)
+        .filter(index => onlineLoadoutDraft[index]?.templateId && (allowLocked || index !== lockedIndex))
+        .sort((a, b) => {
+          const pa = onlineLoadoutPopulation(onlineLoadoutDraft[a]);
+          const pb = onlineLoadoutPopulation(onlineLoadoutDraft[b]);
+          return direction > 0 ? pa - pb : pb - pa;
+        });
+      const total = onlineLoadoutTotalPopulation();
+      for (const index of indices) {
+        const item = onlineLoadoutDraft[index];
+        const stepPopulation = troopPopulation(ONLINE_TROOP_STEP, item.troopType);
+        if (direction > 0) {
+          if (total + stepPopulation > POPULATION_BUDGET) continue;
+          if (item.troops + ONLINE_TROOP_STEP > onlineLoadoutMaxTroops(index, item.troopType)) continue;
+          onlineLoadoutDraft[index] = { ...item, troops: item.troops + ONLINE_TROOP_STEP };
+          return true;
+        }
+        if (total - stepPopulation < POPULATION_BUDGET) continue;
+        if (item.troops - ONLINE_TROOP_STEP < minTroopsForType(item.troopType)) continue;
+        onlineLoadoutDraft[index] = { ...item, troops: item.troops - ONLINE_TROOP_STEP };
+        return true;
+      }
+      return false;
+    };
+
+    let guard = 0;
+    while (onlineLoadoutTotalPopulation() < POPULATION_BUDGET && guard < 1000) {
+      if (!adjustOneStep(1) && !adjustOneStep(1, true)) break;
+      guard++;
+    }
+    guard = 0;
+    while (onlineLoadoutTotalPopulation() > POPULATION_BUDGET && guard < 1000) {
+      if (!adjustOneStep(-1) && !adjustOneStep(-1, true)) break;
+      guard++;
+    }
+  }
+
+  function setOnlineLoadoutTroops(slotIndex, troops) {
+    const item = onlineLoadoutDraft[slotIndex];
+    if (!item?.templateId) return;
+    onlineLoadoutDraft[slotIndex] = {
+      ...item,
+      troops: onlineClampTroops(slotIndex, item.troopType, troops),
+    };
+    normalizeOnlineLoadoutBudget(slotIndex);
+  }
+
+  function emptyOnlineLoadoutSlot(slotIndex) {
+    onlineLoadoutDraft[slotIndex] = {
+      slotIndex,
+      templateId: null,
+      troopType: "infantry",
+      troops: 0,
+      skillType: "kihap",
+    };
+  }
+
+  function setOnlineLoadoutTemplate(slotIndex, templateId) {
+    const template = onlineCatalogItem(templateId);
+    if (!template) return;
+    if (!onlineCommanderUnlocked(template)) return;
+    const duplicateSlot = onlineLoadoutDraft.findIndex((item, index) =>
+      index !== slotIndex && item?.templateId === template.id);
+    if (duplicateSlot >= 0) emptyOnlineLoadoutSlot(duplicateSlot);
+
+    const previous = onlineLoadoutDraft[slotIndex] || {};
+    const troopType = normalizeTroopType(previous.troopType || template.troopType || "infantry");
+    const allowedSkills = onlineAllowedSkills(template, troopType);
+    const previousPopulation = previous.templateId ? onlineLoadoutPopulation(previous) : 0;
+    const defaultTroops = troopType === "cavalry" ? 2500 : 10000;
+    const troops = previousPopulation > 0
+      ? Math.floor(previousPopulation / troopPopulationCost(troopType))
+      : defaultTroops;
+    onlineLoadoutDraft[slotIndex] = {
+      slotIndex,
+      templateId: template.id,
+      troopType,
+      troops: onlineClampTroops(slotIndex, troopType, troops),
+      skillType: allowedSkills.includes(previous.skillType) ? previous.skillType : allowedSkills[0],
+    };
+    normalizeOnlineLoadoutBudget(slotIndex);
+  }
+
+  function moveOnlineLoadoutSlot(sourceSlot, targetSlot) {
+    if (sourceSlot === targetSlot) return;
+    const source = onlineLoadoutDraft[sourceSlot];
+    if (!source?.templateId) return;
+    const target = onlineLoadoutDraft[targetSlot];
+    onlineLoadoutDraft[targetSlot] = { ...source, slotIndex: targetSlot };
+    if (target?.templateId) {
+      onlineLoadoutDraft[sourceSlot] = { ...target, slotIndex: sourceSlot };
+    } else {
+      emptyOnlineLoadoutSlot(sourceSlot);
+    }
+    normalizeOnlineLoadoutBudget();
+  }
+
+  function onlineDragPayload(event) {
+    const raw = event.dataTransfer?.getData("application/x-ageofwar-commander")
+      || event.dataTransfer?.getData("text/plain")
+      || "";
+    try {
+      return JSON.parse(raw);
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function setOnlineDragPayload(event, payload) {
+    const raw = JSON.stringify(payload);
+    event.dataTransfer?.setData("application/x-ageofwar-commander", raw);
+    event.dataTransfer?.setData("text/plain", raw);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+  }
+
+  function onlineLoadoutSlotMarkup(item, index) {
+    const template = onlineCatalogItem(item?.templateId);
+    if (!template) {
+      return `
+        <div class="adjust-card online-loadout-card online-loadout-card--empty player-side"
+          data-online-loadout-slot="${index}" data-template-id="" data-troop-type="infantry" data-skill-type="kihap">
+          <div class="online-loadout-empty-mark">${index + 1}</div>
+          <div class="online-loadout-empty-title">빈 슬롯</div>
+          <div class="online-loadout-empty-note">오른쪽 장수를 끌어다 놓으세요</div>
+        </div>
+      `;
+    }
+    const troopType = normalizeTroopType(item.troopType || template.troopType || "infantry");
+    const allowedSkills = onlineAllowedSkills(template, troopType);
+    const skillType = allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0];
+    const maxTroops = onlineLoadoutMaxTroops(index, troopType);
+    const locked = !onlineCommanderUnlocked(template);
+    const lockMessage = onlineCommanderLockMessage(template);
+    return `
+      <div class="adjust-card online-loadout-card player-side ${locked ? "is-locked" : ""}" draggable="${locked ? "false" : "true"}"
+        data-online-loadout-slot="${index}" data-template-id="${escapeHtml(template.id)}"
+        data-troop-type="${escapeHtml(troopType)}" data-skill-type="${escapeHtml(skillType)}"
+        ${lockMessage ? `title="${escapeHtml(lockMessage)}"` : ""}>
+        ${onlinePortraitMarkup(template)}
+        <div class="online-loadout-name">${escapeHtml(template.name)}</div>
+        <div class="online-loadout-source">${escapeHtml(locked ? "Locked" : onlineCommanderLevelLabel(template))}</div>
+        <div class="adjust-card-stats">
+          <div class="adjust-card-stat"><span>무력</span><strong>${template.power}</strong></div>
+          <div class="adjust-card-stat"><span>통솔</span><strong>${template.leadership}</strong></div>
+          <div class="adjust-card-stat"><span>매력</span><strong>${template.charm}</strong></div>
+        </div>
+        <div class="adjust-type-buttons">
+          ${["infantry", "cavalry"].map(type => `<button type="button" class="adjust-type-btn" data-field="troopType" data-value="${type}" data-active="${type === troopType ? "true" : "false"}">${type === "cavalry" ? "기병" : "보병"}</button>`).join("")}
+        </div>
+        <div class="adjust-skill-buttons">
+          ${allSkillButtons().map(skill => `<button type="button" class="adjust-skill-btn" data-field="skillType" data-value="${escapeHtml(skill)}" data-active="${skill === skillType ? "true" : "false"}" ${allowedSkills.includes(skill) ? "" : "disabled"}>${onlineSkillLabel(skill)}</button>`).join("")}
+        </div>
+        <div class="adjust-slider-wrap">
+          <input data-field="troops" type="range" class="adjust-slider" min="${minTroopsForType(troopType)}" max="${maxTroops}" step="250" value="${Math.round(item.troops)}" />
+        </div>
+      </div>
+    `;
+  }
+
+  function onlineCommanderPoolCardMarkup(commander, selectedSlot) {
+    const selected = selectedSlot >= 0;
+    const locked = !onlineCommanderUnlocked(commander);
+    const lockMessage = onlineCommanderLockMessage(commander);
+    const lockIcon = locked
+      ? `<img class="online-pool-lock-icon" src="./assets/ui/commander_locked_icon.png" alt="" aria-hidden="true" draggable="false" />`
+      : "";
+    return `
+      <div class="online-pool-card ${selected ? "is-selected" : ""} ${locked ? "is-locked" : ""}"
+        data-online-pool-card="${escapeHtml(commander.id)}" draggable="${selected || locked ? "false" : "true"}"
+        ${lockMessage ? `title="${escapeHtml(lockMessage)}"` : ""}>
+        ${onlinePortraitMarkup(commander, "online-pool-portrait", { overlayHtml: lockIcon })}
+        <div class="online-pool-name">${escapeHtml(commander.name)}</div>
+        <div class="online-pool-level">${escapeHtml(locked ? "Locked" : `Lv ${commander.level || 0}`)}</div>
+      </div>
+    `;
+  }
+
+  function bindOnlineLoadoutDragEvents() {
+    const pool = onlineCommanderPool || document.getElementById("onlineCommanderPool");
+    const poolDropTarget = pool?.closest?.(".online-pool-card-page") || pool;
+    onlineCommanders.querySelectorAll("[data-online-pool-card]").forEach((card) => {
+      if (card.classList.contains("is-selected")) return;
+      if (card.classList.contains("is-locked")) return;
+      card.addEventListener("dragstart", (event) => {
+        setOnlineDragPayload(event, {
+          from: "pool",
+          templateId: card.dataset.onlinePoolCard,
+        });
+        card.classList.add("is-dragging");
+      });
+      card.addEventListener("dragend", () => card.classList.remove("is-dragging"));
+    });
+
+    onlineCommanders.querySelectorAll("[data-online-loadout-slot]").forEach((slotEl) => {
+      const slot = Number(slotEl.dataset.onlineLoadoutSlot || 0);
+      slotEl.addEventListener("dragstart", (event) => {
+        if (event.target?.closest?.("button,input")) {
+          event.preventDefault();
+          return;
+        }
+        const templateId = slotEl.dataset.templateId;
+        if (!templateId) {
+          event.preventDefault();
+          return;
+        }
+        setOnlineDragPayload(event, { from: "slot", slot, templateId });
+        slotEl.classList.add("is-dragging");
+      });
+      slotEl.addEventListener("dragend", () => slotEl.classList.remove("is-dragging"));
+      slotEl.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        slotEl.classList.add("is-drop-target");
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      });
+      slotEl.addEventListener("dragleave", () => slotEl.classList.remove("is-drop-target"));
+      slotEl.addEventListener("drop", (event) => {
+        event.preventDefault();
+        slotEl.classList.remove("is-drop-target");
+        const payload = onlineDragPayload(event);
+        if (!payload) return;
+        if (payload.from === "slot") {
+          moveOnlineLoadoutSlot(Number(payload.slot), slot);
+        } else if (payload.templateId) {
+          setOnlineLoadoutTemplate(slot, payload.templateId);
+        }
+        renderOnlineLoadoutEditor();
+      });
+    });
+    pool?.querySelectorAll("[data-online-pool-card]").forEach((card) => {
+      if (card.classList.contains("is-selected")) return;
+      if (card.classList.contains("is-locked")) return;
+      card.addEventListener("dragstart", (event) => {
+        setOnlineDragPayload(event, {
+          from: "pool",
+          templateId: card.dataset.onlinePoolCard,
+        });
+        card.classList.add("is-dragging");
+      });
+      card.addEventListener("dragend", () => card.classList.remove("is-dragging"));
+    });
+
+    if (poolDropTarget) {
+      poolDropTarget.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        poolDropTarget.classList.add("is-drop-target");
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      });
+      poolDropTarget.addEventListener("dragleave", () => poolDropTarget.classList.remove("is-drop-target"));
+      poolDropTarget.addEventListener("drop", (event) => {
+        event.preventDefault();
+        poolDropTarget.classList.remove("is-drop-target");
+        const payload = onlineDragPayload(event);
+        if (payload?.from !== "slot") return;
+        emptyOnlineLoadoutSlot(Number(payload.slot));
+        renderOnlineLoadoutEditor();
+      });
+    }
+  }
+
+  function renderOnlineCommanderPool() {
+    if (!onlineCommanderPool) return;
+    const catalog = onlineClient.catalog || [];
+    if (!catalog.length) {
+      onlineCommanderPool.innerHTML = `<div class="online-status">장수 카탈로그를 불러오는 중입니다.</div>`;
+      return;
+    }
+    const selectedSlotById = new Map(onlineLoadoutDraft
+      .map((item, index) => [item.templateId, index])
+      .filter(([templateId]) => templateId));
+    onlineCommanderPool.innerHTML = [...catalog]
+      .sort((a, b) => Number(onlineCommanderUnlocked(b)) - Number(onlineCommanderUnlocked(a))
+        || String(a.source || "").localeCompare(String(b.source || ""))
+        || String(a.name || "").localeCompare(String(b.name || "")))
+      .map(commander => onlineCommanderPoolCardMarkup(commander, selectedSlotById.get(commander.id) ?? -1))
+      .join("");
+    settleOnlinePortraitLoading(onlineCommanderPool);
+  }
+
+  function renderOnlineLoadoutEditorDnD() {
+    if (!onlineCommanders) return;
+    const catalog = onlineClient.catalog || [];
+    if (!catalog.length) {
+      onlineCommanders.innerHTML = `<div class="online-status">장수 카탈로그를 불러오는 중입니다.</div>`;
+      renderOnlineCommanderPool();
+      return;
+    }
+    if (!onlineLoadoutDraft.length) onlineLoadoutDraft = normalizeOnlineLoadout();
+    onlineCommanders.classList.add("online-loadout-editor", "online-loadout-dnd");
+    onlineCommanders.classList.remove("adjust-cards");
+
+    onlineLoadoutDraft = Array.from({ length: 5 }, (_unused, index) => {
+      const item = onlineLoadoutDraft[index] || {};
+      const template = onlineCatalogItem(item.templateId);
+      if (!template) {
+        return {
+          slotIndex: index,
+          templateId: null,
+          troopType: normalizeTroopType(item.troopType || "infantry"),
+          troops: 0,
+          skillType: "kihap",
+        };
+      }
+      const troopType = normalizeTroopType(item.troopType || template.troopType || "infantry");
+      const allowedSkills = onlineAllowedSkills(template, troopType);
+      return {
+        slotIndex: index,
+        templateId: template.id,
+        troopType,
+        troops: onlineClampTroops(index, troopType, Number(item.troops || (troopType === "cavalry" ? 2500 : 10000))),
+        skillType: allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0],
+      };
+    });
+    normalizeOnlineLoadoutBudget();
+
+    const draftTotalPopulation = onlineLoadoutTotalPopulation();
+    const loadoutComplete = onlineLoadoutDraft.every((item) => {
+      const template = onlineCatalogItem(item.templateId);
+      return template && onlineCommanderUnlocked(template);
+    });
+    const budgetOk = draftTotalPopulation === POPULATION_BUDGET;
+
+    onlineCommanders.innerHTML = `
+      <div class="online-loadout-total ${!budgetOk || !loadoutComplete ? "is-over" : ""}">
+        총 인구 ${formatTroops(draftTotalPopulation)} / ${formatTroops(POPULATION_BUDGET)}
+      </div>
+      <div class="online-loadout-slots">
+        ${onlineLoadoutDraft.map((item, index) => onlineLoadoutSlotMarkup(item, index)).join("")}
+      </div>
+    `;
+    settleOnlinePortraitLoading(onlineCommanders);
+    renderOnlineCommanderPool();
+
+    if (onlineGoMatchBtn) onlineGoMatchBtn.disabled = !loadoutComplete || !budgetOk;
+
+    onlineCommanders.querySelectorAll("button[data-field='troopType']").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.currentTarget.blur();
+        const slot = Number(button.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+        const item = onlineLoadoutDraft[slot];
+        if (!item?.templateId) return;
+        const template = onlineCatalogItem(item.templateId);
+        const troopType = normalizeTroopType(button.dataset.value);
+        if (item.troopType === troopType) return;
+        const preservedPopulation = troopPopulation(item.troops, item.troopType);
+        const allowedSkills = onlineAllowedSkills(template, troopType);
+        onlineLoadoutDraft[slot] = {
+          ...item,
+          troopType,
+          troops: onlineClampTroops(slot, troopType, Math.floor(preservedPopulation / troopPopulationCost(troopType))),
+          skillType: allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0],
+        };
+        normalizeOnlineLoadoutBudget(slot);
+        renderOnlineLoadoutEditor();
+      });
+    });
+
+    onlineCommanders.querySelectorAll("button[data-field='skillType']").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        if (button.disabled) return;
+        event.currentTarget.blur();
+        const slot = Number(button.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+        if (!onlineLoadoutDraft[slot]?.templateId) return;
+        onlineLoadoutDraft[slot] = {
+          ...onlineLoadoutDraft[slot],
+          skillType: button.dataset.value,
+        };
+        renderOnlineLoadoutEditor();
+      });
+    });
+
+    onlineCommanders.querySelectorAll("input[data-field='troops']").forEach((input) => {
+      input.addEventListener("input", () => {
+        const slot = Number(input.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+        const item = onlineLoadoutDraft[slot];
+        setOnlineLoadoutTroops(slot, Number(input.value || item?.troops || 0));
+        renderOnlineLoadoutEditor();
+      });
+    });
+
+    bindOnlineLoadoutDragEvents();
+  }
+
+  function renderOnlineLoadoutEditor() {
+    renderOnlineLoadoutEditorDnD();
+    return;
+    if (!onlineCommanders) return;
+    const catalog = onlineClient.catalog || [];
+    if (!catalog.length) {
+      onlineCommanders.innerHTML = `<div class="online-status">장수 카탈로그를 불러오는 중입니다.</div>`;
+      return;
+    }
+    if (!onlineLoadoutDraft.length) onlineLoadoutDraft = normalizeOnlineLoadout();
+    {
+      onlineCommanders.classList.add("online-loadout-editor", "adjust-cards");
+      onlineLoadoutDraft = onlineLoadoutDraft.map((item, index) => {
+        const template = onlineCatalogItem(item.templateId) || catalog[index] || catalog[0];
+        const troopType = normalizeTroopType(item.troopType || template?.troopType || "infantry");
+        const allowedSkills = onlineAllowedSkills(template, troopType);
+        const troops = onlineClampTroops(index, troopType, Number(item.troops || (troopType === "cavalry" ? 2500 : 10000)));
+        return {
+          slotIndex: index,
+          templateId: template?.id || item.templateId,
+          troopType,
+          troops,
+          skillType: allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0],
+        };
+      });
+      normalizeOnlineLoadoutBudget();
+
+      const draftTotalPopulation = onlineLoadoutDraft.reduce((sum, item) => sum + onlineLoadoutPopulation(item), 0);
+      onlineCommanders.innerHTML = `
+        <div class="online-loadout-total ${draftTotalPopulation > POPULATION_BUDGET ? "is-over" : ""}">
+          총 인구 ${formatTroops(draftTotalPopulation)} / ${formatTroops(POPULATION_BUDGET)}
+        </div>
+        ${onlineLoadoutDraft.map((item, index) => {
+          const template = onlineCatalogItem(item.templateId) || catalog[index] || catalog[0];
+          const troopType = normalizeTroopType(item.troopType || template?.troopType || "infantry");
+          const allowedSkills = onlineAllowedSkills(template, troopType);
+          const skillType = allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0];
+          const maxTroops = onlineLoadoutMaxTroops(index, troopType);
+          const popUsed = onlineLoadoutPopulation(item);
+          const pct = Math.min(100, popUsed / POPULATION_BUDGET * 100).toFixed(1);
+          const takenIds = new Set(onlineLoadoutDraft
+            .map((draftItem, draftIndex) => draftIndex === index ? null : draftItem.templateId)
+            .filter(Boolean));
+          return `
+            <div class="adjust-card online-loadout-card player-side" data-online-loadout-slot="${index}" data-troop-type="${escapeHtml(troopType)}" data-skill-type="${escapeHtml(skillType)}">
+              ${onlinePortraitMarkup(template)}
+              <select class="online-loadout-select" data-field="templateId" aria-label="장수 선택">
+                ${catalog.map(option => {
+                  const disabled = takenIds.has(option.id) && option.id !== template.id;
+                  return `<option value="${escapeHtml(option.id)}" ${option.id === template.id ? "selected" : ""} ${disabled ? "disabled" : ""}>${escapeHtml(option.name)} · ${escapeHtml(option.source || "quick")}</option>`;
+                }).join("")}
+              </select>
+              <div class="adjust-card-stats">
+                <div class="adjust-card-stat"><span>무력</span><strong>${template.power}</strong></div>
+                <div class="adjust-card-stat"><span>통솔</span><strong>${template.leadership}</strong></div>
+                <div class="adjust-card-stat"><span>매력</span><strong>${template.charm}</strong></div>
+              </div>
+              <div class="adjust-type-buttons">
+                ${["infantry", "cavalry"].map(type => `<button type="button" class="adjust-type-btn" data-field="troopType" data-value="${type}" data-active="${type === troopType ? "true" : "false"}">${type === "cavalry" ? "기병" : "보병"}</button>`).join("")}
+              </div>
+              <div class="adjust-skill-buttons">
+                ${allSkillButtons().map(skill => `<button type="button" class="adjust-skill-btn" data-field="skillType" data-value="${escapeHtml(skill)}" data-active="${skill === skillType ? "true" : "false"}" ${allowedSkills.includes(skill) ? "" : "disabled"}>${onlineSkillLabel(skill)}</button>`).join("")}
+              </div>
+              <div class="adjust-bar-bg"><div class="adjust-bar-fill player-fill" style="width:${pct}%"></div></div>
+              <div class="adjust-card-val">${Math.round(item.troops).toLocaleString()} <span>명</span></div>
+              <div class="adjust-card-pop">인구 ${formatTroops(popUsed)}</div>
+              <div class="adjust-slider-wrap">
+                <input data-field="troops" type="range" class="adjust-slider" min="${minTroopsForType(troopType)}" max="${maxTroops}" step="250" value="${Math.round(item.troops)}" />
+              </div>
+            </div>
+          `;
+        }).join("")}
+      `;
+
+      if (onlineGoMatchBtn) onlineGoMatchBtn.disabled = draftTotalPopulation > POPULATION_BUDGET;
+
+      onlineCommanders.querySelectorAll("[data-field='templateId']").forEach((select) => {
+        select.addEventListener("change", () => {
+          const slot = Number(select.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+          const prev = onlineLoadoutDraft[slot] || {};
+          const template = onlineCatalogItem(select.value) || catalog[0];
+          const troopType = normalizeTroopType(prev.troopType || template?.troopType || "infantry");
+          const allowedSkills = onlineAllowedSkills(template, troopType);
+          onlineLoadoutDraft[slot] = {
+            slotIndex: slot,
+            templateId: template?.id,
+            troopType,
+            troops: onlineClampTroops(slot, troopType, prev.troops || (troopType === "cavalry" ? 2500 : 10000)),
+            skillType: allowedSkills.includes(prev.skillType) ? prev.skillType : allowedSkills[0],
+          };
+          normalizeOnlineLoadoutBudget(slot);
+          renderOnlineLoadoutEditor();
+        });
+      });
+
+      onlineCommanders.querySelectorAll("button[data-field='troopType']").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.currentTarget.blur();
+          const slot = Number(button.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+          const item = onlineLoadoutDraft[slot];
+          const template = onlineCatalogItem(item.templateId);
+          const troopType = normalizeTroopType(button.dataset.value);
+          if (item.troopType === troopType) return;
+          const preservedPopulation = troopPopulation(item.troops, item.troopType);
+          const allowedSkills = onlineAllowedSkills(template, troopType);
+          onlineLoadoutDraft[slot] = {
+            ...item,
+            troopType,
+            troops: onlineClampTroops(slot, troopType, Math.floor(preservedPopulation / troopPopulationCost(troopType))),
+            skillType: allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0],
+          };
+          normalizeOnlineLoadoutBudget(slot);
+          renderOnlineLoadoutEditor();
+        });
+      });
+
+      onlineCommanders.querySelectorAll("button[data-field='skillType']").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          if (button.disabled) return;
+          event.currentTarget.blur();
+          const slot = Number(button.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+          onlineLoadoutDraft[slot] = {
+            ...onlineLoadoutDraft[slot],
+            skillType: button.dataset.value,
+          };
+          renderOnlineLoadoutEditor();
+        });
+      });
+
+      onlineCommanders.querySelectorAll("input[data-field='troops']").forEach((input) => {
+        input.addEventListener("input", () => {
+          const slot = Number(input.closest("[data-online-loadout-slot]")?.dataset.onlineLoadoutSlot || 0);
+          const item = onlineLoadoutDraft[slot];
+          setOnlineLoadoutTroops(slot, Number(input.value || item.troops));
+          renderOnlineLoadoutEditor();
+        });
+      });
+      return;
+    }
+    const totalPopulation = onlineLoadoutDraft.reduce((sum, item) =>
+      sum + item.troops * (item.troopType === "cavalry" ? 4 : 1), 0);
+    onlineCommanders.innerHTML = `
+      <div class="online-loadout-total ${totalPopulation > 50000 ? "is-over" : ""}">
+        총 인구 ${formatTroops(totalPopulation)} / 50,000
+      </div>
+      ${onlineLoadoutDraft.map((item, index) => {
+        const template = onlineCatalogItem(item.templateId) || catalog[index] || catalog[0];
+        const troopType = item.troopType || template.troopType || "infantry";
+        const allowedSkills = troopType === "cavalry" ? ["kihap"] : (template.allowedSkills || [template.skillType || "kihap"]);
+        const skillType = allowedSkills.includes(item.skillType) ? item.skillType : allowedSkills[0];
+        return `
+          <div class="online-loadout-row" data-online-loadout-slot="${index}">
+            ${onlinePortraitMarkup(template)}
+            <div class="online-loadout-main">
+              <select data-field="templateId">
+                ${catalog.map(option => `<option value="${escapeHtml(option.id)}" ${option.id === template.id ? "selected" : ""}>${escapeHtml(option.name)} · ${escapeHtml(option.source || "quick")}</option>`).join("")}
+              </select>
+              <div class="online-loadout-stats">
+                무력 ${template.power} · 통솔 ${template.leadership} · 매력 ${template.charm}
+              </div>
+              <div class="online-loadout-controls">
+                <select data-field="troopType">
+                  <option value="infantry" ${troopType === "infantry" ? "selected" : ""}>보병</option>
+                  <option value="cavalry" ${troopType === "cavalry" ? "selected" : ""}>기병</option>
+                </select>
+                <input data-field="troops" type="number" min="${troopType === "cavalry" ? 250 : 1000}" max="${troopType === "cavalry" ? 12500 : 50000}" step="250" value="${Math.round(item.troops)}" />
+                <select data-field="skillType">
+                  ${allowedSkills.map(skill => `<option value="${escapeHtml(skill)}" ${skill === skillType ? "selected" : ""}>${onlineSkillLabel(skill)}</option>`).join("")}
+                </select>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    `;
+    onlineCommanders.querySelectorAll("select,input").forEach((input) => {
+      input.addEventListener("change", () => {
+        onlineLoadoutDraft = readOnlineLoadoutDraft();
+        renderOnlineLoadoutEditor();
+      });
+    });
+  }
+
+  function onlineMatchProfileMarkup(player) {
+    if (!player) return "";
+    return `
+      <div class="online-profile-summary">
+        ${factionEmblemMarkup(player.emblem)}
+        <div class="online-profile-text">
+          <div class="online-profile-name">${escapeHtml(player.displayName || "Guest")}</div>
+          <div class="online-profile-record">Rating ${player.rating ?? 0} · ${Number(player.wins || 0)}승 ${Number(player.losses || 0)}패 ${Number(player.draws || 0)}무</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function onlineMatchRosterMarkup(commanders = []) {
+    if (!commanders.length) {
+      return `<div class="online-status online-match-empty-roster">표시할 장수 편성이 없습니다.</div>`;
+    }
+    return commanders.map((commander) => `
+      <div class="online-match-card">
+        ${onlinePortraitMarkup(commander, "online-match-card-portrait")}
+        <div class="online-match-card-name">${escapeHtml(commander.name)}</div>
+        <div class="online-match-card-level">${onlineCommanderLevelLabel(commander)}</div>
+        <div class="online-match-card-troop">${escapeHtml(troopTypeInfo(commander.troopType)?.label || commander.troopType)} ${formatTroops(commander.troops || 0)}</div>
+      </div>
+    `).join("");
+  }
+
+  function renderOnlineMatchPanelLegacy() {
+    ensureOnlineUiScaffold();
+    const player = onlineClient.player;
+    if (onlineMatchPlayerInfo) {
+      onlineMatchPlayerInfo.innerHTML = player ? `
+        <div class="online-profile-summary">
+          <div class="online-profile-name">${escapeHtml(player.displayName)}</div>
+          <div class="online-profile-record">Rating ${player.rating} · ${player.wins}승 ${player.losses}패 ${player.draws}무</div>
+        </div>
+      ` : "";
+    }
+    if (onlineMatchRoster) {
+      const commanders = player?.commanders || [];
+      onlineMatchRoster.innerHTML = commanders.map((commander) => `
+        <div class="online-match-card">
+          ${onlinePortraitMarkup(commander, "online-match-card-portrait")}
+          <div class="online-match-card-name">${escapeHtml(commander.name)}</div>
+          <div class="online-match-card-level">${onlineCommanderLevelLabel(commander)}</div>
+          <div class="online-match-card-troop">${escapeHtml(troopTypeInfo(commander.troopType)?.label || commander.troopType)} ${formatTroops(commander.troops || 0)}</div>
+        </div>
+      `).join("");
+      settleOnlinePortraitLoading(onlineMatchRoster);
+    }
+    if (onlineOpponentPreview) {
+      const opponent = onlinePendingMatch?.players?.find(playerInfo => playerInfo.side !== onlinePendingMatch.side);
+      onlineOpponentPreview.hidden = !opponent;
+      onlineOpponentPreview.innerHTML = opponent ? `
+        <div class="online-record-title">상대: ${escapeHtml(opponent.displayName)}</div>
+        <div class="online-record-meta">Rating ${opponent.rating} · 준비 상태를 기다리는 중</div>
+      ` : "";
+    }
+  }
+
+  function renderOnlineMatchPanel() {
+    ensureOnlineUiScaffold();
+    const player = onlineClient.player;
+    if (onlineMatchPlayerInfo) {
+      onlineMatchPlayerInfo.innerHTML = onlineMatchProfileMarkup(player);
+    }
+    if (onlineMatchRoster) {
+      onlineMatchRoster.innerHTML = onlineMatchRosterMarkup(player?.commanders || []);
+      settleOnlinePortraitLoading(onlineMatchRoster);
+    }
+    if (onlineOpponentPreview) {
+      const opponent = onlinePendingMatch?.players?.find(playerInfo => playerInfo.side !== onlinePendingMatch.side);
+      onlineOpponentPreview.hidden = !opponent;
+      onlineOpponentPreview.innerHTML = opponent ? `
+        <div class="online-profile">
+          ${onlineMatchProfileMarkup(opponent)}
+        </div>
+        <div class="online-match-roster online-match-roster--opponent">
+          ${onlineMatchRosterMarkup(opponent.commanders || [])}
+        </div>
+      ` : "";
+      if (opponent) settleOnlinePortraitLoading(onlineOpponentPreview);
+    }
+  }
+
+  function setOnlineMatchActionState(state) {
+    const matchCard = onlineCardFor(onlineMatchStatus);
+    if (matchCard) matchCard.dataset.matchState = state;
+    if (onlineQueueBtn) {
+      onlineQueueBtn.hidden = state !== "matched";
+      onlineQueueBtn.textContent = "재매칭";
+    }
+    if (onlineLeaveQueueBtn) onlineLeaveQueueBtn.hidden = state !== "searching";
+    if (onlineReadyBtn) {
+      onlineReadyBtn.hidden = state !== "matched";
+      onlineReadyBtn.disabled = state !== "matched";
+      onlineReadyBtn.textContent = "게임 시작";
+    }
+    const anim = onlineScreen?.querySelector(".online-search-anim");
+    if (anim) anim.hidden = state !== "searching";
+    const inviteLinkArea = document.getElementById("onlineInviteLinkArea");
+    const inviteStatusEl = document.getElementById("onlineInviteStatus");
+    const hasInviteContent = (inviteLinkArea && !inviteLinkArea.hidden) || Boolean(inviteStatusEl?.textContent?.trim());
+    if (onlineInvitePanel) onlineInvitePanel.hidden = state !== "searching" || !hasInviteContent;
+    const createInviteBtn = document.getElementById("onlineCreateInviteBtn");
+    if (createInviteBtn) createInviteBtn.hidden = state !== "searching";
+  }
+
+  async function beginOnlineMatchmaking() {
+    onlinePendingMatch = null;
+    onlineReadySides = [];
+    onlineRematchAfterCancel = false;
+    onlineReturnToCommandersAfterCancel = false;
+    onlineLastResult = null;
+    renderOnlineResultSummary();
+    setOnlinePage("match");
+    renderOnlineMatchPanel();
+    setOnlineMatchActionState("searching");
+    setOnlineStatus("상대를 찾는 중입니다...");
+    await onlineClient.joinQueue("quick");
+  }
+
+  function renderOnlineProfile() {
+    const player = onlineClient.player;
+    if (onlineProfile) {
+      onlineProfile.hidden = !player;
+      onlineProfile.innerHTML = player ? `
+        <div class="online-profile-summary">
+          ${factionEmblemMarkup(player.emblem)}
+          <div class="online-profile-text">
+            <div class="online-profile-name">${escapeHtml(player.displayName)}</div>
+            <div class="online-profile-record">
+              Rating ${player.rating} · ${player.wins}승 ${player.losses}패 ${player.draws}무
+            </div>
+          </div>
+        </div>
+      ` : "";
+    }
+    if (onlineAuthForm) onlineAuthForm.hidden = Boolean(player);
+    if (onlineLogoutBtn) onlineLogoutBtn.hidden = !player;
+    if (onlineQueueBtn) onlineQueueBtn.disabled = !player;
+    if (onlineCommanders) {
+      onlineLoadoutDraft = player ? normalizeOnlineLoadout(player.commanders || []) : [];
+      renderOnlineLoadoutEditor();
+      return;
+      const commanders = player?.commanders || [];
+      onlineCommanders.innerHTML = commanders.length ? commanders.map((commander, index) => `
+        <div class="online-commander">
+          <div class="online-commander-slot">${index + 1}</div>
+          <div>
+            <div class="online-commander-name">${escapeHtml(commander.name)}</div>
+            <div class="online-commander-meta">${escapeHtml(commander.troopType)} · ${escapeHtml(commander.skillType)}</div>
+          </div>
+          <div class="online-commander-meta">${commander.power}/${commander.leadership}/${commander.charm}</div>
+        </div>
+      `).join("") : `<div class="online-status">로그인하면 계정에 귀속된 장수 5명이 표시됩니다.</div>`;
+    }
+  }
+
+  function renderOnlineProfileEditEmblemGrid() {
+    if (!onlineProfileEditEmblemGrid) return;
+    onlineProfileEditEmblemGrid.innerHTML = FACTION_EMBLEM_OPTIONS.map((option) => `
+      <div class="online-profile-edit-emblem-option${option.id === onlineProfileEditSelectedEmblem ? " is-selected" : ""}" data-emblem-id="${escapeHtml(option.id)}" title="${escapeHtml(option.label)}">
+        <img src="${option.icon}" alt="${escapeHtml(option.label)}" />
+      </div>
+    `).join("");
+    onlineProfileEditEmblemGrid.querySelectorAll(".online-profile-edit-emblem-option").forEach((node) => {
+      node.addEventListener("click", () => {
+        onlineProfileEditSelectedEmblem = node.dataset.emblemId;
+        renderOnlineProfileEditEmblemGrid();
+      });
+    });
+  }
+
+  function openOnlineProfileEditPanel() {
+    const player = onlineClient.player;
+    if (!player || !onlineProfileEditOverlay) return;
+    onlineProfileEditSelectedEmblem = factionEmblemOption(player.emblem).id;
+    if (onlineProfileEditName) onlineProfileEditName.value = player.displayName || "";
+    if (onlineProfileEditStatus) onlineProfileEditStatus.textContent = "";
+    renderOnlineProfileEditEmblemGrid();
+    onlineProfileEditOverlay.hidden = false;
+  }
+
+  function closeOnlineProfileEditPanel() {
+    if (onlineProfileEditOverlay) onlineProfileEditOverlay.hidden = true;
+  }
+
+  async function saveOnlineProfileEdit() {
+    const displayName = onlineProfileEditName?.value.trim() || "";
+    if (displayName.length < 2) {
+      if (onlineProfileEditStatus) onlineProfileEditStatus.textContent = "표시명은 2자 이상이어야 합니다.";
+      return;
+    }
+    try {
+      if (onlineProfileEditStatus) onlineProfileEditStatus.textContent = "저장 중...";
+      await onlineClient.updateProfile({ displayName, emblem: onlineProfileEditSelectedEmblem });
+      renderOnlineProfile();
+      closeOnlineProfileEditPanel();
+      setOnlineStatus("프로필이 수정되었습니다.");
+    } catch (error) {
+      if (onlineProfileEditStatus) onlineProfileEditStatus.textContent = error.message || "프로필 수정에 실패했습니다.";
+    }
+  }
+
+  function onlineMatchLabel(match) {
+    const playerId = onlineClient.player?.id;
+    if (match.status === "desync") return { text: "무효", className: "is-invalid" };
+    if (match.status === "playing") return { text: "진행", className: "" };
+    if (!match.winnerId || match.winnerId === "-1") return { text: "무승부", className: "is-invalid" };
+    return match.winnerId === playerId
+      ? { text: "승리", className: "is-win" }
+      : { text: "패배", className: "is-loss" };
+  }
+
+  function renderOnlineResultSummary() {
+    if (!onlineResultSummary) return;
+    const result = onlineLastResult;
+    if (!result) {
+      onlineResultSummary.hidden = true;
+      onlineResultSummary.textContent = "";
+      return;
+    }
+    const mine = result.my || {};
+    const ratingChange = mine.ratingChange;
+    const stats = mine.stats;
+    const won = result.winnerSide === game.online?.side;
+    const resultText = result.status === "desync"
+      ? "무효 경기"
+      : won ? "승리" : "패배";
+    const ratingText = ratingChange
+      ? `${ratingChange.ratingBefore} → ${ratingChange.ratingAfter} (${ratingChange.ratingDelta >= 0 ? "+" : ""}${ratingChange.ratingDelta})`
+      : "변동 없음";
+    const commanderProgress = mine.commanderProgress || [];
+    const levelUps = commanderProgress.filter(item => item.leveledUp);
+    onlineResultSummary.innerHTML = `
+      <strong>${escapeHtml(resultText)}</strong><br>
+      Rating ${escapeHtml(ratingText)}<br>
+      ${stats ? `격파 ${formatTroops(stats.kills)} · 손실 ${formatTroops(stats.losses)} · 잔여 ${formatTroops(stats.troopsRemaining)}` : "전투 통계 없음"}
+    `;
+    onlineResultSummary.hidden = false;
+  }
+
+  function renderOnlineRecords() {
+    const recentMatches = onlineClient.recentMatches || [];
+    if (onlineRecentMatches) {
+      onlineRecentMatches.innerHTML = recentMatches.length ? recentMatches.map((match) => {
+        const label = onlineMatchLabel(match);
+        const delta = Number(match.ratingAfter ?? match.ratingBefore) - Number(match.ratingBefore ?? 0);
+        const deltaText = match.ratingAfter == null ? "" : ` · Rating ${delta >= 0 ? "+" : ""}${delta}`;
+        const opponent = match.opponentName || "상대";
+        return `
+          <div class="online-record-row">
+            <div class="online-record-main">
+              <div class="online-record-title">${escapeHtml(opponent)}</div>
+              <div class="online-record-meta">${escapeHtml(match.status)}${deltaText} · 격파 ${formatTroops(match.kills || 0)} · 손실 ${formatTroops(match.losses || 0)}</div>
+            </div>
+            <div class="online-record-badge ${label.className}">${label.text}</div>
+          </div>
+        `;
+      }).join("") : `<div class="online-status">아직 기록된 경기가 없습니다.</div>`;
+    }
+
+    const leaderboard = onlineClient.leaderboard || [];
+    if (onlineLeaderboard) {
+      onlineLeaderboard.innerHTML = leaderboard.length ? leaderboard.slice(0, 10).map((player, index) => `
+        <div class="online-record-row">
+          <div class="online-record-main">
+            <div class="online-record-title">${index + 1}. ${escapeHtml(player.displayName)}</div>
+            <div class="online-record-meta">${player.wins}승 ${player.losses}패 ${player.draws}무</div>
+          </div>
+          <div class="online-record-badge">${player.rating}</div>
+        </div>
+      `).join("") : `<div class="online-status">랭킹 기록이 없습니다.</div>`;
+    }
+    renderOnlineResultSummary();
+  }
+
+  async function refreshOnlineRecords() {
+    if (!onlineClient.token) {
+      renderOnlineProfile();
+      renderOnlineRecords();
+      return;
+    }
+    await Promise.all([
+      onlineClient.loadCommanderCatalog(),
+      onlineClient.loadMe(),
+      onlineClient.loadLeaderboard(),
+    ]);
+    renderOnlineProfile();
+    renderOnlineRecords();
+  }
+
+  async function saveOnlineLoadout() {
+    onlineLoadoutDraft = readOnlineLoadoutDraft();
+    const emptySlot = onlineLoadoutDraft.findIndex(item => !onlineCatalogItem(item?.templateId));
+    const lockedSlot = onlineLoadoutDraft.findIndex((item) => {
+      const template = onlineCatalogItem(item?.templateId);
+      return !onlineCommanderUnlocked(template);
+    });
+    if (emptySlot >= 0) {
+      throw new Error(`${emptySlot + 1}번 슬롯에 장수를 배치해 주세요.`);
+    }
+    if (lockedSlot >= 0) {
+      throw new Error(`${lockedSlot + 1}번 슬롯의 장수는 아직 해금되지 않았습니다.`);
+    }
+    normalizeOnlineLoadoutBudget();
+    const totalPopulation = onlineLoadoutTotalPopulation();
+    if (totalPopulation !== POPULATION_BUDGET) {
+      throw new Error("총 인구가 50,000이 되도록 편성을 조정해 주세요.");
+    }
+    setOnlineStatus("편성을 저장하는 중...");
+    await onlineClient.saveLoadout(onlineLoadoutDraft);
+    await refreshOnlineRecords();
+    setOnlineStatus("편성이 저장되었습니다.");
+    renderOnlineMatchPanel();
+  }
+
+  async function loadOnlineSession() {
+    try {
+      await refreshOnlineRecords();
+      if (pendingInviteCode && onlineClient.player) {
+        setOnlinePage("match");
+        setOnlineMatchActionState("searching");
+        setOnlineStatus("초대 링크로 입장 중...");
+        await onlineClient.whenAuthenticated();
+        onlineClient.joinPrivateRoom(pendingInviteCode);
+        return;
+      }
+      setOnlinePage(onlineClient.player ? "commanders" : "auth");
+      if (onlineClient.player) {
+        setOnlineStatus(
+          pendingInviteCode ? "로그인 후 초대 링크로 입장할 수 있습니다." : "빠른 매칭을 시작할 수 있습니다.",
+        );
+      }
+    } catch (error) {
+      onlineClient.logout();
+      renderOnlineProfile();
+      renderOnlineRecords();
+      setOnlinePage("auth");
+      setOnlineStatus(error.message || "온라인 프로필을 불러오지 못했습니다.");
+    }
+  }
+
+  async function enterWithInviteAsGuest() {
+    try {
+      setOnlineStatus("게스트로 연결 중...");
+      onlineClient.connectAsGuest("게스트");
+      await onlineClient.whenAuthenticated();
+      if (!pendingInviteCode) {
+        setOnlineStatus("초대 코드가 없습니다.");
+        return;
+      }
+      setOnlineStatus("방 입장 중...");
+      onlineClient.joinPrivateRoom(pendingInviteCode);
+      setOnlinePage("match");
+      setOnlineMatchActionState("searching");
+    } catch (error) {
+      setOnlineStatus(error.message || "게스트 입장에 실패했습니다.");
+    }
+  }
+
+  function onlineCredentials() {
+    return {
+      username: onlineUsername?.value.trim() || "",
+      password: onlinePassword?.value || "",
+      displayName: onlineDisplayName?.value.trim() || "",
+    };
+  }
+
+  async function loginOnline() {
+    try {
+      setOnlineStatus("로그인 중...");
+      const { username, password } = onlineCredentials();
+      await onlineClient.login({ username, password });
+      await refreshOnlineRecords();
+      if (pendingInviteCode) {
+        setOnlinePage("match");
+        setOnlineMatchActionState("searching");
+        setOnlineStatus("초대 링크로 입장 중...");
+        await onlineClient.whenAuthenticated();
+        onlineClient.joinPrivateRoom(pendingInviteCode);
+        return;
+      }
+      setOnlinePage("commanders");
+      setOnlineStatus("로그인되었습니다. 빠른 매칭을 시작할 수 있습니다.");
+    } catch (error) {
+      setOnlineStatus(error.message || "로그인에 실패했습니다.");
+    }
+  }
+
+  async function registerOnline() {
+    try {
+      setOnlineStatus("계정 생성 중...");
+      const { username, password, displayName } = onlineCredentials();
+      await onlineClient.register({ username, password, displayName, emblem: randomFactionEmblemId() });
+      await refreshOnlineRecords();
+      setOnlinePage("commanders");
+      setOnlineStatus("계정이 생성되었습니다. 기본 장수 5명이 지급되었습니다.");
+    } catch (error) {
+      setOnlineStatus(error.message || "회원가입에 실패했습니다.");
+    }
+  }
+
+  onlineClient.on("AUTH_OK", (message) => {
+    onlineClient.player = message.player || onlineClient.player;
+    renderOnlineProfile();
+    renderOnlineRecords();
+    setOnlineStatus("서버에 연결되었습니다. 매칭 대기열에 참가합니다...");
+  });
+  onlineClient.on("QUEUE_JOINED", () => setOnlineStatus("상대를 찾는 중입니다..."));
+  onlineClient.on("QUEUE_LEFT", () => setOnlineStatus("매칭 대기를 취소했습니다."));
+  onlineClient.on("QUEUE_JOINED", () => {
+    setOnlineMatchActionState("searching");
+    setOnlineStatus("상대를 찾는 중입니다...");
+  });
+  onlineClient.on("QUEUE_LEFT", () => {
+    setOnlineMatchActionState("idle");
+    setOnlineStatus("매칭 대기를 취소했습니다.");
+  });
+  onlineClient.on("MATCH_FOUND", (message) => {
+    const opponent = (message.players || []).find(player => player.side !== message.side);
+    onlinePendingMatch = message;
+    onlineReadySides = [];
+    renderOnlineMatchPanel();
+    setOnlinePage("match");
+    setOnlineMatchActionState("matched");
+    if (onlineReadyBtn) {
+      onlineReadyBtn.disabled = false;
+      onlineReadyBtn.textContent = "게임 시작";
+    }
+    setOnlineStatus("매칭 완료. 양쪽 모두 게임 시작을 눌러야 전투가 시작됩니다.");
+    return;
+  });
+  onlineClient.on("READY_STATE", (message) => {
+    onlineReadySides = message.readySides || [];
+    const myReady = onlineReadySides.includes(onlinePendingMatch?.side);
+    if (onlineReadyBtn) {
+      onlineReadyBtn.disabled = myReady;
+      onlineReadyBtn.textContent = myReady ? "상대 준비 대기" : "게임 시작";
+    }
+    setOnlineStatus(message.allReady ? "양쪽 준비 완료. 전장을 여는 중..." : `준비 상태: ${onlineReadySides.length}/2`);
+  });
+  onlineClient.on("MATCH_START", (message) => {
+    setOnlineStatus("전장을 구성하고 상대와 동기화합니다.");
+    enterOnlineBattle(message);
+  });
+  onlineClient.on("LOAD_STATE", (message) => {
+    const count = message.loadedSides?.length || 0;
+    setOnlineStatus(`전장 확인 중: ${count}/2`);
+    if (isOnlineMode() && message.roomId === game.online.roomId) {
+      showOnlineSyncNotice(`전장 확인 중: ${count}/2`, "info", 0);
+    }
+  });
+  onlineClient.on("SIM_START", (message) => {
+    setOnlineStatus("양쪽 전장 확인 완료. 전투를 시작합니다.");
+    startOnlineSimulation(message);
+  });
+  onlineClient.on("LOAD_MISMATCH", (message) => {
+    console.warn("[online] initial load mismatch", message);
+    setOnlineStatus("전장 동기화에 실패했습니다. 경기를 무효 처리합니다.");
+    showOnlineSyncNotice("전장 동기화 실패 — 잠시 후 로비로 이동합니다.", "danger", 0);
+    window.setTimeout(() => {
+      disableOnlineRandom();
+      game.online = null;
+      game.mode = "quick";
+      setScreen("online");
+      setOnlinePage(onlineClient.player ? "commanders" : "auth");
+      hideOnlineSyncNotice();
+    }, 3000);
+  });
+  onlineClient.on("MATCH_CANCELLED", (message = {}) => {
+    const previousMatch = onlinePendingMatch;
+    const mySide = previousMatch?.side;
+    const cancelledByMe = message?.bySide === mySide;
+    onlinePendingMatch = null;
+    onlineReadySides = [];
+    setOnlineMatchActionState("idle");
+    renderOnlineMatchPanel();
+    if (onlineReturnToCommandersAfterCancel || cancelledByMe) {
+      onlineReturnToCommandersAfterCancel = false;
+      onlineRematchAfterCancel = false;
+      setOnlinePage("commanders");
+      setOnlineStatus("편성 화면으로 돌아왔습니다.");
+      return;
+    }
+    if (onlineRematchAfterCancel || previousMatch) {
+      onlineRematchAfterCancel = false;
+      setOnlineStatus("상대가 떠났습니다. 다시 매칭을 시작합니다...");
+      beginOnlineMatchmaking().catch(error => setOnlineStatus(error.message || "재매칭을 시작하지 못했습니다."));
+      return;
+    }
+    setOnlineStatus("매칭이 취소되었습니다.");
+    return;
+    if (onlineRematchAfterCancel) {
+      onlineRematchAfterCancel = false;
+      beginOnlineMatchmaking().catch(error => setOnlineStatus(error.message || "재매칭을 시작하지 못했습니다."));
+    } else {
+      setOnlineStatus("매칭이 취소되었습니다.");
+    }
+  });
+  onlineClient.on("INPUT", queueOnlineInput);
+  onlineClient.on("DESYNC_DETECTED", (message) => {
+    console.warn("[online] desync detected", message);
+    const sides = (message.checksums || [])
+      .map(entry => `${entry.side}:${entry.hash}`)
+      .join(" / ");
+    showOnlineSyncNotice(`동기화 경고: tick ${message.tick} (${sides})`, "danger", 0);
+    setOnlineStatus(`동기화 경고가 감지되었습니다. tick ${message.tick}`);
+  });
+  onlineClient.on("CHECKSUM_OK", (message) => {
+    console.info("[online] checksum ok", message);
+  });
+  onlineClient.on("PRIVATE_ROOM_CREATED", (message) => {
+    const code = message.code || "";
+    const url = `${location.origin}${location.pathname}?invite=${code}`;
+    const input = document.getElementById("onlineInviteLinkInput");
+    const area = document.getElementById("onlineInviteLinkArea");
+    const status = document.getElementById("onlineInviteStatus");
+    if (input) input.value = url;
+    if (area) area.hidden = false;
+    if (onlineInvitePanel) onlineInvitePanel.hidden = false;
+    if (status) status.textContent = "링크를 복사해서 친구에게 공유하세요. (15분 유효)";
+    setOnlineMatchActionState("searching");
+    setOnlineStatus("친구가 링크를 통해 입장하기를 기다리는 중...");
+  });
+  onlineClient.on("MATCH_ENDED", (message) => {
+    setOnlineStatus(`경기가 종료되었습니다. 결과: ${message.status}`);
+    onlineLastResult = message;
+    renderOnlineResultSummary();
+    renderBattleResultOnlineProgress();
+    refreshOnlineRecords().catch(error => console.warn("[online] record refresh failed", error));
+  });
+  onlineClient.on("MATCH_ENDED", () => {
+    hideOnlineSyncNotice();
+  });
+  onlineClient.on("OPPONENT_DISCONNECTED", () => {
+    setOnlineStatus("상대 연결이 끊어졌습니다.");
+    if (isOnlineMode() && appState === "battle") {
+      game.battlePhase = "ended";
+      game.online.resultSubmitted = true;
+      disableOnlineRandom();
+      showBattleResult(true);
+    }
+  });
+  onlineClient.on("ERROR", (message) => {
+    setOnlineStatus(message.error || "온라인 연결 오류가 발생했습니다.");
+  });
+  onlineClient.on("DISCONNECTED", () => {
+    setOnlineStatus("서버 연결이 종료되었습니다.");
+  });
+
   document.getElementById("menuQuickBattle").addEventListener("click", () => {
     enterQuickBattle(true);
+  });
+
+  menuOnlineBattle?.addEventListener("click", () => {
+    renderOnlineProfile();
+    renderOnlineRecords();
+    setScreen("online");
+    loadOnlineSession();
   });
 
   menuHistoricalScenario?.addEventListener("click", () => {
     renderScenarioSelect();
     setScreen("scenarioSelect");
+    refreshHistoricalScenarioClears().then(renderScenarioSelect);
+  });
+
+  onlineBackBtn?.addEventListener("click", () => {
+    onlineClient.leaveQueue();
+    setScreen("home");
+  });
+
+  onlineLoginBtn?.addEventListener("click", loginOnline);
+  onlineRegisterBtn?.addEventListener("click", registerOnline);
+  onlineAuthForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    loginOnline();
+  });
+  onlineLogoutBtn?.addEventListener("click", () => {
+    onlineClient.logout();
+    onlineLastResult = null;
+    renderOnlineProfile();
+    renderOnlineRecords();
+    setOnlineStatus("로그아웃되었습니다.");
+  });
+  onlineLogoutBtn?.addEventListener("click", () => setOnlinePage("auth"));
+  onlineQueueBtn?.addEventListener("click", async () => {
+    try {
+      onlineLastResult = null;
+      renderOnlineResultSummary();
+      setOnlineStatus("서버에 연결 중...");
+      if (onlinePendingMatch) {
+        onlineRematchAfterCancel = true;
+        onlineReturnToCommandersAfterCancel = false;
+        setOnlineStatus("재매칭을 준비합니다...");
+        onlineClient.leaveMatch();
+        return;
+      }
+      await saveOnlineLoadout();
+      setOnlinePage("match");
+      renderOnlineMatchPanel();
+      await onlineClient.joinQueue("quick");
+    } catch (error) {
+      setOnlineStatus(error.message || "매칭을 시작하지 못했습니다.");
+    }
+  });
+  onlineLeaveQueueBtn?.addEventListener("click", () => {
+    onlineClient.leaveQueue();
+  });
+
+  onlineProfileEditSaveBtn?.addEventListener("click", () => {
+    saveOnlineProfileEdit();
+  });
+  onlineProfileEditCancelBtn?.addEventListener("click", () => {
+    closeOnlineProfileEditPanel();
+  });
+  onlineProfileEditOverlay?.addEventListener("click", (event) => {
+    if (event.target === onlineProfileEditOverlay) closeOnlineProfileEditPanel();
+  });
+
+  onlineScreen?.addEventListener("click", async (event) => {
+    const id = event.target?.id;
+    try {
+      if (id === "onlineGuestJoinBtn") {
+        await enterWithInviteAsGuest();
+      } else if (id === "onlineCreateInviteBtn") {
+        await onlineClient.whenAuthenticated();
+        onlineClient.createPrivateRoom();
+        const btn = document.getElementById("onlineCreateInviteBtn");
+        if (btn) btn.disabled = true;
+        setOnlineStatus("초대 링크 생성 중...");
+      } else if (id === "onlineInviteCopyBtn") {
+        const input = document.getElementById("onlineInviteLinkInput");
+        const url = input?.value || "";
+        if (navigator.share) {
+          await navigator.share({ title: "전략 대전 초대", url });
+        } else {
+          await navigator.clipboard.writeText(url);
+          const btn = document.getElementById("onlineInviteCopyBtn");
+          if (btn) { btn.textContent = "복사됨!"; setTimeout(() => { btn.textContent = "복사"; }, 1800); }
+        }
+      } else if (id === "onlineSaveLoadoutBtn") {
+        await saveOnlineLoadout();
+      } else if (id === "onlineGoMatchBtn") {
+        await saveOnlineLoadout();
+        await beginOnlineMatchmaking();
+      } else if (id === "onlineRecordsBtn") {
+        await refreshOnlineRecords();
+        setOnlinePage("records");
+      } else if (id === "onlineProfileEditBtn") {
+        openOnlineProfileEditPanel();
+      } else if (id === "onlineRecordsBackBtn") {
+        setOnlinePage(onlinePreviousPage === "match" ? "match" : "commanders");
+      } else if (id === "onlineBackToCommandersBtn") {
+        onlineReturnToCommandersAfterCancel = true;
+        onlineRematchAfterCancel = false;
+        onlineClient.leaveQueue();
+        if (onlinePendingMatch) onlineClient.leaveMatch();
+        onlinePendingMatch = null;
+        setOnlinePage("commanders");
+      } else if (id === "onlineReadyBtn") {
+        onlineClient.setReady(true);
+        event.target.disabled = true;
+        event.target.textContent = "상대 준비 대기";
+        setOnlineStatus("내 준비 완료. 상대를 기다립니다...");
+      } else if (id === "onlineMatchLogoutBtn") {
+        onlineClient.logout();
+        onlineLastResult = null;
+        onlinePendingMatch = null;
+        renderOnlineProfile();
+        renderOnlineRecords();
+        setOnlinePage("auth");
+        setOnlineStatus("로그아웃되었습니다.");
+      }
+    } catch (error) {
+      setOnlineStatus(error.message || "온라인 작업을 완료하지 못했습니다.");
+    }
   });
 
   scenarioSelectBackBtn?.addEventListener("click", () => {
@@ -5797,7 +10278,11 @@ import {
 
   scenarioNextBtn?.addEventListener("click", () => {
     game.scenarioDialogueIndex += 1;
-    showScenarioDialogue();
+    if (game.scenarioStep === "victoryDialogue") {
+      showVictoryDialogue();
+    } else {
+      showScenarioDialogue();
+    }
   });
 
   scenarioStartPhaseBtn?.addEventListener("click", () => {
@@ -5821,6 +10306,7 @@ import {
 
   // 전투 화면: 병력 조정
   troopAdjustBtn.addEventListener("click", () => {
+    if (isOnlineMode()) return;
     if (isHistoricalMode()) return;
     if (game.battlePhase === "live") return;
     openTroopAdjust();
@@ -5836,6 +10322,7 @@ import {
 
   // 결과 화면: 같은 조건 재전투
   document.getElementById("resultReplay").addEventListener("click", () => {
+    if (isOnlineMode()) return;
     if (isHistoricalMode()) {
       enterHistoricalScenario(game.scenarioData?.id || "cannae");
       return;
@@ -5851,12 +10338,51 @@ import {
 
   // 결과 화면: 새로운 전투
   document.getElementById("resultNewBattle").addEventListener("click", () => {
+    if (isOnlineMode()) return;
     enterQuickBattle(true);
   });
 
   // 결과 화면: 홈 화면
-  document.getElementById("resultHome").addEventListener("click", () => {
+    document.getElementById("resultHome").addEventListener("click", () => {
+      if (isOnlineMode()) {
+        const wasGuest = Boolean(game.online?.isGuest);
+      disableOnlineRandom();
+      game.online = null;
+      game.mode = "quick";
+      if (wasGuest) {
+        onlineClient.disconnect();
+        onlineClient.isGuest = false;
+        onlineClient.player = null;
+        setScreen("home");
+        return;
+      }
+      setScreen("online");
+      setOnlinePage(onlineClient.player ? "commanders" : "auth");
+      return;
+    }
+    if (isHistoricalMode()) {
+      game.scenarioData = null;
+      game.mode = "quick";
+      renderScenarioSelect();
+      setScreen("scenarioSelect");
+      refreshHistoricalScenarioClears().then(renderScenarioSelect);
+      return;
+    }
     setScreen("home");
+  });
+
+  // 결과 화면: 시나리오 승리 확인 → 시나리오 선택화면으로
+  document.getElementById("resultConfirm").addEventListener("click", () => {
+    game.scenarioData = null;
+    game.mode = "quick";
+    renderScenarioSelect();
+    setScreen("scenarioSelect");
+    refreshHistoricalScenarioClears().then(renderScenarioSelect);
+  });
+
+  // 결과 화면: 시나리오 패배 재전투 → 해당 시나리오 처음부터
+  document.getElementById("resultScenarioRetry").addEventListener("click", () => {
+    enterHistoricalScenario(game.scenarioData?.id);
   });
 
   function start() {
@@ -5868,7 +10394,14 @@ import {
     savedTerrain        = game.terrain;
     savedPlayerGenerals = game.playerFormations.map(f => ({ ...f.general }));
     savedEnemyGenerals  = game.enemyFormations.map(f => ({ ...f.general }));
-    setScreen("home");
+    if (pendingInviteCode) {
+      renderOnlineProfile();
+      renderOnlineRecords();
+      setScreen("online");
+      loadOnlineSession();
+    } else {
+      setScreen("home");
+    }
     requestAnimationFrame(tick);
   }
 

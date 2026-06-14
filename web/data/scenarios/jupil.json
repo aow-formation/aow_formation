@@ -8,22 +8,31 @@
     "name": "당군",
     "formations": [
       {
-        "id": "taizong",
+        "id": "tang_taizong",
         "name": "당태종",
         "troopType": "infantry",
-        "troops": 5000,
-        "power": 85,
-        "leadership": 98,
-        "charm": 95,
+        "troops": 12000,
+        "power": 92,
+        "leadership": 100,
+        "charm": 98,
         "skillType": "kihap",
         "combatOverrides": {
           "meleeDefenseMult": 1.25,
           "rangedDefenseMult": 1.25,
-          "kihapAttackBonusMult": 1.35
+          "kihapAttackBonusMult": 1.35,
+          "meleeDefenseBonus": 5,
+          "rangedDefenseBonus": 5,
+          "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/wang_jian.png",
-        "position": { "x": 34, "y": 80 },
-        "facing": { "x": 1, "y": 0 },
+        "portrait": "assets/portraits/tang_taizong.png",
+        "position": {
+          "x": 25,
+          "y": 57
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
         "density": "NORMAL",
         "speed": "STOP"
       },
@@ -31,18 +40,27 @@
         "id": "li_shiji",
         "name": "이세적",
         "troopType": "infantry",
-        "troops": 8000,
-        "power": 88,
-        "leadership": 92,
-        "charm": 82,
+        "troops": 16000,
+        "power": 94,
+        "leadership": 96,
+        "charm": 86,
         "skillType": "guard",
         "combatOverrides": {
           "meleeDefenseMult": 1.5,
-          "rangedDefenseMult": 1.3
+          "rangedDefenseMult": 1.3,
+          "meleeDefenseBonus": 5,
+          "rangedDefenseBonus": 5,
+          "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/wei_qing.png",
-        "position": { "x": 34, "y": 70 },
-        "facing": { "x": 1, "y": 0 },
+        "portrait": "assets/portraits/li_shiji.png",
+        "position": {
+          "x": 25,
+          "y": 40
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
         "density": "TIGHT",
         "speed": "STOP"
       },
@@ -50,18 +68,27 @@
         "id": "zhangsun_wuji",
         "name": "장손무기",
         "troopType": "infantry",
-        "troops": 5000,
-        "power": 72,
-        "leadership": 90,
-        "charm": 88,
+        "troops": 12000,
+        "power": 80,
+        "leadership": 94,
+        "charm": 92,
         "skillType": "guard",
         "combatOverrides": {
           "meleeDefenseMult": 1.5,
-          "rangedDefenseMult": 1.3
+          "rangedDefenseMult": 1.3,
+          "meleeDefenseBonus": 5,
+          "rangedDefenseBonus": 5,
+          "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/sun_bin.png",
-        "position": { "x": 34, "y": 92 },
-        "facing": { "x": 1, "y": 0 },
+        "portrait": "assets/portraits/zhangsun_wuji.png",
+        "position": {
+          "x": 25,
+          "y": 74
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
         "density": "TIGHT",
         "speed": "STOP"
       },
@@ -77,11 +104,18 @@
         "combatOverrides": {
           "meleeAttackMult": 1.15,
           "meleeDefenseMult": 1.2,
-          "rangedDefenseMult": 1.2
+          "rangedDefenseMult": 1.2,
+          "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/huo_qubing.png",
-        "position": { "x": 30, "y": 114 },
-        "facing": { "x": 1, "y": 0 },
+        "portrait": "assets/portraits/xue_rengui.png",
+        "position": {
+          "x": 10,
+          "y": 46
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
         "density": "NORMAL",
         "speed": "STOP"
       },
@@ -97,11 +131,18 @@
         "combatOverrides": {
           "meleeAttackMult": 1.1,
           "meleeDefenseMult": 1.2,
-          "rangedDefenseMult": 1.2
+          "rangedDefenseMult": 1.2,
+          "skillDurationMult": 2
         },
-        "portrait": "assets/portraits/ma_chao.png",
-        "position": { "x": 28, "y": 124 },
-        "facing": { "x": 1, "y": 0 },
+        "portrait": "assets/portraits/qibi_heli.png",
+        "position": {
+          "x": 9,
+          "y": 67
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
         "density": "NORMAL",
         "speed": "STOP"
       }
@@ -111,34 +152,52 @@
     "name": "고구려군",
     "formations": [
       {
-        "id": "go_yeonsu",
+        "id": "go_yeon_su",
         "name": "고연수",
         "troopType": "infantry",
-        "troops": 45000,
+        "troops": 26000,
         "power": 84,
         "leadership": 88,
         "charm": 75,
         "skillType": "guard",
-        "combatOverrides": { "meleeAttackMult": 1.15 },
-        "portrait": "assets/portraits/yeon_gaesomun.png",
-        "position": { "x": 146, "y": 74 },
-        "facing": { "x": -1, "y": 0 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.92,
+          "rangedAttackMult": 0.8
+        },
+        "portrait": "assets/portraits/go_yeon_su.png",
+        "position": {
+          "x": 198,
+          "y": 25
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "TIGHT",
         "speed": "STOP"
       },
       {
-        "id": "go_hyejin",
+        "id": "go_hye_jin",
         "name": "고혜진",
         "troopType": "infantry",
-        "troops": 35000,
+        "troops": 20000,
         "power": 82,
         "leadership": 84,
         "charm": 70,
         "skillType": "guard",
-        "combatOverrides": { "meleeAttackMult": 1.15 },
-        "portrait": "assets/portraits/eulji_mundeok.png",
-        "position": { "x": 154, "y": 90 },
-        "facing": { "x": -1, "y": 0 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.92,
+          "rangedAttackMult": 0.8
+        },
+        "portrait": "assets/portraits/go_hye_jin.png",
+        "position": {
+          "x": 199,
+          "y": 65
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "TIGHT",
         "speed": "STOP"
       },
@@ -146,30 +205,48 @@
         "id": "malgal_vanguard",
         "name": "말갈 선봉",
         "troopType": "infantry",
-        "troops": 30000,
+        "troops": 17000,
         "power": 78,
         "leadership": 72,
         "charm": 55,
         "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 1.15 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.92,
+          "rangedAttackMult": 0.8
+        },
         "portrait": "assets/portraits/xiang_yu.png",
-        "position": { "x": 136, "y": 84 },
-        "facing": { "x": -1, "y": 0 },
+        "position": {
+          "x": 198,
+          "y": 47
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "TIGHT",
         "speed": "STOP"
       },
       {
         "id": "goguryeo_cavalry",
-        "name": "고구려 기병",
+        "name": "고정의",
         "troopType": "cavalry",
-        "troops": 20000,
+        "troops": 23000,
         "power": 82,
         "leadership": 78,
         "charm": 62,
         "skillType": "kihap",
-        "portrait": "assets/portraits/lu_bu.png",
-        "position": { "x": 150, "y": 112 },
-        "facing": { "x": -1, "y": 0 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
+        "portrait": "assets/portraits/go_jeong_ui.png",
+        "position": {
+          "x": 225,
+          "y": 46
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "NORMAL",
         "speed": "STOP"
       },
@@ -177,14 +254,24 @@
         "id": "rear_guard",
         "name": "후방 수비대",
         "troopType": "infantry",
-        "troops": 20000,
+        "troops": 12000,
         "power": 76,
         "leadership": 75,
         "charm": 60,
         "skillType": "guard",
-        "portrait": "assets/portraits/gyebaek.png",
-        "position": { "x": 188, "y": 86 },
-        "facing": { "x": -1, "y": 0 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.8
+        },
+        "portrait": "assets/portraits/goguryeo_rear_guard.png",
+        "position": {
+          "x": 200,
+          "y": 85
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "TIGHT",
         "speed": "STOP"
       }
@@ -195,32 +282,148 @@
       "id": "deployment",
       "title": "산 아래의 대군",
       "dialogue": [
-        { "speaker": "장손무기", "side": "player", "portrait": "assets/portraits/sun_bin.png", "text": "폐하, 고구려군의 대열이 산 아래를 가득 메웠습니다. 수가 너무 많습니다." },
-        { "speaker": "이세적", "side": "player", "portrait": "assets/portraits/wei_qing.png", "text": "정면으로 부딪치면 오래 버티기 어렵습니다." },
-        { "speaker": "당태종", "side": "player", "portrait": "assets/portraits/wang_jian.png", "text": "그러니 정면은 이기는 곳이 아니라 붙잡는 곳이다." },
-        { "speaker": "설인귀", "side": "player", "portrait": "assets/portraits/huo_qubing.png", "text": "폐하, 산길을 돌아 적의 뒤를 칠 기회를 주십시오." },
-        { "speaker": "당태종", "side": "player", "portrait": "assets/portraits/wang_jian.png", "text": "좋다. 정면은 고정하고, 별동대는 산길로 돌아 후방 진지를 노린다." },
-        { "speaker": "고연수", "side": "enemy", "portrait": "assets/portraits/yeon_gaesomun.png", "camera": { "x": 146, "y": 82 }, "text": "당군은 적다. 중앙을 눌러 황제를 사로잡아라!" }
+        {
+          "speaker": "장손무기",
+          "side": "player",
+          "portrait": "assets/portraits/zhangsun_wuji.png",
+          "text": "폐하, 안시성을 구원하기 위한 고구려의 병사가 이 산 아래를 가득 메웠습니다. 수가 너무 많습니다."
+        },
+        {
+          "speaker": "이세적",
+          "side": "player",
+          "portrait": "assets/portraits/li_shiji.png",
+          "text": "정면으로 부딪치면 오래 버티기 어렵습니다."
+        },
+        {
+          "speaker": "당태종",
+          "side": "player",
+          "portrait": "assets/portraits/tang_taizong.png",
+          "text": "정면을 최대한 버텨야 한다. 주필산에서 적과 대치하겠다."
+        },
+        {
+          "speaker": "당태종",
+          "side": "player",
+          "portrait": "assets/portraits/tang_taizong.png",
+          "text": "정면은 고정하고, 설인귀와 계필하력은 산길로 돌아 후방 진지를 노린다."
+        },
+        {
+          "speaker": "고정의",
+          "side": "enemy",
+          "portrait": "assets/portraits/go_jeong_ui.png",
+          "camera": {
+            "x": 146,
+            "y": 82
+          },
+          "text": "적은 수나라의 백만대군이 넘지 못한 요동성을 함락한 정예입니다. 섣불리 움직이지 말아야 합니다."
+        },
+        {
+          "side": "player",
+          "speaker": "고혜진",
+          "portrait": "assets/portraits/go_hye_jin.png",
+          "text": "지금 황제를 사로잡는다면 다시는 고구려를 넘보지 못할 것이오. 압도적인 병력으로 황제를 꺽어야합니다."
+        }
       ],
       "briefing": {
         "text": "정면 부대는 방어선에 세우고, 설인귀와 계필하력은 산악 우회로 입구로 이동시키십시오.",
-        "camera": { "x": 68, "y": 92 },
+        "camera": {
+          "x": 68,
+          "y": 92
+        },
         "markers": [
-          { "id": "front_line", "type": "rect", "label": "정면 방어선", "x": 58, "y": 66, "w": 20, "h": 34 },
-          { "id": "bypass_start", "label": "우회로 입구", "x": 50, "y": 112, "radius": 8 }
+          {
+            "id": "front_line",
+            "type": "rect",
+            "label": "정면 방어선",
+            "x": 89,
+            "y": 39,
+            "w": 20,
+            "h": 34
+          },
+          {
+            "id": "bypass_start",
+            "label": "우회로 입구",
+            "x": 90,
+            "y": 128,
+            "radius": 12
+          }
         ]
       },
       "objectives": [
-        { "id": "front_ready", "type": "formationsInRectStopped", "formationIds": [ "taizong", "li_shiji", "zhangsun_wuji" ], "x": 58, "y": 66, "w": 20, "h": 34, "holdSeconds": 2, "label": "당태종, 이세적, 장손무기를 정면 방어선에 정지시키십시오." },
-        { "id": "bypass_ready", "type": "formationsAtArea", "formationIds": [ "xue_rengui", "qibi_heli" ], "x": 50, "y": 112, "radius": 8, "label": "설인귀와 계필하력을 우회로 입구에 집결시키십시오." }
+        {
+          "id": "front_ready",
+          "type": "formationsInRectStopped",
+          "formationIds": [
+            "tang_taizong",
+            "li_shiji",
+            "zhangsun_wuji"
+          ],
+          "x": 89,
+          "y": 39,
+          "w": 20,
+          "h": 34,
+          "holdSeconds": 2,
+          "label": "당태종, 이세적, 장손무기를 정면 방어선에 정지시키십시오."
+        },
+        {
+          "id": "bypass_ready",
+          "type": "formationsAtArea",
+          "formationIds": [
+            "xue_rengui",
+            "qibi_heli"
+          ],
+          "x": 90,
+          "y": 128,
+          "radius": 12,
+          "label": "설인귀와 계필하력을 우회로 입구에 집결시키십시오."
+        }
       ],
       "ai": {
         "actions": [
-          { "type": "moveTo", "team": "enemy", "formationId": "go_yeonsu", "target": { "x": 126, "y": 72 }, "speed": "SLOW", "density": "TIGHT" },
-          { "type": "moveTo", "team": "enemy", "formationId": "go_hyejin", "target": { "x": 130, "y": 92 }, "speed": "SLOW", "density": "TIGHT" },
-          { "type": "moveTo", "team": "enemy", "formationId": "malgal_vanguard", "target": { "x": 116, "y": 84 }, "speed": "SLOW", "density": "TIGHT" },
-          { "type": "hold", "team": "enemy", "formationId": "goguryeo_cavalry", "density": "NORMAL" },
-          { "type": "hold", "team": "enemy", "formationId": "rear_guard", "density": "TIGHT" }
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "go_yeon_su",
+            "target": {
+              "x": 142,
+              "y": 54
+            },
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "go_hye_jin",
+            "target": {
+              "x": 146,
+              "y": 78
+            },
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "malgal_vanguard",
+            "target": {
+              "x": 138,
+              "y": 66
+            },
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "goguryeo_cavalry",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "rear_guard",
+            "density": "TIGHT"
+          }
         ]
       }
     },
@@ -228,66 +431,177 @@
       "id": "front_hold",
       "title": "정면을 붙잡아라",
       "dialogue": [
-        { "speaker": "고연수", "side": "enemy", "portrait": "assets/portraits/yeon_gaesomun.png", "camera": { "x": 110, "y": 84 }, "text": "밀어붙여라! 저들의 전열은 얇다!" },
-        { "speaker": "이세적", "side": "player", "portrait": "assets/portraits/wei_qing.png", "text": "방패를 붙여라! 여기서 물러서면 별동대가 돌아갈 시간도 없다!" },
-        { "speaker": "당태종", "side": "player", "portrait": "assets/portraits/wang_jian.png", "text": "버텨라. 이 전투의 승리는 정면이 아니라 적의 뒤에서 열린다." },
-        { "speaker": "장손무기", "side": "player", "portrait": "assets/portraits/sun_bin.png", "text": "적의 압력이 거셉니다. 하지만 아직 전열은 유지됩니다." },
-        { "speaker": "설인귀", "side": "player", "portrait": "assets/portraits/huo_qubing.png", "text": "폐하, 산길로 진입하겠습니다." },
-        { "speaker": "당태종", "side": "player", "portrait": "assets/portraits/wang_jian.png", "text": "가라. 적이 눈치채기 전에 후방을 찔러라." }
+        {
+          "speaker": "고연수",
+          "side": "enemy",
+          "portrait": "assets/portraits/go_yeon_su.png",
+          "camera": {
+            "x": 110,
+            "y": 84
+          },
+          "text": "밀어붙여라! 황제를 공략하면 이 전쟁은 끝이 난다."
+        },
+        {
+          "speaker": "이세적",
+          "side": "player",
+          "portrait": "assets/portraits/li_shiji.png",
+          "text": "버텨야 한다! 여기서 물러서면 별동대가 돌아갈 시간도 없다!"
+        },
+        {
+          "speaker": "장손무기",
+          "side": "player",
+          "portrait": "assets/portraits/zhangsun_wuji.png",
+          "text": "적의 압력이 거셉니다. 하지만 아직 전열은 유지됩니다."
+        },
+        {
+          "speaker": "설인귀",
+          "side": "player",
+          "portrait": "assets/portraits/xue_rengui.png",
+          "text": "서둘러야 한다. 방어선이 무너지기 전에 적의 뒤를 쳐야 한다."
+        }
       ],
       "briefing": {
-        "text": "정면 부대가 고구려 대군을 붙잡는 동안 별동대는 첫 산길 지점까지 이동해야 합니다.",
-        "camera": { "x": 92, "y": 92 },
+        "text": "정면 부대가 고구려 대군을 붙잡는 동안 설인귀와 계필하력은 산악 우회로의 3개 지점을 순서대로 통과해야 합니다.",
+        "camera": {
+          "x": 92,
+          "y": 92
+        },
         "markers": [
-          { "id": "front_line_hold", "type": "rect", "label": "방어선", "x": 58, "y": 66, "w": 20, "h": 34 },
-          { "id": "bypass_point_1", "label": "첫 산길 지점", "x": 68, "y": 124, "radius": 8 }
+          {
+            "id": "front_line_hold",
+            "type": "rect",
+            "label": "방어선",
+            "x": 79,
+            "y": 42,
+            "w": 20,
+            "h": 34
+          },
+          {
+            "id": "bypass_1",
+            "label": "우회로 1",
+            "x": 126,
+            "y": 119,
+            "radius": 8
+          },
+          {
+            "id": "bypass_2",
+            "label": "우회로 2",
+            "x": 162,
+            "y": 109,
+            "radius": 8
+          },
+          {
+            "id": "bypass_3",
+            "label": "후방 접근로",
+            "x": 189,
+            "y": 94,
+            "radius": 8
+          }
         ]
       },
       "objectives": [
-        { "id": "hold_time", "type": "surviveSeconds", "formationIds": [ "taizong", "li_shiji", "zhangsun_wuji" ], "seconds": 75, "minRatio": 0.25, "label": "정면 부대가 75초 동안 버티게 하십시오." },
-        { "id": "front_strength", "type": "formationsTroopsAbove", "formationIds": [ "taizong", "li_shiji", "zhangsun_wuji" ], "ratio": 0.45, "requiredCount": 2, "label": "정면 3부대 중 2부대 이상을 45% 이상 유지하십시오." },
-        { "id": "first_bypass", "type": "formationsAtArea", "formationIds": [ "xue_rengui", "qibi_heli" ], "x": 68, "y": 124, "radius": 8, "label": "별동대를 첫 산길 지점까지 이동시키십시오." }
+        {
+          "id": "hold_time",
+          "type": "surviveSeconds",
+          "formationIds": [
+            "tang_taizong",
+            "li_shiji",
+            "zhangsun_wuji"
+          ],
+          "seconds": 75,
+          "minRatio": 0.25,
+          "label": "정면 부대가 75초 동안 버티게 하십시오."
+        },
+        {
+          "id": "front_strength",
+          "type": "formationsTroopsAbove",
+          "formationIds": [
+            "tang_taizong",
+            "li_shiji",
+            "zhangsun_wuji"
+          ],
+          "ratio": 0.45,
+          "requiredCount": 2,
+          "label": "정면 3부대 중 2부대 이상을 45% 이상 유지하십시오."
+        },
+        {
+          "id": "bypass_route",
+          "type": "formationsAtAreaSequence",
+          "formationIds": [
+            "xue_rengui",
+            "qibi_heli"
+          ],
+          "points": [
+            {
+              "x": 68,
+              "y": 124,
+              "radius": 8
+            },
+            {
+              "x": 124,
+              "y": 126,
+              "radius": 8
+            },
+            {
+              "x": 176,
+              "y": 96,
+              "radius": 8
+            }
+          ],
+          "label": "별동대가 산악 우회로의 3개 지점을 순서대로 통과하게 하십시오."
+        },
+        {
+          "id": "bypass_strength",
+          "type": "formationsTroopsAbove",
+          "formationIds": [
+            "xue_rengui",
+            "qibi_heli"
+          ],
+          "ratio": 0.6,
+          "requiredCount": 1,
+          "label": "별동대 중 최소 1부대를 60% 이상 유지하십시오."
+        }
       ],
       "ai": {
         "actions": [
-          { "type": "pursue", "team": "enemy", "formationId": "go_yeonsu", "targetFormationId": "li_shiji", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "go_hyejin", "targetFormationId": "zhangsun_wuji", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "malgal_vanguard", "targetFormationId": "taizong", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "goguryeo_cavalry", "targetMode": "nearestPlayer", "speed": "NORMAL", "density": "NORMAL" },
-          { "type": "hold", "team": "enemy", "formationId": "rear_guard", "density": "TIGHT" }
-        ]
-      }
-    },
-    {
-      "id": "bypass",
-      "title": "산악 우회",
-      "dialogue": [
-        { "speaker": "설인귀", "side": "player", "portrait": "assets/portraits/huo_qubing.png", "camera": { "x": 104, "y": 126 }, "text": "길이 좁습니다. 진형을 넓히면 산길에서 흩어질 것입니다." },
-        { "speaker": "계필하력", "side": "player", "portrait": "assets/portraits/ma_chao.png", "text": "속도를 내되, 길을 벗어나면 적에게 들킬 수 있습니다." },
-        { "speaker": "당태종", "side": "player", "portrait": "assets/portraits/wang_jian.png", "text": "정면은 아직 버틴다. 서두르되 무리하지 마라." },
-        { "speaker": "고혜진", "side": "enemy", "portrait": "assets/portraits/eulji_mundeok.png", "text": "적 기병 일부가 보이지 않습니다. 산길을 살펴야 합니다." },
-        { "speaker": "고연수", "side": "enemy", "portrait": "assets/portraits/yeon_gaesomun.png", "text": "당군 주력은 눈앞에 있다. 흔들리지 마라. 중앙을 먼저 무너뜨린다." }
-      ],
-      "briefing": {
-        "text": "설인귀와 계필하력을 산악 우회로의 경유지들로 이동시켜 후방 진지 근처까지 도달시키십시오.",
-        "camera": { "x": 128, "y": 122 },
-        "markers": [
-          { "id": "bypass_1", "label": "우회로 1", "x": 68, "y": 124, "radius": 8 },
-          { "id": "bypass_2", "label": "우회로 2", "x": 124, "y": 126, "radius": 8 },
-          { "id": "bypass_3", "label": "후방 접근로", "x": 176, "y": 96, "radius": 8 }
-        ]
-      },
-      "objectives": [
-        { "id": "bypass_route", "type": "formationsAtAreaSequence", "formationIds": [ "xue_rengui", "qibi_heli" ], "points": [ { "x": 68, "y": 124, "radius": 8 }, { "x": 124, "y": 126, "radius": 8 }, { "x": 176, "y": 96, "radius": 8 } ], "label": "별동대가 산악 우회로의 3개 지점을 순서대로 통과하게 하십시오." },
-        { "id": "bypass_strength", "type": "formationsTroopsAbove", "formationIds": [ "xue_rengui", "qibi_heli" ], "ratio": 0.6, "requiredCount": 1, "label": "별동대 중 최소 1부대를 60% 이상 유지하십시오." }
-      ],
-      "ai": {
-        "actions": [
-          { "type": "pursue", "team": "enemy", "formationId": "go_yeonsu", "targetFormationId": "li_shiji", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "go_hyejin", "targetFormationId": "zhangsun_wuji", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "malgal_vanguard", "targetFormationId": "taizong", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "goguryeo_cavalry", "targetFormationId": "xue_rengui", "speed": "NORMAL", "density": "NORMAL" },
-          { "type": "hold", "team": "enemy", "formationId": "rear_guard", "density": "TIGHT" }
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "go_yeon_su",
+            "targetFormationId": "li_shiji",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "go_hye_jin",
+            "targetFormationId": "zhangsun_wuji",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "malgal_vanguard",
+            "targetFormationId": "tang_taizong",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "goguryeo_cavalry",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "rear_guard",
+            "density": "TIGHT"
+          }
         ]
       }
     },
@@ -295,38 +609,170 @@
       "id": "capture_rear",
       "title": "후방 진지 점령",
       "dialogue": [
-        { "speaker": "설인귀", "side": "player", "portrait": "assets/portraits/huo_qubing.png", "camera": { "x": 186, "y": 86 }, "text": "후방 진지가 보입니다. 적은 아직 중앙만 보고 있습니다." },
-        { "speaker": "계필하력", "side": "player", "portrait": "assets/portraits/ma_chao.png", "text": "지금 들이치면 고구려군의 등 뒤가 무너집니다." },
-        { "speaker": "후방 수비대", "side": "enemy", "portrait": "assets/portraits/gyebaek.png", "text": "당군이다! 후방에 당군이 나타났다!" },
-        { "speaker": "고연수", "side": "enemy", "portrait": "assets/portraits/yeon_gaesomun.png", "text": "후방이라고? 그럴 리 없다. 대열을 유지하라!" },
-        { "speaker": "당태종", "side": "player", "portrait": "assets/portraits/wang_jian.png", "text": "때가 왔다. 정면 부대도 앞으로 밀어붙여라." },
-        { "speaker": "이세적", "side": "player", "portrait": "assets/portraits/wei_qing.png", "text": "팔을 들어라! 이제 우리가 밀 차례다!" }
+        {
+          "speaker": "설인귀",
+          "side": "player",
+          "portrait": "assets/portraits/xue_rengui.png",
+          "camera": {
+            "x": 186,
+            "y": 86
+          },
+          "text": "후방 진지가 보입니다. 적은 아직 중앙만 보고 있습니다."
+        },
+        {
+          "speaker": "계필하력",
+          "side": "player",
+          "portrait": "assets/portraits/qibi_heli.png",
+          "text": "지금 들이치면 고구려군의 등 뒤가 무너집니다."
+        },
+        {
+          "speaker": "후방 수비대",
+          "side": "enemy",
+          "portrait": "assets/portraits/goguryeo_rear_guard.png",
+          "text": "당군이다! 후방에 당군이 나타났다!"
+        },
+        {
+          "speaker": "고연수",
+          "side": "enemy",
+          "portrait": "assets/portraits/go_yeon_su.png",
+          "text": "동요하지 말아야 한다. 양쪽으로 모두 방어를 해야한다."
+        },
+        {
+          "speaker": "당태종",
+          "side": "player",
+          "portrait": "assets/portraits/tang_taizong.png",
+          "text": "때가 왔다. 정면 부대도 앞으로 밀어붙여라."
+        },
+        {
+          "speaker": "이세적",
+          "side": "player",
+          "portrait": "assets/portraits/li_shiji.png",
+          "text": "팔을 들어라! 이제 우리가 밀 차례다!"
+        }
       ],
       "briefing": {
         "text": "별동대로 고구려 후방 진지를 점령하고 후방 수비대를 약화시키십시오.",
-        "camera": { "x": 186, "y": 86 },
+        "camera": {
+          "x": 186,
+          "y": 86
+        },
         "markers": [
-          { "id": "rear_camp", "type": "rect", "label": "후방 진지", "x": 178, "y": 76, "w": 22, "h": 22 }
+          {
+            "id": "rear_camp",
+            "type": "rect",
+            "label": "후방 진지",
+            "x": 187,
+            "y": 74,
+            "w": 22,
+            "h": 22
+          }
         ]
       },
       "objectives": [
-        { "id": "capture_rear_camp", "type": "captureArea", "formationIds": [ "xue_rengui", "qibi_heli" ], "x": 178, "y": 76, "w": 22, "h": 22, "holdSeconds": 8, "allowContested": true, "label": "별동대가 후방 진지 안에서 8초 동안 버티게 하십시오." },
-        { "id": "rear_guard_weakened", "type": "enemyTroopsBelow", "formationIds": [ "rear_guard" ], "ratio": 0.5, "label": "후방 수비대를 50% 이하로 약화시키십시오." }
+        {
+          "id": "capture_rear_camp",
+          "type": "captureArea",
+          "formationIds": [
+            "xue_rengui",
+            "qibi_heli"
+          ],
+          "x": 187,
+          "y": 74,
+          "w": 22,
+          "h": 22,
+          "holdSeconds": 8,
+          "allowContested": true,
+          "label": "별동대가 후방 진지 안에서 8초 동안 버티게 하십시오."
+        },
+        {
+          "id": "rear_guard_weakened",
+          "type": "enemyTroopsBelow",
+          "formationIds": [
+            "rear_guard"
+          ],
+          "ratio": 0.5,
+          "label": "후방 수비대를 50% 이하로 약화시키십시오."
+        }
       ],
       "onComplete": {
         "effects": [
-          { "type": "setDisorder", "team": "enemy", "value": 0.75 },
-          { "type": "combatOverrides", "team": "enemy", "formationIds": [ "go_yeonsu", "go_hyejin", "malgal_vanguard", "goguryeo_cavalry" ], "values": { "meleeAttackMult": 0.45, "meleeDefenseMult": 0.6, "rangedAttackMult": 0.45, "rangedDefenseMult": 0.6 } },
-          { "type": "route", "team": "enemy", "formationIds": [ "rear_guard" ], "target": { "x": 232, "y": 84 }, "speed": "FAST" }
+          {
+            "type": "setDisorder",
+            "team": "enemy",
+            "value": 0.75
+          },
+          {
+            "type": "combatOverrides",
+            "team": "enemy",
+            "formationIds": [
+              "go_yeon_su",
+              "go_hye_jin",
+              "malgal_vanguard",
+              "goguryeo_cavalry"
+            ],
+            "values": {
+              "meleeAttackMult": 0.45,
+              "meleeDefenseMult": 0.6,
+              "rangedAttackMult": 0.45,
+              "rangedDefenseMult": 0.6
+            }
+          },
+          {
+            "type": "route",
+            "team": "enemy",
+            "formationIds": [
+              "rear_guard"
+            ],
+            "target": {
+              "x": 232,
+              "y": 84
+            },
+            "speed": "FAST"
+          }
         ]
       },
       "ai": {
         "actions": [
-          { "type": "pursue", "team": "enemy", "formationId": "rear_guard", "targetFormationId": "xue_rengui", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "go_yeonsu", "targetFormationId": "li_shiji", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "go_hyejin", "targetFormationId": "zhangsun_wuji", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "malgal_vanguard", "targetFormationId": "taizong", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "goguryeo_cavalry", "targetMode": "nearestPlayer", "speed": "NORMAL", "density": "NORMAL" }
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "rear_guard",
+            "targetFormationId": "xue_rengui",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "go_yeon_su",
+            "targetFormationId": "li_shiji",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "go_hye_jin",
+            "targetFormationId": "zhangsun_wuji",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "malgal_vanguard",
+            "targetFormationId": "tang_taizong",
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "goguryeo_cavalry",
+            "targetMode": "nearestPlayer",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          }
         ]
       }
     },
@@ -334,45 +780,202 @@
       "id": "collapse",
       "title": "대군의 붕괴",
       "dialogue": [
-        { "speaker": "고혜진", "side": "enemy", "portrait": "assets/portraits/eulji_mundeok.png", "camera": { "x": 142, "y": 88 }, "text": "후방이 무너졌습니다! 병사들이 포위되었다고 외치고 있습니다!" },
-        { "speaker": "고연수", "side": "enemy", "portrait": "assets/portraits/yeon_gaesomun.png", "text": "대열을 유지하라! 산길의 적은 소수다!" },
-        { "speaker": "장손무기", "side": "player", "portrait": "assets/portraits/sun_bin.png", "text": "적의 압력이 약해졌습니다. 중앙이 흔들립니다!" },
-        { "speaker": "당태종", "side": "player", "portrait": "assets/portraits/wang_jian.png", "text": "전군 전진. 지금부터는 버티는 싸움이 아니다." },
-        { "speaker": "설인귀", "side": "player", "portrait": "assets/portraits/huo_qubing.png", "text": "후방에서 밀어붙이겠습니다!" },
-        { "speaker": "이세적", "side": "player", "portrait": "assets/portraits/wei_qing.png", "text": "앞과 뒤에서 동시에 압박하라!" }
+        {
+          "speaker": "고혜진",
+          "side": "enemy",
+          "portrait": "assets/portraits/go_hye_jin.png",
+          "camera": {
+            "x": 142,
+            "y": 88
+          },
+          "text": "후방이 무너졌습니다! 병사들이 포위되었다고 외치고 있습니다!"
+        },
+        {
+          "speaker": "고연수",
+          "side": "enemy",
+          "portrait": "assets/portraits/go_yeon_su.png",
+          "text": "대열을 유지하라! 산길의 적은 소수다!"
+        },
+        {
+          "speaker": "장손무기",
+          "side": "player",
+          "portrait": "assets/portraits/zhangsun_wuji.png",
+          "text": "적의 압력이 약해졌습니다. 중앙이 흔들립니다!"
+        },
+        {
+          "speaker": "당태종",
+          "side": "player",
+          "portrait": "assets/portraits/tang_taizong.png",
+          "text": "전군 전진. 지금부터는 버티는 싸움이 아니다."
+        },
+        {
+          "speaker": "설인귀",
+          "side": "player",
+          "portrait": "assets/portraits/xue_rengui.png",
+          "text": "후방에서 밀어붙이겠습니다!"
+        },
+        {
+          "speaker": "이세적",
+          "side": "player",
+          "portrait": "assets/portraits/li_shiji.png",
+          "text": "앞과 뒤에서 동시에 압박하라!"
+        }
       ],
       "briefing": {
         "text": "혼란에 빠진 고구려 대군을 앞뒤에서 압박해 무너뜨리십시오.",
-        "camera": { "x": 144, "y": 88 },
+        "camera": {
+          "x": 144,
+          "y": 88
+        },
         "markers": []
       },
       "objectives": [
         {
           "id": "break_goguryeo",
           "type": "any",
-          "label": "고구려 전체 병력을 35% 이하로 낮추거나, 고연수와 후방 수비대를 크게 약화시키십시오.",
+          "label": "고구려 전체 병력을 25% 이하로 낮추거나, 고연수와 후방 수비대를 크게 약화시키십시오.",
           "objectives": [
-            { "id": "total", "type": "enemyTotalBelow", "ratio": 0.35 },
-            { "id": "command", "type": "enemyTroopsBelow", "formationIds": [ "go_yeonsu", "rear_guard" ], "ratio": 0.4 }
+            {
+              "id": "total",
+              "type": "enemyTotalBelow",
+              "ratio": 0.25
+            },
+            {
+              "id": "command",
+              "type": "enemyTroopsBelow",
+              "formationIds": [
+                "go_yeon_su",
+                "rear_guard"
+              ],
+              "ratio": 0.3
+            }
           ]
         },
-        { "id": "emperor_alive", "type": "formationsTroopsAbove", "formationIds": [ "taizong" ], "ratio": 0.2, "requiredCount": 1, "label": "당태종 부대를 생존시켜야 합니다." }
+        {
+          "id": "emperor_alive",
+          "type": "formationsTroopsAbove",
+          "formationIds": [
+            "tang_taizong"
+          ],
+          "ratio": 0.2,
+          "requiredCount": 1,
+          "label": "당태종 부대를 생존시켜야 합니다."
+        }
       ],
       "ai": {
         "actions": [
-          { "type": "pursue", "team": "enemy", "formationId": "go_yeonsu", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "go_hyejin", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "malgal_vanguard", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "goguryeo_cavalry", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "NORMAL" },
-          { "type": "moveTo", "team": "enemy", "formationId": "rear_guard", "target": { "x": 232, "y": 84 }, "speed": "FAST", "density": "TIGHT", "holdOnReach": false }
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "go_yeon_su",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "go_hye_jin",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "malgal_vanguard",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "goguryeo_cavalry",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "NORMAL"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "rear_guard",
+            "target": {
+              "x": 232,
+              "y": 84
+            },
+            "speed": "FAST",
+            "density": "TIGHT",
+            "holdOnReach": false
+          }
         ]
       }
     }
   ],
   "failure": [
-    { "type": "playerTotalBelow", "ratio": 0.3, "label": "당군 전체 병력이 30% 이하가 되면 실패합니다." },
-    { "type": "formationBelow", "formationId": "taizong", "ratio": 0.2, "label": "당태종 부대가 20% 이하가 되면 실패합니다." },
-    { "type": "formationsBelowCount", "formationIds": [ "taizong", "li_shiji", "zhangsun_wuji" ], "ratio": 0.25, "count": 2, "label": "정면 부대 2개가 25% 이하가 되면 실패합니다." },
-    { "type": "formationsBelowCount", "formationIds": [ "xue_rengui", "qibi_heli" ], "ratio": 0.3, "count": 2, "label": "별동대가 모두 30% 이하가 되면 실패합니다." }
+    {
+      "type": "playerTotalBelow",
+      "ratio": 0.3,
+      "label": "당군 전체 병력이 30% 이하가 되면 실패합니다."
+    },
+    {
+      "type": "formationBelow",
+      "formationId": "tang_taizong",
+      "ratio": 0.2,
+      "label": "당태종 부대가 20% 이하가 되면 실패합니다."
+    },
+    {
+      "type": "formationsBelowCount",
+      "formationIds": [
+        "tang_taizong",
+        "li_shiji",
+        "zhangsun_wuji"
+      ],
+      "ratio": 0.25,
+      "count": 2,
+      "label": "정면 부대 2개가 25% 이하가 되면 실패합니다."
+    },
+    {
+      "type": "formationsBelowCount",
+      "formationIds": [
+        "xue_rengui",
+        "qibi_heli"
+      ],
+      "ratio": 0.3,
+      "count": 2,
+      "label": "별동대가 모두 30% 이하가 되면 실패합니다."
+    }
+  ],
+  "victoryDialogue": [
+    {
+      "speaker": "이세적",
+      "side": "player",
+      "portrait": "assets/portraits/li_shiji.png",
+      "text": "폐하, 고구려와 말갈의 연합군이 완전히 궤멸되었습니다. 주필산은 당의 것입니다."
+    },
+    {
+      "speaker": "당태종",
+      "side": "player",
+      "portrait": "assets/portraits/tang_taizong.png",
+      "text": "설인귀, 오늘 네 용맹을 전군이 보았다. 흰 갑옷의 장수가 적진을 홀로 뚫는 것을."
+    },
+    {
+      "speaker": "설인귀",
+      "side": "player",
+      "portrait": "assets/portraits/xue_rengui.png",
+      "text": "폐하의 지휘 덕분입니다. 신은 다만 선봉에 섰을 뿐입니다."
+    },
+    {
+      "speaker": "장손무기",
+      "side": "player",
+      "portrait": "assets/portraits/zhangsun_wuji.png",
+      "text": "그러나 폐하, 안시성은 아직 굳건합니다. 양만춘이 성벽을 굳게 지키고 있습니다."
+    },
+    {
+      "speaker": "당태종",
+      "side": "player",
+      "portrait": "assets/portraits/tang_taizong.png",
+      "text": "안시성... 끝까지 버티는 자의 이름도 역사는 기억하는 법이지. 이 전쟁은 아직 끝나지 않았다."
+    }
   ]
 }

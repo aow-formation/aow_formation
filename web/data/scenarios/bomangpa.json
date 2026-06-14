@@ -15,12 +15,21 @@
         "power": 62,
         "leadership": 98,
         "charm": 100,
-        "skillType": "fire",
-        "allowedSkills": [ "fire" ],
-        "combatOverrides": { "rangedAttackMult": 1.15, "meleeDefenseMult": 1.2, "rangedDefenseMult": 1.2 },
+        "skillType": "guard",
+        "combatOverrides": {
+          "rangedAttackMult": 1.15,
+          "meleeDefenseMult": 1.2,
+          "rangedDefenseMult": 1.2
+        },
         "portrait": "assets/portraits/zhuge_liang.png",
-        "position": { "x": 48, "y": 82 },
-        "facing": { "x": 1, "y": 0 },
+        "position": {
+          "x": 12,
+          "y": 70
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
         "density": "NORMAL",
         "speed": "STOP"
       },
@@ -33,10 +42,19 @@
         "leadership": 88,
         "charm": 96,
         "skillType": "kihap",
-        "combatOverrides": { "meleeDefenseMult": 1.25, "rangedDefenseMult": 1.25 },
+        "combatOverrides": {
+          "meleeDefenseMult": 1.25,
+          "rangedDefenseMult": 1.25
+        },
         "portrait": "assets/portraits/liu_bei.png",
-        "position": { "x": 44, "y": 92 },
-        "facing": { "x": 1, "y": 0 },
+        "position": {
+          "x": 12,
+          "y": 86
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
         "density": "NORMAL",
         "speed": "STOP"
       },
@@ -48,11 +66,25 @@
         "power": 94,
         "leadership": 90,
         "charm": 88,
-        "skillType": "kihap",
-        "combatOverrides": { "meleeDefenseMult": 1.15, "rangedDefenseMult": 1.15 },
+        "skillType": "fire",
+        "allowedSkills": [
+          "fire"
+        ],
+        "combatOverrides": {
+          "meleeDefenseMult": 1.15,
+          "rangedDefenseMult": 1.15,
+          "skillDurationMult": 2,
+          "fireDamageMult": 2
+        },
         "portrait": "assets/portraits/zhao_yun.png",
-        "position": { "x": 58, "y": 80 },
-        "facing": { "x": 1, "y": 0 },
+        "position": {
+          "x": 31,
+          "y": 80
+        },
+        "facing": {
+          "x": 1,
+          "y": 0
+        },
         "density": "NORMAL",
         "speed": "STOP"
       },
@@ -64,11 +96,25 @@
         "power": 98,
         "leadership": 92,
         "charm": 82,
-        "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 1.2, "meleeDefenseMult": 1.2 },
+        "skillType": "fire",
+        "allowedSkills": [
+          "fire"
+        ],
+        "combatOverrides": {
+          "meleeAttackMult": 1.2,
+          "meleeDefenseMult": 1.2,
+          "skillDurationMult": 2,
+          "fireDamageMult": 2
+        },
         "portrait": "assets/portraits/guan_yu.png",
-        "position": { "x": 106, "y": 48 },
-        "facing": { "x": 1, "y": 1 },
+        "position": {
+          "x": 32,
+          "y": 64
+        },
+        "facing": {
+          "x": 1,
+          "y": 1
+        },
         "density": "TIGHT",
         "speed": "STOP"
       },
@@ -80,11 +126,25 @@
         "power": 99,
         "leadership": 84,
         "charm": 70,
-        "skillType": "kihap",
-        "combatOverrides": { "meleeAttackMult": 1.25, "meleeDefenseMult": 1.15 },
+        "skillType": "fire",
+        "allowedSkills": [
+          "fire"
+        ],
+        "combatOverrides": {
+          "meleeAttackMult": 1.25,
+          "meleeDefenseMult": 1.15,
+          "skillDurationMult": 2,
+          "fireDamageMult": 2
+        },
         "portrait": "assets/portraits/zhang_fei.png",
-        "position": { "x": 106, "y": 112 },
-        "facing": { "x": 1, "y": -1 },
+        "position": {
+          "x": 31,
+          "y": 96
+        },
+        "facing": {
+          "x": 1,
+          "y": -1
+        },
         "density": "TIGHT",
         "speed": "STOP"
       }
@@ -102,9 +162,18 @@
         "leadership": 82,
         "charm": 70,
         "skillType": "kihap",
-        "portrait": "assets/portraits/dian_wei.png",
-        "position": { "x": 198, "y": 78 },
-        "facing": { "x": -1, "y": 0 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
+        "portrait": "assets/portraits/xiahou_dun.png",
+        "position": {
+          "x": 207,
+          "y": 71
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "NORMAL",
         "speed": "STOP"
       },
@@ -117,9 +186,18 @@
         "leadership": 72,
         "charm": 58,
         "skillType": "kihap",
+        "combatOverrides": {
+          "meleeAttackMult": 0.8
+        },
         "portrait": "assets/portraits/lu_bu.png",
-        "position": { "x": 206, "y": 88 },
-        "facing": { "x": -1, "y": 0 },
+        "position": {
+          "x": 208,
+          "y": 54
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "NORMAL",
         "speed": "STOP"
       },
@@ -132,10 +210,19 @@
         "leadership": 82,
         "charm": 66,
         "skillType": "guard",
-        "combatOverrides": { "meleeAttackMult": 1.1 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.88,
+          "rangedAttackMult": 0.8
+        },
         "portrait": "assets/portraits/meng_tian.png",
-        "position": { "x": 214, "y": 72 },
-        "facing": { "x": -1, "y": 0 },
+        "position": {
+          "x": 226,
+          "y": 64
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "TIGHT",
         "speed": "STOP"
       },
@@ -148,10 +235,19 @@
         "leadership": 84,
         "charm": 72,
         "skillType": "guard",
-        "combatOverrides": { "meleeAttackMult": 1.05 },
+        "combatOverrides": {
+          "meleeAttackMult": 0.84,
+          "rangedAttackMult": 0.8
+        },
         "portrait": "assets/portraits/bai_qi.png",
-        "position": { "x": 214, "y": 94 },
-        "facing": { "x": -1, "y": 0 },
+        "position": {
+          "x": 208,
+          "y": 91
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "TIGHT",
         "speed": "STOP"
       },
@@ -164,9 +260,19 @@
         "leadership": 70,
         "charm": 55,
         "skillType": "guard",
+        "combatOverrides": {
+          "meleeAttackMult": 0.8,
+          "rangedAttackMult": 0.8
+        },
         "portrait": "assets/portraits/xiang_yu.png",
-        "position": { "x": 226, "y": 82 },
-        "facing": { "x": -1, "y": 0 },
+        "position": {
+          "x": 226,
+          "y": 82
+        },
+        "facing": {
+          "x": -1,
+          "y": 0
+        },
         "density": "TIGHT",
         "speed": "STOP"
       }
@@ -177,35 +283,138 @@
       "id": "deployment",
       "title": "새 군사의 첫 계책",
       "dialogue": [
-        { "speaker": "유비", "side": "player", "portrait": "assets/portraits/liu_bei.png", "text": "하후돈이 십만 대군을 이끌고 박망파로 몰려오고 있소. 군사, 이 첫 싸움에 우리 운명이 걸렸소." },
-        { "speaker": "제갈량", "side": "player", "portrait": "assets/portraits/zhuge_liang.png", "text": "적은 숫자를 믿고 좁은 숲길을 가볍게 여길 것입니다. 조운 장군이 미끼가 되고, 관우와 장비 장군은 숲 양쪽에 숨으십시오." },
-        { "speaker": "조운", "side": "player", "portrait": "assets/portraits/zhao_yun.png", "text": "적의 눈을 제게 묶어두겠습니다. 너무 멀지도, 너무 가깝지도 않게 끌어들이겠습니다." },
-        { "speaker": "관우", "side": "player", "portrait": "assets/portraits/guan_yu.png", "text": "불길이 오르면 북쪽 숲에서 내려치겠습니다." },
-        { "speaker": "장비", "side": "player", "portrait": "assets/portraits/zhang_fei.png", "text": "남쪽 길은 내가 막겠소. 놈들이 도망칠 곳은 없을 것이오!" },
-        { "speaker": "하후돈", "side": "enemy", "portrait": "assets/portraits/dian_wei.png", "camera": { "x": 198, "y": 80 }, "text": "유비 따위가 새로 데려온 서생에게 군사를 맡겼다지? 오늘 그 허세를 산산이 부숴주겠다!" }
+        {
+          "speaker": "유비",
+          "side": "player",
+          "portrait": "assets/portraits/liu_bei.png",
+          "text": "하후돈이 십만 대군을 이끌고 박망파로 몰려오고 있소. 군사, 이 첫 싸움에 우리 운명이 걸렸소."
+        },
+        {
+          "speaker": "제갈량",
+          "side": "player",
+          "portrait": "assets/portraits/zhuge_liang.png",
+          "text": "적은 숫자를 믿고 좁은 숲길을 가볍게 여길 것입니다. 조운 장군이 미끼가 되고, 관우와 장비 장군은 숲 양쪽에 숨으십시오."
+        },
+        {
+          "speaker": "조운",
+          "side": "player",
+          "portrait": "assets/portraits/zhao_yun.png",
+          "text": "적의 눈을 제게 묶어두겠습니다. 너무 멀지도, 너무 가깝지도 않게 끌어들이겠습니다."
+        },
+        {
+          "speaker": "관우",
+          "side": "player",
+          "portrait": "assets/portraits/guan_yu.png",
+          "text": "불길이 오르면 북쪽 숲에서 내려치겠습니다."
+        },
+        {
+          "speaker": "장비",
+          "side": "player",
+          "portrait": "assets/portraits/zhang_fei.png",
+          "text": "남쪽 길은 내가 막겠소. 놈들이 도망칠 곳은 없을 것이오!"
+        },
+        {
+          "speaker": "하후돈",
+          "side": "enemy",
+          "portrait": "assets/portraits/xiahou_dun.png",
+          "camera": {
+            "x": 198,
+            "y": 80
+          },
+          "text": "유비 따위가 새로 데려온 서생에게 군사를 맡겼다지? 오늘 그 허세를 산산이 부숴주겠다!"
+        }
       ],
       "briefing": {
-        "text": "조운을 숲길 입구에 두고, 관우와 장비를 양쪽 매복지에 정지시키십시오. 제갈량과 유비는 후방에서 대기해야 합니다.",
-        "camera": { "x": 92, "y": 82 },
+        "text": "조운을 숲길 입구에 두고, 관우를 북쪽 매복지에, 장비를 남쪽 매복지에 배치하십시오.",
+        "camera": {
+          "x": 92,
+          "y": 82
+        },
         "markers": [
-          { "id": "zhao_start", "label": "조운 유인지점", "x": 58, "y": 80, "radius": 8 },
-          { "id": "north_ambush", "label": "관우 매복지", "x": 106, "y": 48, "radius": 8 },
-          { "id": "south_ambush", "label": "장비 매복지", "x": 106, "y": 112, "radius": 8 },
-          { "id": "rear_hold", "type": "rect", "label": "본진 대기", "x": 42, "y": 70, "w": 24, "h": 24 }
+          {
+            "id": "zhao_start",
+            "label": "조운 유인지점",
+            "x": 141,
+            "y": 72,
+            "radius": 8
+          },
+          {
+            "id": "north_ambush",
+            "label": "관우 매복지",
+            "x": 123,
+            "y": 44,
+            "radius": 8
+          },
+          {
+            "id": "south_ambush",
+            "label": "장비 매복지",
+            "x": 123,
+            "y": 98,
+            "radius": 8
+          }
         ]
       },
       "objectives": [
-        { "id": "zhao_ready", "type": "formationAtArea", "formationId": "zhao_yun", "x": 58, "y": 80, "radius": 8, "label": "조운을 숲길 입구에 배치하십시오." },
-        { "id": "ambush_ready", "type": "formationsAtArea", "formationIds": [ "guan_yu", "zhang_fei" ], "x": 106, "y": 80, "radius": 34, "label": "관우와 장비를 양쪽 숲 매복지에 배치하십시오." },
-        { "id": "command_ready", "type": "formationsInRectStopped", "formationIds": [ "zhuge_liang", "liu_bei" ], "x": 42, "y": 70, "w": 24, "h": 24, "holdSeconds": 2, "label": "제갈량과 유비를 후방 본진에 정지시키십시오." }
+        {
+          "id": "zhao_ready",
+          "type": "formationAtArea",
+          "formationId": "zhao_yun",
+          "x": 141,
+          "y": 72,
+          "radius": 8,
+          "label": "조운을 숲길 입구에 배치하십시오."
+        },
+        {
+          "id": "guan_ambush_ready",
+          "type": "formationAtArea",
+          "formationId": "guan_yu",
+          "x": 123,
+          "y": 44,
+          "radius": 8,
+          "label": "관우를 북쪽 매복지에 배치하십시오."
+        },
+        {
+          "id": "zhang_ambush_ready",
+          "type": "formationAtArea",
+          "formationId": "zhang_fei",
+          "x": 122,
+          "y": 98,
+          "radius": 8,
+          "label": "장비를 남쪽 매복지에 배치하십시오."
+        }
       ],
       "ai": {
         "actions": [
-          { "type": "moveTo", "team": "enemy", "formationId": "xiahou_dun", "target": { "x": 176, "y": 78 }, "speed": "NORMAL", "density": "NORMAL" },
-          { "type": "moveTo", "team": "enemy", "formationId": "cao_vanguard", "target": { "x": 182, "y": 88 }, "speed": "NORMAL", "density": "NORMAL" },
-          { "type": "moveTo", "team": "enemy", "formationId": "yu_jin", "target": { "x": 192, "y": 72 }, "speed": "SLOW", "density": "TIGHT" },
-          { "type": "moveTo", "team": "enemy", "formationId": "li_dian", "target": { "x": 192, "y": 94 }, "speed": "SLOW", "density": "TIGHT" },
-          { "type": "hold", "team": "enemy", "formationId": "cao_rear", "density": "TIGHT" }
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "xiahou_dun",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "cao_vanguard",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "yu_jin",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "li_dian",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "cao_rear",
+            "density": "TIGHT"
+          }
         ]
       }
     },
@@ -213,32 +422,157 @@
       "id": "lure",
       "title": "조운의 거짓 후퇴",
       "dialogue": [
-        { "speaker": "제갈량", "side": "player", "portrait": "assets/portraits/zhuge_liang.png", "text": "조운 장군, 이제 적의 선봉을 숲길 깊숙이 끌어들이십시오. 병력이 30% 아래로 떨어지면 계책이 무너집니다." },
-        { "speaker": "조운", "side": "player", "portrait": "assets/portraits/zhao_yun.png", "text": "알겠습니다. 패한 듯 물러나되, 적의 창끝을 계속 붙잡아두겠습니다." },
-        { "speaker": "하후돈", "side": "enemy", "portrait": "assets/portraits/dian_wei.png", "text": "조운이 물러난다! 겁을 먹은 것이 분명하다. 전군, 속도를 늦추지 말고 추격하라!" },
-        { "speaker": "이전", "side": "enemy", "portrait": "assets/portraits/bai_qi.png", "text": "장군, 숲길이 너무 좁습니다. 복병을 경계해야 합니다." },
-        { "speaker": "하후돈", "side": "enemy", "portrait": "assets/portraits/xiahou_dun.png", "text": "두려워 말라. 유비군에게 그런 담력이 있을 리 없다!" }
+        {
+          "speaker": "제갈량",
+          "side": "player",
+          "portrait": "assets/portraits/zhuge_liang.png",
+          "text": "조운 장군, 이제 적의 선봉을 숲길 깊숙이 끌어들이십시오. 병력이 30% 아래로 떨어지면 계책이 무너집니다."
+        },
+        {
+          "speaker": "조운",
+          "side": "player",
+          "portrait": "assets/portraits/zhao_yun.png",
+          "text": "알겠습니다. 패한 듯 물러나되, 적의 창끝을 계속 붙잡아두겠습니다."
+        }
       ],
       "briefing": {
         "text": "조운으로 적 선봉을 화공 구역 안까지 유인하십시오. 조운의 병력은 30% 이상 유지해야 합니다.",
-        "camera": { "x": 126, "y": 82 },
+        "camera": {
+          "x": 126,
+          "y": 82
+        },
         "markers": [
-          { "id": "fire_trap", "type": "rect", "label": "화공 구역", "x": 118, "y": 58, "w": 38, "h": 46 },
-          { "id": "retreat_point", "label": "조운 후퇴점", "x": 62, "y": 82, "radius": 10 }
+          {
+            "id": "fire_trap",
+            "type": "rect",
+            "label": "화공 구역",
+            "x": 103,
+            "y": 57,
+            "w": 29,
+            "h": 33
+          },
+          {
+            "id": "retreat_point",
+            "label": "조운 후퇴점",
+            "x": 80,
+            "y": 74,
+            "radius": 10
+          }
         ]
       },
       "objectives": [
-        { "id": "zhao_falls_back", "type": "formationAtArea", "formationId": "zhao_yun", "x": 62, "y": 82, "radius": 10, "label": "조운을 후퇴점까지 물리십시오." },
-        { "id": "enemy_lured", "type": "enemyInAreaRatio", "formationIds": [ "xiahou_dun", "cao_vanguard", "yu_jin" ], "x": 116, "y": 50, "w": 42, "h": 60, "ratio": 0.42, "label": "하후돈의 선봉을 숲길 중앙으로 끌어들이십시오." },
-        { "id": "zhao_alive", "type": "formationsTroopsAbove", "formationIds": [ "zhao_yun" ], "ratio": 0.3, "label": "조운의 병력을 30% 이상 유지하십시오." }
+        {
+          "id": "zhao_falls_back",
+          "type": "formationAtArea",
+          "formationId": "zhao_yun",
+          "x": 80,
+          "y": 74,
+          "radius": 10,
+          "label": "조운을 후퇴점까지 물리십시오."
+        },
+        {
+          "id": "enemy_lured",
+          "type": "enemyInAreaRatio",
+          "formationIds": [
+            "xiahou_dun"
+          ],
+          "x": 103,
+          "y": 57,
+          "w": 29,
+          "h": 33,
+          "ratio": 0.42,
+          "label": "하후돈의 선봉을 숲길 중앙으로 끌어들이십시오."
+        },
+        {
+          "id": "zhao_alive",
+          "type": "formationsTroopsAbove",
+          "formationIds": [
+            "zhao_yun"
+          ],
+          "ratio": 0.3,
+          "label": "조운의 병력을 30% 이상 유지하십시오."
+        }
       ],
       "ai": {
+        "aggroOnEnemyLoss": true,
         "actions": [
-          { "type": "pursue", "team": "enemy", "formationId": "xiahou_dun", "targetFormationId": "zhao_yun", "speed": "FAST", "density": "NORMAL" },
-          { "type": "pursue", "team": "enemy", "formationId": "cao_vanguard", "targetFormationId": "zhao_yun", "speed": "FAST", "density": "NORMAL" },
-          { "type": "pursue", "team": "enemy", "formationId": "yu_jin", "targetFormationId": "zhao_yun", "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "moveTo", "team": "enemy", "formationId": "li_dian", "target": { "x": 156, "y": 94 }, "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "moveTo", "team": "enemy", "formationId": "cao_rear", "target": { "x": 174, "y": 82 }, "speed": "SLOW", "density": "TIGHT" }
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "xiahou_dun",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "cao_vanguard",
+            "density": "NORMAL"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "yu_jin",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "li_dian",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "cao_rear",
+            "density": "TIGHT"
+          }
+        ],
+        "aggroActions": [
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "xiahou_dun",
+            "targetFormationId": "zhao_yun",
+            "speed": "FAST",
+            "density": "NORMAL",
+            "delayAfterAggro": 0
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "cao_vanguard",
+            "targetFormationId": "zhao_yun",
+            "speed": "FAST",
+            "density": "NORMAL",
+            "delayAfterAggro": 10
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "yu_jin",
+            "targetFormationId": "zhao_yun",
+            "speed": "NORMAL",
+            "density": "TIGHT",
+            "delayAfterAggro": 20
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "li_dian",
+            "targetFormationId": "zhao_yun",
+            "speed": "NORMAL",
+            "density": "TIGHT",
+            "delayAfterAggro": 30
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "cao_rear",
+            "targetFormationId": "zhao_yun",
+            "speed": "SLOW",
+            "density": "TIGHT",
+            "delayAfterAggro": 40
+          }
         ]
       }
     },
@@ -246,69 +580,166 @@
       "id": "fire_trap",
       "title": "불을 지르라",
       "dialogue": [
-        { "speaker": "조운", "side": "player", "portrait": "assets/portraits/zhao_yun.png", "text": "군사! 적 선봉이 모두 숲길 안으로 들어왔습니다!" },
-        { "speaker": "제갈량", "side": "player", "portrait": "assets/portraits/zhuge_liang.png", "text": "바람은 동쪽에서 불고, 마른 풀은 길을 따라 이어져 있다. 지금이다. 불을 지르라!" },
-        { "speaker": "하후돈", "side": "enemy", "portrait": "assets/portraits/dian_wei.png", "text": "연기? 아니, 불길이다! 대열을 돌려라! 빨리 빠져나가라!" },
-        { "speaker": "유비", "side": "player", "portrait": "assets/portraits/liu_bei.png", "text": "군사의 계책이 맞아떨어졌소. 이제 양쪽 숲에서 적을 끊어야 하오." }
+        {
+          "speaker": "조운",
+          "side": "player",
+          "portrait": "assets/portraits/zhao_yun.png",
+          "text": "군사! 적 선봉이 모두 숲길 안으로 들어왔습니다!"
+        },
+        {
+          "speaker": "제갈량",
+          "side": "player",
+          "portrait": "assets/portraits/zhuge_liang.png",
+          "text": "바람은 동쪽에서 불고, 마른 풀은 길을 따라 이어져 있다. 지금이다. 불을 지르라!"
+        }
       ],
       "briefing": {
-        "text": "제갈량의 화공 스킬을 발동하십시오. 화공 성공 후 적 선봉은 혼란에 빠지고 방어력이 크게 떨어집니다.",
-        "camera": { "x": 126, "y": 82 },
+        "text": "조운, 관우, 장비의 화공 스킬을 발동하십시오. 화공 후 적 전군에 혼란이 퍼지고 관우·장비가 양익을 압박합니다.",
+        "camera": {
+          "x": 126,
+          "y": 82
+        },
         "markers": [
-          { "id": "fire_trap", "type": "rect", "label": "화공 구역", "x": 118, "y": 58, "w": 38, "h": 46 }
+          {
+            "id": "north_attack",
+            "label": "관우 돌입",
+            "x": 126,
+            "y": 66,
+            "radius": 10
+          },
+          {
+            "id": "south_attack",
+            "label": "장비 돌입",
+            "x": 126,
+            "y": 77,
+            "radius": 10
+          }
         ]
       },
       "objectives": [
-        { "id": "use_fire", "type": "skillUsed", "formationIds": [ "zhuge_liang" ], "skillType": "fire", "count": 1, "label": "제갈량의 화공을 발동하십시오." },
-        { "id": "enemy_in_flames", "type": "enemyInAreaRatio", "formationIds": [ "xiahou_dun", "cao_vanguard", "yu_jin" ], "x": 116, "y": 50, "w": 42, "h": 60, "ratio": 0.30, "label": "적 선봉이 화공 구역 안에 머무르게 하십시오." }
+        {
+          "id": "use_fire",
+          "type": "skillUsed",
+          "formationIds": [
+            "zhao_yun",
+            "guan_yu",
+            "zhang_fei"
+          ],
+          "skillType": "fire",
+          "count": 3,
+          "label": "조운·관우·장비 모두 화공을 발동하십시오."
+        }
       ],
       "onComplete": {
         "effects": [
-          { "type": "areaDamage", "team": "enemy", "formationIds": [ "xiahou_dun", "cao_vanguard", "yu_jin", "li_dian" ], "x": 118, "y": 58, "w": 38, "h": 46, "damage": 55 },
-          { "type": "setDisorder", "team": "enemy", "formationIds": [ "xiahou_dun", "cao_vanguard", "yu_jin", "li_dian" ], "value": 0.65 },
-          { "type": "combatOverrides", "team": "enemy", "formationIds": [ "xiahou_dun", "cao_vanguard", "yu_jin", "li_dian" ], "values": { "meleeAttackMult": 0.55, "meleeDefenseMult": 0.55, "rangedAttackMult": 0.55, "rangedDefenseMult": 0.65 } },
-          { "type": "combatOverrides", "team": "player", "formationIds": [ "guan_yu", "zhang_fei", "zhao_yun" ], "values": { "meleeAttackMult": 1.45, "meleeDefenseMult": 1.2 } }
+          {
+            "type": "areaDamage",
+            "team": "enemy",
+            "formationIds": [
+              "xiahou_dun",
+              "cao_vanguard",
+              "yu_jin",
+              "li_dian"
+            ],
+            "x": 118,
+            "y": 58,
+            "w": 38,
+            "h": 46,
+            "damage": 55
+          },
+          {
+            "type": "setDisorder",
+            "team": "enemy",
+            "formationIds": [
+              "xiahou_dun",
+              "cao_vanguard",
+              "yu_jin",
+              "li_dian"
+            ],
+            "value": 0.65
+          },
+          {
+            "type": "addDisorder",
+            "team": "enemy",
+            "value": 0.5
+          },
+          {
+            "type": "combatOverrides",
+            "team": "enemy",
+            "formationIds": [
+              "xiahou_dun",
+              "cao_vanguard",
+              "yu_jin",
+              "li_dian"
+            ],
+            "values": {
+              "meleeAttackMult": 0.55,
+              "meleeDefenseMult": 0.55,
+              "rangedAttackMult": 0.55,
+              "rangedDefenseMult": 0.65
+            }
+          },
+          {
+            "type": "combatOverrides",
+            "team": "player",
+            "formationIds": [
+              "guan_yu",
+              "zhang_fei",
+              "zhao_yun"
+            ],
+            "values": {
+              "meleeAttackMult": 1.45,
+              "meleeDefenseMult": 1.2
+            }
+          }
         ]
       },
       "ai": {
         "actions": [
-          { "type": "pursue", "team": "enemy", "formationId": "xiahou_dun", "targetFormationId": "zhao_yun", "speed": "NORMAL", "density": "NORMAL" },
-          { "type": "pursue", "team": "enemy", "formationId": "cao_vanguard", "targetFormationId": "zhao_yun", "speed": "NORMAL", "density": "NORMAL" },
-          { "type": "moveTo", "team": "enemy", "formationId": "yu_jin", "target": { "x": 124, "y": 76 }, "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "moveTo", "team": "enemy", "formationId": "li_dian", "target": { "x": 136, "y": 92 }, "speed": "NORMAL", "density": "TIGHT" },
-          { "type": "hold", "team": "enemy", "formationId": "cao_rear", "density": "TIGHT" }
-        ]
-      }
-    },
-    {
-      "id": "ambush",
-      "title": "숲속의 매복",
-      "dialogue": [
-        { "speaker": "관우", "side": "player", "portrait": "assets/portraits/guan_yu.png", "text": "적의 옆구리가 드러났다. 북쪽 숲에서 내려친다!" },
-        { "speaker": "장비", "side": "player", "portrait": "assets/portraits/zhang_fei.png", "text": "남쪽 길은 내게 맡겨라! 하후돈, 어디 한번 빠져나가 보아라!" },
-        { "speaker": "하후돈", "side": "enemy", "portrait": "assets/portraits/dian_wei.png", "text": "복병이다! 이건 단순한 허세가 아니었다. 대열을 다시 세워라!" },
-        { "speaker": "제갈량", "side": "player", "portrait": "assets/portraits/zhuge_liang.png", "text": "서두르지 마십시오. 불길과 혼란이 적을 묶고 있습니다. 양익으로 압박해 퇴로를 끊으십시오." }
-      ],
-      "briefing": {
-        "text": "관우와 장비를 숲에서 내려보내 적 선봉을 양쪽에서 공격하십시오. 하후돈과 조조군 선봉을 50% 이하로 약화시키면 됩니다.",
-        "camera": { "x": 126, "y": 82 },
-        "markers": [
-          { "id": "north_attack", "label": "관우 돌입", "x": 126, "y": 66, "radius": 10 },
-          { "id": "south_attack", "label": "장비 돌입", "x": 126, "y": 98, "radius": 10 }
-        ]
-      },
-      "objectives": [
-        { "id": "guan_attacks", "type": "formationAtArea", "formationId": "guan_yu", "x": 126, "y": 66, "radius": 12, "label": "관우를 북쪽 공격 지점으로 진입시키십시오." },
-        { "id": "zhang_attacks", "type": "formationAtArea", "formationId": "zhang_fei", "x": 126, "y": 98, "radius": 12, "label": "장비를 남쪽 공격 지점으로 진입시키십시오." },
-        { "id": "vanguard_broken", "type": "enemyTroopsBelow", "formationIds": [ "xiahou_dun", "cao_vanguard" ], "ratio": 0.5, "label": "하후돈과 조조군 선봉의 병력을 50% 이하로 낮추십시오." }
-      ],
-      "ai": {
-        "actions": [
-          { "type": "pursue", "team": "enemy", "formationId": "xiahou_dun", "targetMode": "nearestPlayer", "speed": "NORMAL", "density": "NORMAL" },
-          { "type": "pursue", "team": "enemy", "formationId": "cao_vanguard", "targetMode": "nearestPlayer", "speed": "NORMAL", "density": "NORMAL" },
-          { "type": "pursue", "team": "enemy", "formationId": "yu_jin", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "li_dian", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "TIGHT" },
-          { "type": "moveTo", "team": "enemy", "formationId": "cao_rear", "target": { "x": 156, "y": 82 }, "speed": "SLOW", "density": "TIGHT" }
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "xiahou_dun",
+            "targetFormationId": "zhao_yun",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "cao_vanguard",
+            "targetFormationId": "zhao_yun",
+            "speed": "NORMAL",
+            "density": "NORMAL"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "yu_jin",
+            "target": {
+              "x": 124,
+              "y": 76
+            },
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "moveTo",
+            "team": "enemy",
+            "formationId": "li_dian",
+            "target": {
+              "x": 136,
+              "y": 92
+            },
+            "speed": "NORMAL",
+            "density": "TIGHT"
+          },
+          {
+            "type": "hold",
+            "team": "enemy",
+            "formationId": "cao_rear",
+            "density": "TIGHT"
+          }
         ]
       }
     },
@@ -316,46 +747,211 @@
       "id": "victory",
       "title": "첫 승리",
       "dialogue": [
-        { "speaker": "하후돈", "side": "enemy", "portrait": "assets/portraits/dian_wei.png", "text": "후퇴하라! 숲길을 빠져나가라! 오늘은 이 계책을 당해낼 수 없다!" },
-        { "speaker": "유비", "side": "player", "portrait": "assets/portraits/liu_bei.png", "text": "군사의 첫 계책이 대군을 무너뜨렸소. 우리에게도 이제 길이 보이는구려." },
-        { "speaker": "제갈량", "side": "player", "portrait": "assets/portraits/zhuge_liang.png", "text": "승리는 아직 시작일 뿐입니다. 적이 다시 대열을 세우기 전에 끝까지 밀어내야 합니다." }
+        {
+          "speaker": "하후돈",
+          "side": "enemy",
+          "portrait": "assets/portraits/xiahou_dun.png",
+          "text": "복병이다! 불길에 퇴로까지 막혔다. 후퇴하라! 숲길을 빠져나가라!"
+        },
+        {
+          "speaker": "유비",
+          "side": "player",
+          "portrait": "assets/portraits/liu_bei.png",
+          "text": "군사의 첫 계책이 대군을 무너뜨렸소. 우리에게도 이제 길이 보이는구려."
+        },
+        {
+          "speaker": "제갈량",
+          "side": "player",
+          "portrait": "assets/portraits/zhuge_liang.png",
+          "text": "승리는 아직 시작일 뿐입니다. 적이 다시 대열을 세우기 전에 끝까지 밀어내야 합니다."
+        }
       ],
       "briefing": {
         "text": "혼란에 빠진 조조군을 추격해 전장에서 몰아내십시오.",
-        "camera": { "x": 148, "y": 82 },
+        "camera": {
+          "x": 148,
+          "y": 82
+        },
         "markers": [
-          { "id": "escape", "label": "적 퇴각로", "x": 238, "y": 82, "radius": 8 }
+          {
+            "id": "escape",
+            "label": "적 퇴각로",
+            "x": 238,
+            "y": 82,
+            "radius": 8
+          }
         ]
       },
       "objectives": [
-        { "id": "enemy_crushed", "type": "enemyTotalBelow", "ratio": 0.30, "label": "조조군 전체 병력을 30% 이하로 낮추십시오." },
-        { "id": "zhao_survives", "type": "formationsTroopsAbove", "formationIds": [ "zhao_yun" ], "ratio": 0.2, "label": "조운 부대가 전장에 남아 있어야 합니다." }
+        {
+          "id": "enemy_crushed",
+          "type": "enemyTotalBelow",
+          "ratio": 0.2,
+          "label": "조조군 전체 병력을 20% 이하로 낮추십시오."
+        },
+        {
+          "id": "zhao_survives",
+          "type": "formationsTroopsAbove",
+          "formationIds": [
+            "zhao_yun"
+          ],
+          "ratio": 0.2,
+          "label": "조운 부대가 전장에 남아 있어야 합니다."
+        }
       ],
       "onStart": {
         "effects": [
-          { "type": "route", "team": "enemy", "formationIds": [ "cao_rear" ], "target": { "x": 238, "y": 82 }, "speed": "FAST" },
-          { "type": "setDisorder", "team": "enemy", "value": 0.8 }
+          {
+            "type": "route",
+            "team": "enemy",
+            "formationIds": [
+              "cao_rear"
+            ],
+            "target": {
+              "x": 238,
+              "y": 82
+            },
+            "speed": "FAST"
+          },
+          {
+            "type": "setDisorder",
+            "team": "enemy",
+            "value": 0.8
+          }
         ]
       },
       "ai": {
         "actions": [
-          { "type": "routeAtRatio", "team": "enemy", "formationId": "xiahou_dun", "ratio": 0.35, "target": { "x": 238, "y": 78 }, "speed": "FAST" },
-          { "type": "routeAtRatio", "team": "enemy", "formationId": "cao_vanguard", "ratio": 0.35, "target": { "x": 238, "y": 88 }, "speed": "FAST" },
-          { "type": "routeAtRatio", "team": "enemy", "formationId": "yu_jin", "ratio": 0.35, "target": { "x": 238, "y": 72 }, "speed": "FAST" },
-          { "type": "routeAtRatio", "team": "enemy", "formationId": "li_dian", "ratio": 0.35, "target": { "x": 238, "y": 94 }, "speed": "FAST" },
-          { "type": "pursue", "team": "enemy", "formationId": "xiahou_dun", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "NORMAL" },
-          { "type": "pursue", "team": "enemy", "formationId": "cao_vanguard", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "NORMAL" },
-          { "type": "pursue", "team": "enemy", "formationId": "yu_jin", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "TIGHT" },
-          { "type": "pursue", "team": "enemy", "formationId": "li_dian", "targetMode": "nearestPlayer", "speed": "SLOW", "density": "TIGHT" }
+          {
+            "type": "routeAtRatio",
+            "team": "enemy",
+            "formationId": "xiahou_dun",
+            "ratio": 0.35,
+            "target": {
+              "x": 238,
+              "y": 78
+            },
+            "speed": "FAST"
+          },
+          {
+            "type": "routeAtRatio",
+            "team": "enemy",
+            "formationId": "cao_vanguard",
+            "ratio": 0.35,
+            "target": {
+              "x": 238,
+              "y": 88
+            },
+            "speed": "FAST"
+          },
+          {
+            "type": "routeAtRatio",
+            "team": "enemy",
+            "formationId": "yu_jin",
+            "ratio": 0.35,
+            "target": {
+              "x": 238,
+              "y": 72
+            },
+            "speed": "FAST"
+          },
+          {
+            "type": "routeAtRatio",
+            "team": "enemy",
+            "formationId": "li_dian",
+            "ratio": 0.35,
+            "target": {
+              "x": 238,
+              "y": 94
+            },
+            "speed": "FAST"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "xiahou_dun",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "cao_vanguard",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "NORMAL"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "yu_jin",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "TIGHT"
+          },
+          {
+            "type": "pursue",
+            "team": "enemy",
+            "formationId": "li_dian",
+            "targetMode": "nearestPlayer",
+            "speed": "SLOW",
+            "density": "TIGHT"
+          }
         ]
       }
     }
   ],
   "failure": [
-    { "type": "formationBelow", "formationId": "zhao_yun", "ratio": 0.2 },
-    { "type": "playerTotalBelow", "ratio": 0.35 }
+    {
+      "type": "formationBelow",
+      "formationId": "zhao_yun",
+      "ratio": 0.2
+    },
+    {
+      "type": "playerTotalBelow",
+      "ratio": 0.35
+    }
   ],
   "victory": {
     "type": "questComplete"
-  }
+  },
+  "victoryDialogue": [
+    {
+      "speaker": "제갈량",
+      "side": "player",
+      "portrait": "assets/portraits/zhuge_liang.png",
+      "text": "불길이 잦아들었습니다. 하후돈의 군은 이 좁은 골짜기에서 궤멸되었습니다."
+    },
+    {
+      "speaker": "유비",
+      "side": "player",
+      "portrait": "assets/portraits/liu_bei.png",
+      "text": "공명, 그대의 첫 번째 전술이 이렇게 빛날 줄은 몰랐소. 오늘의 승리는 그대 덕분이오."
+    },
+    {
+      "speaker": "조운",
+      "side": "player",
+      "portrait": "assets/portraits/zhao_yun.png",
+      "text": "군사님의 계략은 완벽했습니다. 관우 장군과 장비 장군도 잘 싸워주었습니다."
+    },
+    {
+      "speaker": "제갈량",
+      "side": "player",
+      "portrait": "assets/portraits/zhuge_liang.png",
+      "text": "하지만 주공, 이것은 서막에 불과합니다. 조조의 대군은 여전히 남하하고 있으며 형주의 유표는 병중입니다."
+    },
+    {
+      "speaker": "유비",
+      "side": "player",
+      "portrait": "assets/portraits/liu_bei.png",
+      "text": "강동의 손권과 손을 잡아야 할 때가 올 것이오. 천하는 아직 우리를 기다리고 있소."
+    },
+    {
+      "speaker": "제갈량",
+      "side": "player",
+      "portrait": "assets/portraits/zhuge_liang.png",
+      "text": "천하삼분... 그 길이 보이기 시작합니다."
+    }
+  ]
 }
