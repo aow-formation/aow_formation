@@ -4657,6 +4657,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       for (const { upperT, maskDir } of bd.layers) {
         const punchWetland = upperT === "wetland";
+        const wetlandAlpha = punchWetland ? 0.5 : 1;
+        if (wetlandAlpha !== 1) chunkCtx.globalAlpha *= wetlandAlpha;
         if (maskDir === "center") {
           drawBorderTile(chunkCtx, upperT, x, y, px, py, { punchWetland });
         } else if (maskDir === "ULLL" || maskDir === "LULL" || maskDir === "LLUL" || maskDir === "LLLU") {
@@ -4664,9 +4666,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         } else if (maskDir) {
           const maskArr = terrainSprites.masks[maskDir];
           const maskCv = maskArr?.length ? maskArr[tileHash(x, y) % maskArr.length] : null;
-          if (!maskCv) continue;
+          if (!maskCv) { if (wetlandAlpha !== 1) chunkCtx.globalAlpha /= wetlandAlpha; continue; }
           drawBorderTile(chunkCtx, upperT, x, y, px, py, { width: tileWidth, punchWetland }, maskCv);
         }
+        if (wetlandAlpha !== 1) chunkCtx.globalAlpha /= wetlandAlpha;
       }
     });
 
