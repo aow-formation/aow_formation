@@ -3837,8 +3837,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       const inertia = len(unit.vx, unit.vy) > 0.001 ? normalize(vec(unit.vx, unit.vy)) : vec();
       const inertiaWeight = Math.max(0.05, 0.2 - Math.min(0.15, slotDistance * 0.18));
-      let moveDir = add(mul(desired, 1 - inertiaWeight), mul(inertia, inertiaWeight));
-      if (len(moveDir.x, moveDir.y) > 0.001) moveDir = normalize(moveDir);
+      const hasDesired = len(desired.x, desired.y) > 0.001;
+      let moveDir = vec();
+      if (hasDesired) {
+        const raw = add(mul(desired, 1 - inertiaWeight), mul(inertia, inertiaWeight));
+        if (len(raw.x, raw.y) > 0.001) moveDir = normalize(raw);
+      }
       const unitSpeed = Math.max(0.35, unitMoveSpeed(formation, unit.x, unit.y));
       const boost = slotDistance > formationSpacing(formation) * 1.8 ? 1.15 : 1.0;
       const targetV = mul(moveDir, unitSpeed * boost * chaosSpeedMult);
