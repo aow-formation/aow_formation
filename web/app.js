@@ -4433,7 +4433,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const px = iso.x - minIsoX;
         const py = iso.y - minIsoY;
         fillWorldDiamond(chunkCtx, "river", x, y, px, py);
+        const prevAlpha = chunkCtx.globalAlpha;
+        chunkCtx.globalAlpha = prevAlpha * 0.5;
         fillWorldDiamond(chunkCtx, "wetland", x, y, px, py, { punchWetland: true });
+        chunkCtx.globalAlpha = prevAlpha;
       });
     }
 
