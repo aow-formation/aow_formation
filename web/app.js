@@ -4434,7 +4434,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         const py = iso.y - minIsoY;
         fillWorldDiamond(chunkCtx, "river", x, y, px, py);
         const prevAlpha = chunkCtx.globalAlpha;
-        chunkCtx.globalAlpha = prevAlpha * 0.5;
+        chunkCtx.globalAlpha = prevAlpha * 0.7;
         fillWorldDiamond(chunkCtx, "wetland", x, y, px, py, { punchWetland: true });
         chunkCtx.globalAlpha = prevAlpha;
       });
@@ -4657,7 +4657,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
 
       for (const { upperT, maskDir } of bd.layers) {
         const punchWetland = upperT === "wetland";
-        const wetlandAlpha = punchWetland ? 0.5 : 1;
+        const wetlandAlpha = punchWetland ? 0.7 : 1;
         if (wetlandAlpha !== 1) chunkCtx.globalAlpha *= wetlandAlpha;
         if (maskDir === "center") {
           drawBorderTile(chunkCtx, upperT, x, y, px, py, { punchWetland });
