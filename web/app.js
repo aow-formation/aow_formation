@@ -834,7 +834,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   }
 
   // ── 지형 레이어 우선순위 ──────────────────────────────────────────────
-  const TERRAIN_PRIORITY = { river: 0, wetland: 1, plain: 2, grassland: 3, road: 4, mountain: 5 };
+  const TERRAIN_PRIORITY = { river: 0, wetland: 1, road: 2, plain: 3, grassland: 4, mountain: 5 };
   const TERRAIN_ASSET    = { river:"river", wetland:"river_bank", plain:"dirt", grassland:"plain", road:"road", mountain:"forest_floor" };
   const V3 = "./assets/terrain_tiles_v3/";
   const WORLD_TEX = "./assets/terrain_world_textures/";
@@ -1264,11 +1264,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const isBorder = Array.from({length: MAP_HEIGHT}, () => new Uint8Array(MAP_WIDTH));
     for (let y = 0; y < MAP_HEIGHT; y++)
       for (let x = 0; x < MAP_WIDTH; x++) {
-        const p = TERRAIN_PRIORITY[terrain.tiles[y][x]] ?? 2;
+        const p = TERRAIN_PRIORITY[terrain.tiles[y][x]] ?? 3;
         for (const [dx, dy] of FACES) {
           const nx = x+dx, ny = y+dy;
           if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
-          const np = TERRAIN_PRIORITY[terrain.tiles[ny][nx]] ?? 2;
+          const np = TERRAIN_PRIORITY[terrain.tiles[ny][nx]] ?? 3;
           if (np > p) { isBorder[y][x] = 1; break; }
         }
       }
@@ -1285,11 +1285,11 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
         if (isBorder[y][x]) continue; // 이미 경계
-        const p = TERRAIN_PRIORITY[terrain.tiles[y][x]] ?? 2;
+        const p = TERRAIN_PRIORITY[terrain.tiles[y][x]] ?? 3;
         for (const { d: [ddx, ddy], f: frames } of DIAG_FRAMES) {
           const dx = x+ddx, dy = y+ddy;
           if (dx < 0 || dx >= MAP_WIDTH || dy < 0 || dy >= MAP_HEIGHT) continue;
-          if ((TERRAIN_PRIORITY[terrain.tiles[dy][dx]] ?? 2) <= p) continue; // 대각이 상위 아님
+          if ((TERRAIN_PRIORITY[terrain.tiles[dy][dx]] ?? 3) <= p) continue; // 대각이 상위 아님
           // 두 인접 프레임 면이 모두 경계 타일이어야 코너 갭
           let bothBorder = true;
           for (const [fx, fy] of frames) {
@@ -1312,13 +1312,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       for (let x = 0; x < MAP_WIDTH; x++) {
         if (!isBorder[y][x]) continue;
         const t = terrain.tiles[y][x];
-        const p = TERRAIN_PRIORITY[t] ?? 2;
+        const p = TERRAIN_PRIORITY[t] ?? 3;
 
         // 4면 이웃 수집
         const nbrs = FACES.map(([dx, dy]) => {
           const nx = x+dx, ny = y+dy;
           if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) return { p, border: false };
-          return { p: TERRAIN_PRIORITY[terrain.tiles[ny][nx]] ?? 2, border: isBorder[ny][nx] === 1 };
+          return { p: TERRAIN_PRIORITY[terrain.tiles[ny][nx]] ?? 3, border: isBorder[ny][nx] === 1 };
         }); // [NW, NE, SE, SW]
 
         // ALL8에서 상위 지형 종류 수집 (우선순위 오름차순)
@@ -1327,14 +1327,14 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
           const nx = x+dx, ny = y+dy;
           if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
           const nt = terrain.tiles[ny][nx];
-          if ((TERRAIN_PRIORITY[nt] ?? 2) > p) upperTSet.add(nt);
+          if ((TERRAIN_PRIORITY[nt] ?? 3) > p) upperTSet.add(nt);
         }
         if (upperTSet.size === 0) continue;
 
         const layers = [];
         for (const T of [...upperTSet].sort((a, b) =>
-            (TERRAIN_PRIORITY[a] ?? 2) - (TERRAIN_PRIORITY[b] ?? 2))) {
-          const tP = TERRAIN_PRIORITY[T] ?? 2;
+            (TERRAIN_PRIORITY[a] ?? 3) - (TERRAIN_PRIORITY[b] ?? 3))) {
+          const tP = TERRAIN_PRIORITY[T] ?? 3;
           // 면 상태: 이웃 우선순위 >= T 우선순위이면 U
           // 코너갭(같은 지형 경계 타일, n.p === p)도 U로 처리 — 다른 지형 border는 제외
           const states = nbrs.map(n => (n.p >= tP || (n.border && n.p === p)) ? "U" : "L");
@@ -4405,7 +4405,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       chunkCtx.imageSmoothingQuality = "high";
 
       // Pass 2A: 월드 좌표 기반 1×1 베이스 — 지형별 경로를 묶어 연속 샘플링
-      ["river", "plain", "grassland", "road", "mountain"].forEach((terrainType) => {
+      ["river", "road", "plain", "grassland", "mountain"].forEach((terrainType) => {
         const pattern = worldPatternFor(chunkCtx, terrainType);
         if (!pattern) return;
 
