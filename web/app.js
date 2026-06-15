@@ -4748,7 +4748,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const treeImages = (terrainSprites.trees || []).filter(img => img?.naturalWidth);
     if (!treeImages.length && terrainSprites.tree?.naturalWidth) treeImages.push(terrainSprites.tree);
     if (TERRAIN_TREE_RENDER_ENABLED && treeImages.length) {
-      const treeBaseH = game.tileW * 22 / 24;
+      const treeBaseH = game.tileW;
       const treeVariantScale = (variantIndex) => TREE_VARIANT_HEIGHT_SCALE[variantIndex % TREE_VARIANT_HEIGHT_SCALE.length] ?? 1;
       const treeDrawSize = (img, variantIndex, scale = 1) => {
         const stH = Math.round(treeBaseH * scale * treeVariantScale(variantIndex));
@@ -5284,7 +5284,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         chunk = createTerrainChunk(chunkX, chunkY);
         game.terrainRender.chunkCache.set(key, chunk);
         if (TERRAIN_TREE_RENDER_ENABLED && PIXI_TREE_SPRITES && pixiReady && pixiTreeTex?.length && chunk.trees.length > 0) {
-          const treeBaseH = game.tileW * 22 / 24;
+          const treeBaseH = game.tileW;
           for (const { worldBx, worldBy, tileX, tileY, scale, variantIndex } of chunk.trees) {
             const tex = pixiTreeTex[variantIndex % pixiTreeTex.length] || pixiTreeTex[0];
             const variantScale = TREE_VARIANT_HEIGHT_SCALE[variantIndex % TREE_VARIANT_HEIGHT_SCALE.length] ?? 1;
