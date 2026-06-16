@@ -3530,12 +3530,12 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const VELOCITY_BACK_ENTER = -0.42;
     const VELOCITY_BACK_EXIT = 0.16;
     const CHANGE_COOLDOWN = 0.45;
-    // 적과 교전 중인 유닛은 진형 공통 방향 대신 자신의 적 방향을 바라본다
-    const combatFacing = unit.engaged === true
-      ? normalize(vec(unit.engageDirX || 0, unit.engageDirY || 0))
-      : null;
-    const facing = (combatFacing && len(combatFacing.x, combatFacing.y) > 0.001)
-      ? combatFacing
+    // 유닛이 전투/이동으로 기록한 개별 방향이 있으면 우선 사용.
+    // formation.facing(진형 공유 상태)이 바뀔 때 모든 유닛이 동시에 방향을 바꾸는 현상 방지.
+    const hasOwnFacing = unit.ownFacingX !== undefined
+      && len(unit.ownFacingX || 0, unit.ownFacingY || 0) > 0.001;
+    const facing = hasOwnFacing
+      ? normalize(vec(unit.ownFacingX, unit.ownFacingY))
       : normalize(formation.facing || vec());
     const hasFormationFacing = len(facing.x, facing.y) > 0.001;
     const velocityAligned = !hasFormationFacing || (unit.vx * facing.x + unit.vy * facing.y) > 0.02;
@@ -3861,6 +3861,16 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const blend = Math.min(1, dt * 7.0);
       unit.vx = lerp(unit.vx, targetV.x, blend);
       unit.vy = lerp(unit.vy, targetV.y, blend);
+
+      // 유닛 개별 방향 영속 저장: 전투 방향 우선, 그 외엔 이동 속도 방향
+      // formation.facing 공유상태 변화에 개별 유닛이 끌려가지 않도록 함
+      if (unit.engaged) {
+        unit.ownFacingX = unit.engageDirX;
+        unit.ownFacingY = unit.engageDirY;
+      } else if (len(unit.vx, unit.vy) > 0.15) {
+        unit.ownFacingX = unit.vx;
+        unit.ownFacingY = unit.vy;
+      }
 
       // 화공 차단: lerp 이후 속도에 직접 강한 반발력 (정규화·관성 우회)
       if (fireHash) {
