@@ -3463,8 +3463,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   function unitMoveSpeed(formation, x, y) {
     const troopPenalty = Math.max(0.65, 1 - (formationRemainingPopulation(formation) / 50000) * 0.35);
     const swift = formation.swiftTimer > 0 ? 1.5 : 1.0;
-    const disorderPenalty = Math.max(0.1, 1 - formation.disorder * 1.4 * (1 - speedInfo["NORMAL"].move / speedInfo["FAST"].move));
-    return speedInfo["FAST"].move * moveMultiplier(x, y, formation.troopType) * (1 + formation.general.leadership / 100 * 0.4) * troopPenalty * swift * troopTypeInfo(formation.troopType).moveMult * disorderPenalty;
+    return speedInfo["FAST"].move * moveMultiplier(x, y, formation.troopType) * (1 + formation.general.leadership / 100 * 0.4) * troopPenalty * swift * troopTypeInfo(formation.troopType).moveMult;
   }
 
   function reactionRadius(formation) {
@@ -3531,7 +3530,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const VELOCITY_BACK_ENTER = -0.42;
     const VELOCITY_BACK_EXIT = 0.16;
     const CHANGE_COOLDOWN = 0.45;
-    const facing = normalize(formation.facing || vec());
+    // 적과 교전 중인 유닛은 진형 공통 방향 대신 자신의 적 방향을 바라본다
+    const combatFacing = unit.engaged === true
+      ? normalize(vec(unit.engageDirX || 0, unit.engageDirY || 0))
+      : null;
+    const facing = (combatFacing && len(combatFacing.x, combatFacing.y) > 0.001)
+      ? combatFacing
+      : normalize(formation.facing || vec());
     const hasFormationFacing = len(facing.x, facing.y) > 0.001;
     const velocityAligned = !hasFormationFacing || (unit.vx * facing.x + unit.vy * facing.y) > 0.02;
     const velocityFacing = speed > 0.001 ? normalize(vec(unit.vx, unit.vy)) : null;
@@ -3693,10 +3698,17 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (unit.kihapTimer > 0) unit.kihapTimer -= dt;
 
       let desired = vec();
+      unit.engaged = false;
       if (enemyTarget) {
         const enemyDelta = sub(enemyTarget.unit, unit);
         const enemyDir = normalize(enemyDelta);
         const enemyDist = len(enemyDelta.x, enemyDelta.y);
+        // 공격 중인 유닛은 진형 방향이 아니라 자신의 적 방향을 개별적으로 바라본다
+        if (enemyDir.x !== 0 || enemyDir.y !== 0) {
+          unit.engaged = true;
+          unit.engageDirX = enemyDir.x;
+          unit.engageDirY = enemyDir.y;
+        }
         if (slotDistance > formationSpacing(formation) * 1.35) desired = add(mul(normalize(slotDelta), 0.8), mul(enemyDir, 0.2));
         else desired = slotDistance > 0.001 ? add(mul(normalize(slotDelta), 0.35), mul(enemyDir, 0.65)) : enemyDir;
 
