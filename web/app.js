@@ -119,8 +119,8 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       allowedSkills: ["kihap"],
       allowedDensities: ["NORMAL", "WIDE"],
       walkFrames: 6,
-      sourceHeight: 25,
-      renderScale: tileW => tileW / 24,
+      sourceHeight: 160,
+      renderScale: tileW => tileW / 160,
       spacingMult: 1.55,
       collisionMult: 1.8,
     },
@@ -891,19 +891,18 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
   unitWalkSprite.src = './assets/units/ancient_infantry_helmet_walk.png';
   const unitWalkBlueSprite = new Image();
   unitWalkBlueSprite.src = './assets/units/ancient_infantry_helmet_walk_blue.png';
+  const CAVALRY_DIRECTION_SOURCES = {
+    E:  ['./assets/units/cavity_SE.png'],
+    NE: ['./assets/units/cavity_NE.png'],
+    N:  ['./assets/units/cavity_N.png'],
+    S:  ['./assets/units/cavity_S.png'],
+    SE: ['./assets/units/cavity_SE.png'],
+  };
   const CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES = {
-    E:  ['./assets/units/ancient_cavity_helmet_walk_E.png'],
-    NE: ['./assets/units/ancient_cavity_helmet_walk_NE.png'],
-    N:  ['./assets/units/ancient_cavity_helmet_walk_N.png'],
-    S:  ['./assets/units/ancient_cavity_helmet_walk_S.png'],
-    SE: ['./assets/units/ancient_cavity_helmet_walk_SE.png'],
+    ...CAVALRY_DIRECTION_SOURCES,
   };
   const CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES = {
-    E:  ['./assets/units/ancient_cavity_helmet_walk_blue_E.png'],
-    NE: ['./assets/units/ancient_cavity_helmet_walk_blue_NE.png'],
-    N:  ['./assets/units/ancient_cavity_helmet_walk_blue_N.png'],
-    S:  ['./assets/units/ancient_cavity_helmet_walk_blue_S.png'],
-    SE: ['./assets/units/ancient_cavity_helmet_walk_blue_SE.png'],
+    ...CAVALRY_DIRECTION_SOURCES,
   };
   const CAVALRY_DIRECTION_SOURCE_KEY = {
     E: 'E',
@@ -945,7 +944,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       .map(([direction, sources]) => [direction, createImageWithFallbacks(sources)])
   );
   const cavalryWalkSprite = new Image();
-  cavalryWalkSprite.src = './assets/units/ancient_cavity_helmet_walk_E.png';
+  cavalryWalkSprite.src = './assets/units/cavity_SE.png';
   const cavalryWalkBlueSprite = createImageWithFallbacks(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.E);
   const cavalryWalkBackSprite = createImageWithFallbacks(CAVALRY_PLAYER_DIRECTION_SOURCE_CANDIDATES.N);
   const cavalryWalkBackBlueSprite = createImageWithFallbacks(CAVALRY_ENEMY_DIRECTION_SOURCE_CANDIDATES.N);
@@ -5081,7 +5080,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
 
       const visualFacing = updateUnitVisualFacing(formation, unit);
-      const moving = visualFacing.moving;
+      const moving = visualFacing.moving && formation.speed !== "STOP";
       const facingBack = visualFacing.facingBack;
       const cavalryDirection = troopType === 'cavalry'
         ? cavalryDirectionInfo(visualFacing.direction)
@@ -5730,7 +5729,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const { troopType, drawW, drawH } = metrics;
 
       const visualFacing = updateUnitVisualFacing(formation, unit);
-      const isMoving = visualFacing.moving;
+      const isMoving = visualFacing.moving && formation.speed !== "STOP";
       const isFacingBack = visualFacing.facingBack;
       const frameCount = externalUnitLoaded ? troopWalkFrames(troopType) : 2;
       const frameIdx = isMoving ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % frameCount : 0;
