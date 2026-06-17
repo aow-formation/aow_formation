@@ -3522,13 +3522,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     const speed = len(unit.vx, unit.vy);
     const MOVE_ENTER = 0.16;
     const MOVE_EXIT = 0.05;
-    const FORMATION_LR_ENTER = 0.16;
-    const VELOCITY_LR_ENTER = 0.24;
-    const FORMATION_BACK_ENTER = -0.20;
-    const FORMATION_BACK_EXIT = 0.12;
-    const VELOCITY_BACK_ENTER = -0.42;
-    const VELOCITY_BACK_EXIT = 0.16;
-    const CHANGE_COOLDOWN = 0.45;
+    const FORMATION_LR_ENTER = 0.30;
+    const VELOCITY_LR_ENTER = 0.38;
+    const FORMATION_BACK_ENTER = -0.30;
+    const FORMATION_BACK_EXIT = 0.18;
+    const VELOCITY_BACK_ENTER = -0.52;
+    const VELOCITY_BACK_EXIT = 0.22;
+    const CHANGE_COOLDOWN = 1.0;
     // 유닛이 전투/이동으로 기록한 개별 방향이 있으면 우선 사용.
     // formation.facing(진형 공유 상태)이 바뀔 때 모든 유닛이 동시에 방향을 바꾸는 현상 방지.
     const hasOwnFacing = unit.ownFacingX !== undefined
@@ -3866,7 +3866,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (unit.engaged) {
         unit.ownFacingX = unit.engageDirX;
         unit.ownFacingY = unit.engageDirY;
-      } else if (len(unit.vx, unit.vy) > 0.15) {
+      } else if (len(unit.vx, unit.vy) > 0.5) {
         unit.ownFacingX = unit.vx;
         unit.ownFacingY = unit.vy;
       }
