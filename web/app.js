@@ -5111,7 +5111,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         ? cavalryDirectionInfo(visualFacing.direction)
         : null;
       if (hasPixiSprites(troopType)) {
-        const fi = moving
+        const fi = (moving || troopType === 'cavalry')
           ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % troopWalkFrames(troopType)
           : 0;
         if (cavalryDirection) {
@@ -5757,7 +5757,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       const isMoving = visualFacing.moving && formation.speed !== "STOP";
       const isFacingBack = visualFacing.facingBack;
       const frameCount = externalUnitLoaded ? troopWalkFrames(troopType) : 2;
-      const frameIdx = isMoving ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % frameCount : 0;
+      const frameIdx = (isMoving || troopType === 'cavalry') ? Math.floor(game.battleTime * 7 + unit.chaosPhaseOffset * 3) % frameCount : 0;
       const facingLeft = visualFacing.facingLeft;
       const spriteSet = externalUnitLoaded ? null : game.spriteCache[formation.team][frameIdx];
       const sprite = externalUnitLoaded ? null : ((() => {
