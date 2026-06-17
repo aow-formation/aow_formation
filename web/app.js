@@ -3877,6 +3877,25 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
         unit.ownFacingY = unit.vy;
       }
 
+      // 진형 방향 정렬: 교전·추격 중이 아니고 슬롯 근처에 안착한 유닛은
+      // 서서히 진형 방향(formation.facing)으로 ownFacing을 정렬.
+      // 슬롯 이탈 복귀 중(slotDistance >= POSITION_DEFENSE_THRESHOLD)이거나
+      // 최근 적 추격(chaseTimer > 0) 중에는 개별 방향을 유지.
+      const isSettled = !unit.engaged
+        && unit.chaseTimer <= 0
+        && slotDistance < POSITION_DEFENSE_THRESHOLD;
+      if (isSettled && len(formation.facing.x, formation.facing.y) > 0.001) {
+        const ALIGN_RATE = dt * 1.2;
+        const fx = formation.facing.x, fy = formation.facing.y;
+        if (unit.ownFacingX !== undefined) {
+          unit.ownFacingX = lerp(unit.ownFacingX, fx, ALIGN_RATE);
+          unit.ownFacingY = lerp(unit.ownFacingY, fy, ALIGN_RATE);
+        } else {
+          unit.ownFacingX = fx;
+          unit.ownFacingY = fy;
+        }
+      }
+
       // 화공 차단: lerp 이후 속도에 직접 강한 반발력 (정규화·관성 우회)
       if (fireHash) {
         const FIRE_R = 1.2;
