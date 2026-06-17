@@ -3856,7 +3856,13 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       }
       const unitSpeed = Math.max(0.35, unitMoveSpeed(formation, unit.x, unit.y));
       const boost = slotDistance > formationSpacing(formation) * 1.8 ? 1.15 : 1.0;
-      const targetV = mul(moveDir, unitSpeed * boost * chaosSpeedMult);
+      let speedScale = unitSpeed * boost * chaosSpeedMult;
+      // 슬롯 도착 감속: 적 추격이 아닌 단순 복귀 시 오버슈트로 인한 제자리 진동 방지
+      if (!enemyTarget) {
+        const ARRIVAL_RADIUS = formationSpacing(formation) * 0.5;
+        if (slotDistance < ARRIVAL_RADIUS) speedScale *= slotDistance / ARRIVAL_RADIUS;
+      }
+      const targetV = mul(moveDir, speedScale);
       const blend = Math.min(1, dt * 7.0);
       unit.vx = lerp(unit.vx, targetV.x, blend);
       unit.vy = lerp(unit.vy, targetV.y, blend);
@@ -3866,7 +3872,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       if (unit.engaged) {
         unit.ownFacingX = unit.engageDirX;
         unit.ownFacingY = unit.engageDirY;
-      } else if (len(unit.vx, unit.vy) > 0.5) {
+      } else if (len(unit.vx, unit.vy) > 0.15) {
         unit.ownFacingX = unit.vx;
         unit.ownFacingY = unit.vy;
       }
