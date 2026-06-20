@@ -120,7 +120,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       allowedDensities: ["NORMAL", "WIDE"],
       walkFrames: 6,
       sourceHeight: 160,
-      renderScale: tileW => tileW / 160,
+      renderScale: tileW => tileW / 160 * 2,
       spacingMult: 1.55,
       collisionMult: 1.8,
     },
