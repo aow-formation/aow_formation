@@ -3024,6 +3024,10 @@ input[type="range"].adjust-slider {
   background: none;
 }
 
+.online-profile-summary--reversed {
+  flex-direction: row-reverse;
+}
+
 .online-profile-emblem {
   flex: none;
   width: 44px;

@@ -9682,10 +9682,10 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
     });
   }
 
-  function onlineMatchProfileMarkup(player) {
+  function onlineMatchProfileMarkup(player, { reversed = false } = {}) {
     if (!player) return "";
     return `
-      <div class="online-profile-summary">
+      <div class="online-profile-summary${reversed ? " online-profile-summary--reversed" : ""}">
         ${factionEmblemMarkup(player.emblem)}
         <div class="online-profile-text">
           <div class="online-profile-name">${escapeHtml(player.displayName || "Guest")}</div>
@@ -9757,7 +9757,7 @@ import { initRng, random as seededRandom, resetRng } from './src/prng.js';
       onlineOpponentPreview.hidden = !opponent;
       onlineOpponentPreview.innerHTML = opponent ? `
         <div class="online-profile">
-          ${onlineMatchProfileMarkup(opponent)}
+          ${onlineMatchProfileMarkup(opponent, { reversed: true })}
         </div>
         <div class="online-match-roster online-match-roster--opponent">
           ${onlineMatchRosterMarkup(opponent.commanders || [])}
